@@ -1305,7 +1305,26 @@ fun AdminBackupView(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var importTextJson by remember { mutableStateOf("") }
+    var pendingExportJson by remember { mutableStateOf<String?>(null) }
 
+    // Backup export: crea un archivo .json real en donde el usuario elija (Descargas, Drive, etc.)
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri: Uri? ->
+        val json = pendingExportJson
+        if (uri != null && json != null) {
+            try {
+                context.contentResolver.openOutputStream(uri)?.use { out ->
+                    out.write(json.toByteArray())
+                }
+                Toast.makeText(context, "Respaldo guardado correctamente", Toast.LENGTH_LONG).show()
+            } catch (e: Exception) {
+                Toast.makeText(context, "Error al guardar el respaldo: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+            }
+        }
+        pendingExportJson = null
+    }
+    
     // Backup import pick file setup
     val importLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
