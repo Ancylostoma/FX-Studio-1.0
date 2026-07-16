@@ -24,22 +24,22 @@ jobs:
         with:
           gradle-version: current
 
-      # El navegador no sube archivos que empiezan con punto al arrastrarlos,
-      # así que este .env.example (que el plugin de secrets exige que exista)
-      # lo creamos aquí directamente en cada build.
       - name: Create secrets placeholder file
-        run: echo "GEMINI_API_KEY=not_used" > .env.example
-
-      # Tampoco subió debug.keystore; lo generamos con las mismas contraseñas
-      # que ya están configuradas en app/build.gradle.kts.
-      - name: Generate debug keystore
         run: |
-          keytool -genkeypair -v \
-            -keystore debug.keystore \
-            -storepass android -keypass android \
-            -alias androiddebugkey \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -dname "CN=Android Debug,O=Android,C=US"
+          if [ ! -f .env.example ]; then
+            echo "GEMINI_API_KEY=not_used" > .env.example
+          fi
+
+      - name: Ensure debug keystore exists
+        run: |
+          if [ ! -f debug.keystore ]; then
+            keytool -genkeypair -v \
+              -keystore debug.keystore \
+              -storepass android -keypass android \
+              -alias androiddebugkey \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
 
       - name: Build debug APK
         run: gradle assembleDebug --stacktrace
