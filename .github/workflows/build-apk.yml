@@ -24,9 +24,14 @@ jobs:
         with:
           gradle-version: current
 
-      # El proyecto no incluye gradlew/debug.keystore (no vienen en el export de AI Studio).
-      # Generamos el keystore de debug estándar con las mismas contraseñas que ya
-      # están configuradas en app/build.gradle.kts (storePassword/keyPassword = "android").
+      # El navegador no sube archivos que empiezan con punto al arrastrarlos,
+      # así que este .env.example (que el plugin de secrets exige que exista)
+      # lo creamos aquí directamente en cada build.
+      - name: Create secrets placeholder file
+        run: echo "GEMINI_API_KEY=not_used" > .env.example
+
+      # Tampoco subió debug.keystore; lo generamos con las mismas contraseñas
+      # que ya están configuradas en app/build.gradle.kts.
       - name: Generate debug keystore
         run: |
           keytool -genkeypair -v \
