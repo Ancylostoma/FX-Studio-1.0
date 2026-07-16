@@ -1378,13 +1378,9 @@ fun AdminBackupView(
                         onClick = {
                             coroutineScope.launch {
                                 val json = viewModel.exportBackupJson()
-                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                    type = "text/plain"
-                                    putExtra(Intent.EXTRA_SUBJECT, "Respaldo FotoEstudio")
-                                    putExtra(Intent.EXTRA_TEXT, json)
-                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                }
-                                context.startActivity(Intent.createChooser(shareIntent, "Guardar Respaldo"))
+                                pendingExportJson = json
+                                val fileName = "respaldo_fotoestudio_${System.currentTimeMillis()}.json"
+                                exportLauncher.launch(fileName)
                             }
                         },
                         modifier = Modifier
