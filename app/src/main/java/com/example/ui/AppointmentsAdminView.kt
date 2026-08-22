@@ -87,7 +87,11 @@ fun AppointmentsAdminView(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column {
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(end = 8.dp)
+                            ) {
                                 Text(
                                     text = appt.nombreCliente,
                                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
