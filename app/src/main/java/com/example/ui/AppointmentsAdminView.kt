@@ -34,6 +34,8 @@ fun AppointmentsAdminView(
     val context = LocalContext.current
     val appointments by viewModel.appointments.collectAsState()
     var selectedAppointmentForSignature by remember { mutableStateOf<AppointmentEntity?>(null) }
+    // Una cita firmada es un contrato: se pide confirmación antes de borrarla.
+    var appointmentPendingDelete by remember { mutableStateOf<AppointmentEntity?>(null) }
 
     if (appointments.isEmpty()) {
         Box(
@@ -185,10 +187,7 @@ fun AppointmentsAdminView(
                                 }
 
                                 IconButton(
-                                    onClick = {
-                                        viewModel.deleteAppointment(appt.id)
-                                        Toast.makeText(context, "Cita eliminada", Toast.LENGTH_SHORT).show()
-                                    }
+                                    onClick = { appointmentPendingDelete = appt }
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Delete,
@@ -202,6 +201,46 @@ fun AppointmentsAdminView(
                 }
             }
         }
+    }
+
+    // Confirmación de borrado
+    appointmentPendingDelete?.let { appt ->
+        AlertDialog(
+            onDismissRequest = { appointmentPendingDelete = null },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
+            title = { Text("¿Eliminar esta reservación?") },
+            text = {
+                Text(
+                    "Se borrará la cita de ${appt.nombreCliente} del ${appt.fecha} a las " +
+                        "${appt.hora}, junto con su firma digital.\n\nEsta acción no se puede deshacer."
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteAppointment(appt.id)
+                        appointmentPendingDelete = null
+                        Toast.makeText(context, "Cita eliminada", Toast.LENGTH_SHORT).show()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Sí, eliminar")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { appointmentPendingDelete = null }) {
+                    Text("Cancelar")
+                }
+            }
+        )
     }
 
     // Signature preview dialog

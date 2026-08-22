@@ -38,6 +38,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -731,6 +732,7 @@ fun ClientCatalogCard(
         Column {
             CatalogItemImage(
                 imageBytes = item.imageBytes,
+                category = item.category,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(200.dp)
@@ -985,6 +987,7 @@ fun SideCartItemRow(
         ) {
             CatalogItemImage(
                 imageBytes = cartItem.item.imageBytes,
+                category = cartItem.item.category,
                 modifier = Modifier
                     .size(54.dp)
                     .clip(RoundedCornerShape(8.dp))
@@ -1063,7 +1066,11 @@ fun SideCartItemRow(
 }
 
 @Composable
-fun CatalogItemImage(imageBytes: ByteArray?, modifier: Modifier = Modifier) {
+fun CatalogItemImage(
+    imageBytes: ByteArray?,
+    category: String = "",
+    modifier: Modifier = Modifier
+) {
     val bitmap = remember(imageBytes) {
         imageBytes?.let {
             try {
@@ -1074,10 +1081,30 @@ fun CatalogItemImage(imageBytes: ByteArray?, modifier: Modifier = Modifier) {
         }
     }
 
+    // Foto de ejemplo por categoría, tomada del catálogo impreso. Se usa solo
+    // cuando el paquete no tiene una foto propia cargada desde el panel admin,
+    // así se evita guardar la misma imagen decenas de veces en la base de datos.
+    val fallbackRes = remember(category) {
+        when {
+            category.contains("Primer Año", ignoreCase = true) -> R.drawable.cat_primer_ano
+            category.contains("Bodas", ignoreCase = true) -> R.drawable.cat_bodas
+            category.contains("15", ignoreCase = true) ||
+                category.contains("quince", ignoreCase = true) -> R.drawable.cat_quince
+            else -> null
+        }
+    }
+
     if (bitmap != null) {
         Image(
             bitmap = bitmap,
             contentDescription = "Foto de muestra",
+            modifier = modifier,
+            contentScale = ContentScale.Crop
+        )
+    } else if (fallbackRes != null) {
+        Image(
+            painter = painterResource(id = fallbackRes),
+            contentDescription = "Foto de muestra de $category",
             modifier = modifier,
             contentScale = ContentScale.Crop
         )
@@ -1127,6 +1154,7 @@ fun AdminScreen(
 
     var showAddEditDialog by remember { mutableStateOf(false) }
     var itemToEdit by remember { mutableStateOf<CatalogItem?>(null) }
+    var itemPendingDelete by remember { mutableStateOf<CatalogItem?>(null) }
 
     var adminTabSelected by remember { mutableStateOf(0) } // 0 = Catalog CRUD, 1 = Appointments, 2 = Config, 3 = Backup
 
@@ -1245,10 +1273,7 @@ fun AdminScreen(
                                         viewModel.duplicateCatalogItem(item)
                                         Toast.makeText(context, "Item duplicado", Toast.LENGTH_SHORT).show()
                                     },
-                                    onDelete = {
-                                        viewModel.deleteCatalogItem(item.id)
-                                        Toast.makeText(context, "Item eliminado", Toast.LENGTH_SHORT).show()
-                                    }
+                                    onDelete = { itemPendingDelete = item }
                                 )
                             }
                         }
@@ -1286,6 +1311,43 @@ fun AdminScreen(
                 }
             }
         }
+    }
+
+    itemPendingDelete?.let { item ->
+        AlertDialog(
+            onDismissRequest = { itemPendingDelete = null },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
+            title = { Text("¿Eliminar este paquete?") },
+            text = {
+                val etiqueta = if (item.code.isNotBlank()) "[${item.code}] ${item.name}" else item.name
+                Text("Se quitará \"$etiqueta\" del catálogo.\n\nEsta acción no se puede deshacer.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteCatalogItem(item.id)
+                        itemPendingDelete = null
+                        Toast.makeText(context, "Item eliminado", Toast.LENGTH_SHORT).show()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Sí, eliminar")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { itemPendingDelete = null }) {
+                    Text("Cancelar")
+                }
+            }
+        )
     }
 
     if (showAddEditDialog) {
@@ -1330,6 +1392,7 @@ fun AdminCatalogItemCard(
         ) {
             CatalogItemImage(
                 imageBytes = item.imageBytes,
+                category = item.category,
                 modifier = Modifier
                     .size(64.dp)
                     .clip(RoundedCornerShape(8.dp))
@@ -1598,7 +1661,7 @@ fun AdminBackupView(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Exporta todo el catálogo de fotos, variantes, códigos, extras incluidos, precios e imágenes como un archivo JSON.",
+                        text = "Exporta el catálogo completo (códigos, variantes, extras, precios e imágenes) y también las reservaciones con su firma digital. Guárdalo con frecuencia: es tu única copia de los contratos firmados.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

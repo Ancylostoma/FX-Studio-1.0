@@ -27,6 +27,16 @@ class StudioRepository(private val studioDao: StudioDao) {
         studioDao.deleteAppointmentById(id)
     }
 
+    suspend fun getAllAppointmentsOnce(): List<AppointmentEntity> {
+        return studioDao.getAllAppointmentsOnce()
+    }
+
+    /** Reemplaza la agenda completa al restaurar un respaldo que la incluya. */
+    suspend fun replaceAppointments(appointments: List<AppointmentEntity>) {
+        studioDao.clearAppointments()
+        appointments.forEach { studioDao.insertAppointment(it) }
+    }
+
     suspend fun getAdminPin(): String {
         return studioDao.getConfig("admin_pin")?.value ?: "1234"
     }

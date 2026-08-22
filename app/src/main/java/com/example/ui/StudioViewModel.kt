@@ -319,6 +319,25 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
         }
         root.put("items", itemsArray)
 
+        // Las citas firmadas son documentos legales: se incluyen en el respaldo
+        // junto con la imagen de la firma, para no perderlas si falla el equipo.
+        val appointmentsArray = JSONArray()
+        for (appt in repository.getAllAppointmentsOnce()) {
+            val obj = JSONObject()
+            obj.put("fecha", appt.fecha)
+            obj.put("hora", appt.hora)
+            obj.put("nombreCliente", appt.nombreCliente)
+            obj.put("telefono", appt.telefono)
+            obj.put("detalleSeleccion", appt.detalleSeleccion)
+            obj.put("notas", appt.notas)
+            obj.put("terminosAceptados", appt.terminosAceptados)
+            obj.put("createdAt", appt.createdAt)
+            val firma = appt.firmaBytes?.let { Base64.encodeToString(it, Base64.NO_WRAP) } ?: ""
+            obj.put("firmaBytes", firma)
+            appointmentsArray.put(obj)
+        }
+        root.put("appointments", appointmentsArray)
+
         return root.toString(2)
     }
 
@@ -360,6 +379,40 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
                 }
 
                 repository.importBackup(importedItems, importedConfigs)
+
+                // Solo se toca la agenda si el respaldo la trae. Así, restaurar
+                // un respaldo antiguo (anterior a esta versión) no borra las
+                // citas firmadas que ya haya en el equipo.
+                if (root.has("appointments")) {
+                    val apptArray = root.getJSONArray("appointments")
+                    val importedAppointments = mutableListOf<AppointmentEntity>()
+                    for (i in 0 until apptArray.length()) {
+                        val obj = apptArray.getJSONObject(i)
+                        val firmaB64 = obj.optString("firmaBytes", "")
+                        val firma = if (firmaB64.isNotEmpty()) {
+                            try {
+                                Base64.decode(firmaB64, Base64.NO_WRAP)
+                            } catch (e: Exception) {
+                                null
+                            }
+                        } else null
+                        importedAppointments.add(
+                            AppointmentEntity(
+                                fecha = obj.getString("fecha"),
+                                hora = obj.getString("hora"),
+                                nombreCliente = obj.getString("nombreCliente"),
+                                telefono = obj.getString("telefono"),
+                                detalleSeleccion = obj.getString("detalleSeleccion"),
+                                notas = obj.optString("notas", ""),
+                                firmaBytes = firma,
+                                terminosAceptados = obj.optBoolean("terminosAceptados", true),
+                                createdAt = obj.optLong("createdAt", System.currentTimeMillis())
+                            )
+                        )
+                    }
+                    repository.replaceAppointments(importedAppointments)
+                }
+
                 loadConfigs()
                 onSuccess()
             } catch (e: Exception) {
