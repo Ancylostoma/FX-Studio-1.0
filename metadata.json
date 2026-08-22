@@ -1,5 +1,5 @@
 {
-  "name": "FotoEstudio",
+  "name": "FXestudio 2.0",
   "description": "Aplicación offline para catálogo, cotización y pedidos vía WhatsApp para un estudio de fotografía.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
