@@ -39,6 +39,13 @@ interface StudioDao {
     @Query("SELECT * FROM appointments ORDER BY createdAt DESC")
     fun getAllAppointments(): Flow<List<AppointmentEntity>>
 
+    // Lectura puntual, usada al exportar el respaldo.
+    @Query("SELECT * FROM appointments ORDER BY createdAt DESC")
+    suspend fun getAllAppointmentsOnce(): List<AppointmentEntity>
+
+    @Query("DELETE FROM appointments")
+    suspend fun clearAppointments()
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAppointment(appointment: AppointmentEntity): Long
 

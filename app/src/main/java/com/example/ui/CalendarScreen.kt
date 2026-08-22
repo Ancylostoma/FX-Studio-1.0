@@ -42,6 +42,7 @@ fun CalendarScreen(
     val context = LocalContext.current
     val cartItems by viewModel.cart.collectAsState()
     val cartTotal by viewModel.cartTotal.collectAsState()
+    val appointments by viewModel.appointments.collectAsState()
 
     // Calendar state
     val calendar = remember { Calendar.getInstance() }
@@ -90,6 +91,14 @@ fun CalendarScreen(
         "09:00 AM", "10:00 AM", "11:00 AM", "12:00 PM",
         "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM"
     )
+
+    // Horas ya reservadas para el día elegido: evita agendar dos clientes
+    // en el mismo turno.
+    val horariosOcupados = remember(appointments, selectedDateString) {
+        appointments.filter { it.fecha == selectedDateString }
+            .map { it.hora }
+            .toSet()
+    }
 
     LazyColumn(
         modifier = modifier
@@ -293,7 +302,8 @@ fun CalendarScreen(
                         )
                         Spacer(modifier = Modifier.height(6.dp))
 
-                        // Time slots
+                        // Time slots. Los horarios ya reservados para ese día
+                        // aparecen deshabilitados para no duplicar la cita.
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             availableHours.chunked(4).forEach { hourRow ->
                                 Row(
@@ -301,15 +311,44 @@ fun CalendarScreen(
                                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
                                     hourRow.forEach { hour ->
+                                        val ocupado = hour in horariosOcupados
                                         FilterChip(
-                                            selected = selectedTimeSlot == hour,
+                                            selected = selectedTimeSlot == hour && !ocupado,
+                                            enabled = !ocupado,
                                             onClick = { selectedTimeSlot = hour },
-                                            label = { Text(hour, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)) },
+                                            label = {
+                                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                    Text(
+                                                        hour,
+                                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                                            fontWeight = FontWeight.SemiBold
+                                                        )
+                                                    )
+                                                    if (ocupado) {
+                                                        Text(
+                                                            "Ocupado",
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            color = MaterialTheme.colorScheme.error
+                                                        )
+                                                    }
+                                                }
+                                            },
                                             modifier = Modifier.weight(1f)
                                         )
                                     }
                                 }
                             }
+                        }
+
+                        if (selectedTimeSlot in horariosOcupados) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "⚠️ Las $selectedTimeSlot ya está reservada ese día. Elija otra hora.",
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            )
                         }
                     }
                 }
@@ -405,6 +444,16 @@ fun CalendarScreen(
                             }
                             if (packageSelection.isBlank()) {
                                 Toast.makeText(context, "Por favor especifique la opción o paquete", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                            // Última barrera contra la doble reserva: alguien pudo
+                            // agendar ese turno mientras se llenaba el formulario.
+                            if (selectedTimeSlot in horariosOcupados) {
+                                Toast.makeText(
+                                    context,
+                                    "Ese horario ya está reservado. Por favor elija otra hora.",
+                                    Toast.LENGTH_LONG
+                                ).show()
                                 return@Button
                             }
 
