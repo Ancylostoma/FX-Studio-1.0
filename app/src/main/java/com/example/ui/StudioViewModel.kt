@@ -35,8 +35,16 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
             initialValue = emptyList()
         )
 
+    // All registered appointments
+    val appointments: StateFlow<List<AppointmentEntity>> = repository.allAppointments
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
     // Configurations
-    private val _whatsappNumber = MutableStateFlow("")
+    private val _whatsappNumber = MutableStateFlow("55823513")
     val whatsappNumber: StateFlow<String> = _whatsappNumber.asStateFlow()
 
     private val _adminPin = MutableStateFlow("1234")
@@ -74,7 +82,8 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     private suspend fun loadConfigs() {
-        _whatsappNumber.value = repository.getWhatsAppNumber()
+        val num = repository.getWhatsAppNumber()
+        _whatsappNumber.value = if (num.isNotBlank()) num else "55823513"
         _adminPin.value = repository.getAdminPin()
     }
 
@@ -118,7 +127,9 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
     // Cart Management
     fun addToCart(item: CatalogItem, variant: CatalogVariant, quantity: Int) {
         val currentList = _cart.value.toMutableList()
-        val index = currentList.indexOfFirst { it.item.id == item.id && it.variant.name == variant.name }
+        val index = currentList.indexOfFirst {
+            it.item.name == item.name && it.variant.name == variant.name && it.item.category == item.category
+        }
         if (index != -1) {
             val existing = currentList[index]
             currentList[index] = existing.copy(quantity = existing.quantity + quantity)
@@ -128,8 +139,21 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
         _cart.value = currentList
     }
 
+    fun addCustomToCart(title: String, category: String, variantName: String, price: Double, quantity: Int, description: String = "") {
+        val customItem = CatalogItem(
+            id = 0,
+            name = title,
+            description = description,
+            category = category,
+            variantsString = "$variantName:$price"
+        )
+        addToCart(customItem, CatalogVariant(variantName, price), quantity)
+    }
+
     fun removeFromCart(cartItem: CartItem) {
-        val currentList = _cart.value.filterNot { it.item.id == cartItem.item.id && it.variant.name == cartItem.variant.name }
+        val currentList = _cart.value.filterNot {
+            it.item.name == cartItem.item.name && it.variant.name == cartItem.variant.name && it.item.category == cartItem.item.category
+        }
         _cart.value = currentList
     }
 
@@ -139,7 +163,9 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
             return
         }
         val currentList = _cart.value.toMutableList()
-        val index = currentList.indexOfFirst { it.item.id == cartItem.item.id && it.variant.name == cartItem.variant.name }
+        val index = currentList.indexOfFirst {
+            it.item.name == cartItem.item.name && it.variant.name == cartItem.variant.name && it.item.category == cartItem.item.category
+        }
         if (index != -1) {
             currentList[index] = currentList[index].copy(quantity = newQty)
         }
@@ -148,6 +174,14 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
 
     fun clearCart() {
         _cart.value = emptyList()
+    }
+
+    fun getCartSummaryText(): String {
+        if (_cart.value.isEmpty()) return ""
+        val itemsSummary = _cart.value.joinToString("; ") {
+            "${it.item.name} (${it.variant.name}) x${it.quantity} [\$${String.format("%.2f", it.subtotal)}]"
+        }
+        return "Total: \$${String.format("%.2f", cartTotal.value)} — $itemsSummary"
     }
 
     // Config updates
@@ -168,10 +202,12 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
     // Catalog CRUD
     fun saveCatalogItem(
         id: Int,
+        code: String = "",
         name: String,
         description: String,
         category: String,
         variants: List<CatalogVariant>,
+        includedExtras: String = "",
         imageBytes: ByteArray?
     ) {
         viewModelScope.launch {
@@ -179,13 +215,26 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
             val finalImageBytes = imageBytes?.let { resizeAndCompressImage(it) }
             val item = CatalogItem(
                 id = id,
+                code = code,
                 name = name,
                 description = description,
                 category = category,
                 variantsString = CatalogItem.createVariantsString(variants),
+                includedExtras = includedExtras,
                 imageBytes = finalImageBytes ?: (if (id != 0) repository.getItemById(id)?.imageBytes else null)
             )
             repository.insertItem(item)
+        }
+    }
+
+    fun duplicateCatalogItem(item: CatalogItem) {
+        viewModelScope.launch {
+            val duplicated = item.copy(
+                id = 0,
+                name = "${item.name} (Copia)",
+                code = if (item.code.isNotBlank()) "${item.code}-C" else ""
+            )
+            repository.insertItem(duplicated)
         }
     }
 
@@ -193,7 +242,42 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             repository.deleteItemById(id)
             // Clean cart if deleted item was inside
-            _cart.value = _cart.value.filterNot { it.item.id == id }
+            _cart.value = _cart.value.filterNot { it.item.id == id && id != 0 }
+        }
+    }
+
+    // Appointments CRUD
+    fun saveAppointment(
+        fecha: String,
+        hora: String,
+        nombreCliente: String,
+        telefono: String,
+        detalleSeleccion: String,
+        notas: String,
+        firmaBytes: ByteArray?,
+        terminosAceptados: Boolean = true,
+        onSuccess: (AppointmentEntity) -> Unit
+    ) {
+        viewModelScope.launch {
+            val appointment = AppointmentEntity(
+                fecha = fecha,
+                hora = hora,
+                nombreCliente = nombreCliente,
+                telefono = telefono,
+                detalleSeleccion = detalleSeleccion,
+                notas = notas,
+                firmaBytes = firmaBytes,
+                terminosAceptados = terminosAceptados
+            )
+            val generatedId = repository.insertAppointment(appointment)
+            val savedAppointment = appointment.copy(id = generatedId.toInt())
+            onSuccess(savedAppointment)
+        }
+    }
+
+    fun deleteAppointment(id: Int) {
+        viewModelScope.launch {
+            repository.deleteAppointmentById(id)
         }
     }
 
@@ -223,10 +307,12 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
         val itemsArray = JSONArray()
         for (item in items) {
             val obj = JSONObject()
+            obj.put("code", item.code)
             obj.put("name", item.name)
             obj.put("description", item.description)
             obj.put("category", item.category)
             obj.put("variantsString", item.variantsString)
+            obj.put("includedExtras", item.includedExtras)
             val base64Img = item.imageBytes?.let { Base64.encodeToString(it, Base64.NO_WRAP) } ?: ""
             obj.put("imageBytes", base64Img)
             itemsArray.put(obj)
@@ -262,10 +348,12 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
                     } else null
                     importedItems.add(
                         CatalogItem(
+                            code = obj.optString("code", ""),
                             name = obj.getString("name"),
                             description = obj.getString("description"),
                             category = obj.getString("category"),
                             variantsString = obj.getString("variantsString"),
+                            includedExtras = obj.optString("includedExtras", ""),
                             imageBytes = imgBytes
                         )
                     )
@@ -322,25 +410,83 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    // Build the WhatsApp message and return deep-link URI
-    fun generateWhatsAppUri(): String {
-        val phoneFiltered = whatsappNumber.value.filter { it.isDigit() }
+    // Build the WhatsApp message for Shopping Cart Orders with Studio Info & Signed Terms
+    fun generateWhatsAppUri(clientName: String = "", clientPhone: String = ""): String {
+        val phoneFiltered = if (whatsappNumber.value.isNotBlank()) {
+            val raw = whatsappNumber.value.filter { it.isDigit() }
+            if (raw.length == 8) "53$raw" else raw
+        } else "5355823513"
+
         val sb = StringBuilder()
-        sb.append("📸 *Presupuesto - Estudio de Fotos*\n")
+        sb.append("📸 *FXESTUDIO — Pedido y Cotización de Sesión*\n")
+        sb.append("📍 _Bayamo, Granma, Cuba_\n")
         sb.append("-------------------------------------------\n")
-        sb.append("Cliente solicita cotización para:\n\n")
+        if (clientName.isNotBlank()) {
+            sb.append("👤 *Cliente:* $clientName\n")
+        }
+        if (clientPhone.isNotBlank()) {
+            sb.append("📞 *Teléfono:* $clientPhone\n")
+        }
+        sb.append("-------------------------------------------\n")
+        sb.append("📋 *Detalle del Pedido:*\n\n")
 
         cart.value.forEach { item ->
-            sb.append("• *${item.item.name}*\n")
-            sb.append("  Var: ${item.variant.name}\n")
-            sb.append("  Cant: ${item.quantity} | Unit: $${String.format("%.2f", item.variant.price)}\n")
-            sb.append("  Subtotal: $${String.format("%.2f", item.subtotal)}\n\n")
+            val codeStr = if (item.item.code.isNotBlank()) "[${item.item.code}] " else ""
+            sb.append("• *$codeStr${item.item.name}*\n")
+            sb.append("  Categoría: ${item.item.category}\n")
+            sb.append("  Variante/Formato: ${item.variant.name}\n")
+            if (item.item.includedExtras.isNotBlank()) {
+                sb.append("  Incluye: ${item.item.includedExtras}\n")
+            }
+            sb.append("  Cantidad: ${item.quantity}  |  Precio unitario: $${String.format("%.2f", item.variant.price)}\n")
+            sb.append("  *Subtotal:* $${String.format("%.2f", item.subtotal)}\n\n")
         }
 
         sb.append("-------------------------------------------\n")
-        sb.append("*TOTAL GENERAL: $${String.format("%.2f", cartTotal.value)}*\n")
+        sb.append("💰 *TOTAL GENERAL: $${String.format("%.2f", cartTotal.value)} USD*\n")
+        sb.append("💵 _Se acepta Zelle y CUP al cambio del día._\n")
         sb.append("-------------------------------------------\n")
-        sb.append("_Pedido generado localmente desde la tablet del estudio._")
+        sb.append("✍️ *Contrato de Sesión Fotográfica:* ✅ FIRMADO Y ACEPTADO\n")
+        sb.append("📌 *Estudio:* Edificio 29, Apt 7, Jesús Menéndez, frente a la Calesa, Bayamo.\n")
+        sb.append("🕒 *Horario:* Lun - Sáb, 9:00 AM – 5:00 PM\n")
+        sb.append("📞 *Contacto:* 55823513 / 56826099")
+
+        val encodedText = try {
+            URLEncoder.encode(sb.toString(), "UTF-8")
+        } catch (e: Exception) {
+            sb.toString()
+        }
+
+        return "https://api.whatsapp.com/send?phone=$phoneFiltered&text=$encodedText"
+    }
+
+    // Build WhatsApp message for Appointments
+    fun generateAppointmentWhatsAppUri(appointment: AppointmentEntity): String {
+        val phoneFiltered = if (whatsappNumber.value.isNotBlank()) {
+            val raw = whatsappNumber.value.filter { it.isDigit() }
+            if (raw.length == 8) "53$raw" else raw
+        } else "5355823513"
+
+        val sb = StringBuilder()
+        sb.append("📅 *FXESTUDIO — Reservación de Cita / Sesión*\n")
+        sb.append("📍 _Bayamo, Granma, Cuba_\n")
+        sb.append("-------------------------------------------\n")
+        sb.append("👤 *Cliente:* ${appointment.nombreCliente}\n")
+        sb.append("📞 *Teléfono:* ${appointment.telefono}\n")
+        sb.append("📆 *Fecha elegida:* ${appointment.fecha}\n")
+        sb.append("⏰ *Hora:* ${appointment.hora}\n")
+        sb.append("-------------------------------------------\n")
+        sb.append("📸 *Opción o Selección:*\n")
+        sb.append("${appointment.detalleSeleccion}\n\n")
+        if (appointment.notas.isNotBlank()) {
+            sb.append("📝 *Notas adicionales:* ${appointment.notas}\n")
+        }
+        sb.append("-------------------------------------------\n")
+        sb.append("✍️ *Contrato de Sesión Fotográfica:* ✅ FIRMADO Y ACEPTADO\n")
+        sb.append("📌 *Dirección:* Edificio 29, Apt 7, Jesús Menéndez, frente a la Calesa, Bayamo.\n")
+        sb.append("🕒 *Horario del Estudio:* Lun - Sáb, 9:00 AM – 5:00 PM\n")
+        sb.append("📞 *Contacto:* 55823513 / 56826099\n")
+        sb.append("💵 *Precios en USD* (Zelle o CUP al cambio del día)")
 
         val encodedText = try {
             URLEncoder.encode(sb.toString(), "UTF-8")

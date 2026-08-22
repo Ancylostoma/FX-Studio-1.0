@@ -34,4 +34,17 @@ interface StudioDao {
 
     @Query("DELETE FROM app_config")
     suspend fun clearConfigs()
+
+    // Appointments
+    @Query("SELECT * FROM appointments ORDER BY createdAt DESC")
+    fun getAllAppointments(): Flow<List<AppointmentEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAppointment(appointment: AppointmentEntity): Long
+
+    @Delete
+    suspend fun deleteAppointment(appointment: AppointmentEntity)
+
+    @Query("DELETE FROM appointments WHERE id = :id")
+    suspend fun deleteAppointmentById(id: Int)
 }

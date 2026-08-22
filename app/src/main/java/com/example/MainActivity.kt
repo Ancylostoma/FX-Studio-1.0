@@ -48,14 +48,19 @@ import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.data.CatalogItem
 import com.example.data.CatalogVariant
-import com.example.ui.CartItem
-import com.example.ui.StudioViewModel
+import com.example.ui.*
 import com.example.ui.theme.MyApplicationTheme
 import java.io.InputStream
 
 enum class Screen {
     CLIENT,
     ADMIN
+}
+
+enum class ClientTab(val title: String) {
+    OFERTAS("Ofertas"),
+    CREAR_PROPIA("Crear Oferta Propia"),
+    CALENDARIO("Calendario")
 }
 
 class MainActivity : ComponentActivity() {
@@ -138,20 +143,24 @@ fun MainApp() {
 }
 
 // ==========================================
-// CLIENT SCREEN
+// CLIENT SCREEN WITH 3-TAB NAVIGATION
 // ==========================================
 @Composable
 fun ClientScreen(
     viewModel: StudioViewModel,
     onOpenAdminRequest: () -> Unit
 ) {
+    val context = LocalContext.current
     val items by viewModel.catalogItems.collectAsState()
     val cart by viewModel.cart.collectAsState()
     val cartTotal by viewModel.cartTotal.collectAsState()
     val cartCount by viewModel.cartCount.collectAsState()
 
+    var activeTab by remember { mutableStateOf(ClientTab.OFERTAS) }
     var selectedCategory by remember { mutableStateOf("Todos") }
     var showSummaryDialog by remember { mutableStateOf(false) }
+    var showContractForOrder by remember { mutableStateOf(false) }
+    var itemForExtrasDialog by remember { mutableStateOf<CatalogItem?>(null) }
 
     // Dynamically retrieve unique categories from database items
     val categories = remember(items) {
@@ -168,234 +177,350 @@ fun ClientScreen(
     // Determine tablet or wide split screen layout
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-    val isWideScreen = isLandscape || configuration.screenWidthDp >= 600
+    val isWideScreen = isLandscape || configuration.screenWidthDp >= 720
 
-    if (isWideScreen) {
-        // LANDSCAPE / TABLET LAYOUT: Split 65% Catalog - 35% Permanent Cart side panel
-        Row(modifier = Modifier.fillMaxSize()) {
-            Column(
-                modifier = Modifier
-                    .weight(0.65f)
-                    .fillMaxHeight()
-                    .padding(16.dp)
+    Scaffold(
+        bottomBar = {
+            NavigationBar(
+                containerColor = MaterialTheme.colorScheme.surface,
+                tonalElevation = 8.dp
             ) {
-                ClientHeader(onOpenAdminRequest = onOpenAdminRequest)
-                Spacer(modifier = Modifier.height(12.dp))
-                CategorySelector(
-                    categories = categories,
-                    selected = selectedCategory,
-                    onSelect = { selectedCategory = it }
+                NavigationBarItem(
+                    selected = activeTab == ClientTab.OFERTAS,
+                    onClick = { activeTab = ClientTab.OFERTAS },
+                    icon = {
+                        Icon(
+                            imageVector = if (activeTab == ClientTab.OFERTAS) Icons.Filled.Stars else Icons.Outlined.Stars,
+                            contentDescription = "Ofertas",
+                            modifier = Modifier.size(26.dp)
+                        )
+                    },
+                    label = {
+                        Text(
+                            text = "Ofertas",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                    },
+                    modifier = Modifier.testTag("tab_ofertas")
                 )
-                Spacer(modifier = Modifier.height(16.dp))
-                ClientCatalogList(
-                    items = filteredItems,
-                    onAddToCart = { item, variant, qty ->
-                        viewModel.addToCart(item, variant, qty)
-                    }
+
+                NavigationBarItem(
+                    selected = activeTab == ClientTab.CREAR_PROPIA,
+                    onClick = { activeTab = ClientTab.CREAR_PROPIA },
+                    icon = {
+                        Icon(
+                            imageVector = if (activeTab == ClientTab.CREAR_PROPIA) Icons.Filled.AutoFixHigh else Icons.Outlined.AutoFixHigh,
+                            contentDescription = "Crear Oferta",
+                            modifier = Modifier.size(26.dp)
+                        )
+                    },
+                    label = {
+                        Text(
+                            text = "Crear Oferta Propia",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                    },
+                    modifier = Modifier.testTag("tab_crear_propia")
+                )
+
+                NavigationBarItem(
+                    selected = activeTab == ClientTab.CALENDARIO,
+                    onClick = { activeTab = ClientTab.CALENDARIO },
+                    icon = {
+                        Icon(
+                            imageVector = if (activeTab == ClientTab.CALENDARIO) Icons.Filled.CalendarMonth else Icons.Outlined.CalendarMonth,
+                            contentDescription = "Calendario",
+                            modifier = Modifier.size(26.dp)
+                        )
+                    },
+                    label = {
+                        Text(
+                            text = "Calendario",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                    },
+                    modifier = Modifier.testTag("tab_calendario")
                 )
             }
-
-            // Divider separating side cart from catalog
-            Box(
+        }
+    ) { paddingValues ->
+        if (isWideScreen) {
+            // LANDSCAPE / TABLET LAYOUT: Split 65% Main Content - 35% Permanent Cart side panel
+            Row(
                 modifier = Modifier
-                    .fillMaxHeight()
-                    .width(1.dp)
-                    .background(MaterialTheme.colorScheme.outline)
-            )
-
-            // Permanent Side Cart Panel
-            Column(
-                modifier = Modifier
-                    .weight(0.35f)
-                    .fillMaxHeight()
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    .padding(16.dp)
+                    .fillMaxSize()
+                    .padding(paddingValues)
             ) {
-                Text(
-                    text = "Tu Pedido",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(bottom = 12.dp)
-                )
+                Column(
+                    modifier = Modifier
+                        .weight(0.65f)
+                        .fillMaxHeight()
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                ) {
+                    ClientHeader(onOpenAdminRequest = onOpenAdminRequest)
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                if (cart.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                imageVector = Icons.Default.ShoppingCart,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                                modifier = Modifier.size(64.dp)
+                    when (activeTab) {
+                        ClientTab.OFERTAS -> {
+                            CategorySelector(
+                                categories = categories,
+                                selected = selectedCategory,
+                                onSelect = { selectedCategory = it }
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "El carrito está vacío",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                            )
-                        }
-                    }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(cart) { cartItem ->
-                            SideCartItemRow(
-                                cartItem = cartItem,
-                                onUpdateQty = { item, qty ->
-                                    viewModel.updateCartQuantity(item, qty)
+                            Spacer(modifier = Modifier.height(14.dp))
+                            ClientCatalogList(
+                                items = filteredItems,
+                                onAddToCart = { item, variant, qty ->
+                                    viewModel.addToCart(item, variant, qty)
                                 },
-                                onRemove = { item ->
-                                    viewModel.removeFromCart(item)
+                                onOpenExtras = { item ->
+                                    itemForExtrasDialog = item
                                 }
                             )
                         }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(1.dp)
-                            .background(MaterialTheme.colorScheme.outline)
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = "Total:",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "$${String.format("%.2f", cartTotal)}",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Button(
-                        onClick = { showSummaryDialog = true },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(54.dp)
-                            .testTag("view_summary_button"),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Icon(imageVector = Icons.Default.Check, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Confirmar Cotización",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
+                        ClientTab.CREAR_PROPIA -> {
+                            CustomOfferScreen(
+                                viewModel = viewModel,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        ClientTab.CALENDARIO -> {
+                            CalendarScreen(
+                                viewModel = viewModel,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                     }
                 }
-            }
-        }
-    } else {
-        // MOBILE PORTRAIT LAYOUT: Single Column + Sticky Bottom Bar Cart
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
-        ) {
-            ClientHeader(onOpenAdminRequest = onOpenAdminRequest)
-            Spacer(modifier = Modifier.height(12.dp))
-            CategorySelector(
-                categories = categories,
-                selected = selectedCategory,
-                onSelect = { selectedCategory = it }
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Box(modifier = Modifier.weight(1f)) {
-                ClientCatalogList(
-                    items = filteredItems,
-                    onAddToCart = { item, variant, qty ->
-                        viewModel.addToCart(item, variant, qty)
-                    }
-                )
-            }
 
-            // Sticky Bottom Cart Summary
-            if (cart.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Surface(
+                // Vertical Divider
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .clickable { showSummaryDialog = true }
-                        .testTag("view_summary_button"),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    tonalElevation = 8.dp
+                        .fillMaxHeight()
+                        .width(1.dp)
+                        .background(MaterialTheme.colorScheme.outlineVariant)
+                )
+
+                // Permanent Side Cart Panel
+                Column(
+                    modifier = Modifier
+                        .weight(0.35f)
+                        .fillMaxHeight()
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+                        .padding(16.dp)
                 ) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .background(
-                                        MaterialTheme.colorScheme.primary,
-                                        shape = RoundedCornerShape(8.dp)
-                                    )
-                                    .padding(horizontal = 10.dp, vertical = 6.dp)
-                            ) {
+                        Text(
+                            text = "Tu Pedido / Carrito",
+                            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        if (cart.isNotEmpty()) {
+                            TextButton(onClick = { viewModel.clearCart() }) {
+                                Text("Vaciar", color = MaterialTheme.colorScheme.error)
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    if (cart.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    imageVector = Icons.Default.ShoppingCart,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                                    modifier = Modifier.size(64.dp)
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    text = cartCount.toString(),
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimary,
-                                    style = MaterialTheme.typography.bodyMedium
+                                    text = "El carrito está vacío",
+                                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                                 )
                             }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text(
-                                    text = "Total Cotizado",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                                )
-                                Text(
-                                    text = "$${String.format("%.2f", cartTotal)}",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            items(cart) { cartItem ->
+                                SideCartItemRow(
+                                    cartItem = cartItem,
+                                    onUpdateQty = { item, qty ->
+                                        viewModel.updateCartQuantity(item, qty)
+                                    },
+                                    onRemove = { item ->
+                                        viewModel.removeFromCart(item)
+                                    }
                                 )
                             }
                         }
 
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Divider()
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Text(
-                                text = "Ver Resumen",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
+                                text = "TOTAL:",
+                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Icon(
-                                imageVector = Icons.Default.ChevronRight,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
+                            Text(
+                                text = "$${String.format("%.2f", cartTotal)} USD",
+                                style = MaterialTheme.typography.headlineSmall.copy(
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
                             )
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        Button(
+                            onClick = { showSummaryDialog = true },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp)
+                                .testTag("view_summary_button"),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(imageVector = Icons.Default.CheckCircle, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Confirmar y Firmar Contrato",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                            )
+                        }
+                    }
+                }
+            }
+        } else {
+            // MOBILE PORTRAIT LAYOUT: Single Column + Sticky Bottom Cart Summary
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(horizontal = 14.dp, vertical = 8.dp)
+            ) {
+                ClientHeader(onOpenAdminRequest = onOpenAdminRequest)
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Box(modifier = Modifier.weight(1f)) {
+                    when (activeTab) {
+                        ClientTab.OFERTAS -> {
+                            Column(modifier = Modifier.fillMaxSize()) {
+                                CategorySelector(
+                                    categories = categories,
+                                    selected = selectedCategory,
+                                    onSelect = { selectedCategory = it }
+                                )
+                                Spacer(modifier = Modifier.height(10.dp))
+                                ClientCatalogList(
+                                    items = filteredItems,
+                                    onAddToCart = { item, variant, qty ->
+                                        viewModel.addToCart(item, variant, qty)
+                                    },
+                                    onOpenExtras = { item ->
+                                        itemForExtrasDialog = item
+                                    }
+                                )
+                            }
+                        }
+                        ClientTab.CREAR_PROPIA -> {
+                            CustomOfferScreen(
+                                viewModel = viewModel,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                        ClientTab.CALENDARIO -> {
+                            CalendarScreen(
+                                viewModel = viewModel,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    }
+                }
+
+                // Sticky Bottom Cart Summary Bar
+                if (cart.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .clickable { showSummaryDialog = true }
+                            .testTag("view_summary_button"),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        tonalElevation = 8.dp
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .background(
+                                            MaterialTheme.colorScheme.primary,
+                                            shape = RoundedCornerShape(8.dp)
+                                        )
+                                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                                ) {
+                                    Text(
+                                        text = cartCount.toString(),
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimary,
+                                        style = MaterialTheme.typography.bodyLarge
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = "Total del Pedido",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                    )
+                                    Text(
+                                        text = "$${String.format("%.2f", cartTotal)} USD",
+                                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold),
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "Ver Pedido",
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Icon(
+                                    imageVector = Icons.Default.ChevronRight,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
                         }
                     }
                 }
@@ -403,13 +528,49 @@ fun ClientScreen(
         }
     }
 
-    // Receipt-style Summary Dialog
+    // Extras Dialog for "+" button on cards
+    itemForExtrasDialog?.let { item ->
+        OfferExtrasDialog(
+            item = item,
+            onDismiss = { itemForExtrasDialog = null },
+            onAddExtra = { title, cat, variant, price, qty ->
+                viewModel.addCustomToCart(title, cat, variant, price, qty, "Extra añadido a ${item.name}")
+                Toast.makeText(context, "Extra añadido al carrito", Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+
+    // Receipt-style Summary Dialog with direct contract signing link
     if (showSummaryDialog) {
         SummaryDialog(
             viewModel = viewModel,
             cart = cart,
             total = cartTotal,
-            onDismiss = { showSummaryDialog = false }
+            onDismiss = { showSummaryDialog = false },
+            onProceedToContract = {
+                showSummaryDialog = false
+                showContractForOrder = true
+            }
+        )
+    }
+
+    // Mandatory Contract & Signature Dialog before finalizing order
+    if (showContractForOrder) {
+        ContractSignatureDialog(
+            title = "Contrato de Sesión - Confirmación de Pedido",
+            onDismiss = { showContractForOrder = false },
+            onConfirm = { signatureBytes ->
+                showContractForOrder = false
+                val uriString = viewModel.generateWhatsAppUri()
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uriString)).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                try {
+                    context.startActivity(intent)
+                } catch (e: Exception) {
+                    Toast.makeText(context, "No se pudo abrir WhatsApp: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                }
+            }
         )
     }
 }
@@ -423,16 +584,15 @@ fun ClientHeader(onOpenAdminRequest: () -> Unit) {
     ) {
         Column {
             Text(
-                text = "FotoEstudio",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.ExtraBold,
+                text = "FXestudio",
+                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.ExtraBold),
                 color = MaterialTheme.colorScheme.primary,
                 letterSpacing = 0.5.sp
             )
             Text(
-                text = "Catálogo & Cotizaciones",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                text = "Bayamo, Granma • Estudio Fotográfico Profesional",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium),
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
@@ -467,24 +627,23 @@ fun CategorySelector(
     ) {
         items(categories) { category ->
             val isSelected = category == selected
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(50.dp))
-                    .background(
-                        if (isSelected) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.surfaceVariant
+            FilterChip(
+                selected = isSelected,
+                onClick = { onSelect(category) },
+                label = {
+                    Text(
+                        text = category,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                        )
                     )
-                    .clickable { onSelect(category) }
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            ) {
-                Text(
-                    text = category,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary
-                    else MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                shape = RoundedCornerShape(20.dp),
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary
                 )
-            }
+            )
         }
     }
 }
@@ -492,7 +651,8 @@ fun CategorySelector(
 @Composable
 fun ClientCatalogList(
     items: List<CatalogItem>,
-    onAddToCart: (CatalogItem, CatalogVariant, Int) -> Unit
+    onAddToCart: (CatalogItem, CatalogVariant, Int) -> Unit,
+    onOpenExtras: (CatalogItem) -> Unit
 ) {
     if (items.isEmpty()) {
         Box(
@@ -509,18 +669,22 @@ fun ClientCatalogList(
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     text = "No hay paquetes en esta categoría",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                 )
             }
         }
     } else {
         LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(bottom = 80.dp)
+            verticalArrangement = Arrangement.spacedBy(18.dp),
+            contentPadding = PaddingValues(bottom = 90.dp)
         ) {
             items(items) { item ->
-                ClientCatalogCard(item = item, onAddToCart = onAddToCart)
+                ClientCatalogCard(
+                    item = item,
+                    onAddToCart = onAddToCart,
+                    onOpenExtras = { onOpenExtras(item) }
+                )
             }
         }
     }
@@ -529,10 +693,12 @@ fun ClientCatalogList(
 @Composable
 fun ClientCatalogCard(
     item: CatalogItem,
-    onAddToCart: (CatalogItem, CatalogVariant, Int) -> Unit
+    onAddToCart: (CatalogItem, CatalogVariant, Int) -> Unit,
+    onOpenExtras: () -> Unit
 ) {
     val context = LocalContext.current
     val variants = remember(item) { item.getVariants() }
+    val extrasList = remember(item) { item.getExtrasList() }
     var selectedVariantIndex by remember { mutableStateOf(0) }
     var quantity by remember { mutableStateOf(1) }
 
@@ -543,11 +709,10 @@ fun ClientCatalogCard(
             .fillMaxWidth()
             .testTag("catalog_item_card_${item.id}"),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+        shape = RoundedCornerShape(18.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Column {
-            // Display sample image (uses cached custom base64 or beautiful dynamic gradient background)
             CatalogItemImage(
                 imageBytes = item.imageBytes,
                 modifier = Modifier
@@ -555,55 +720,105 @@ fun ClientCatalogCard(
                     .height(200.dp)
             )
 
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = item.name,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-
-                Spacer(modifier = Modifier.height(2.dp))
-
-                Box(
-                    modifier = Modifier
-                        .background(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                            shape = RoundedCornerShape(6.dp)
-                        )
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+            Column(modifier = Modifier.padding(18.dp)) {
+                // Header with Code and Category
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = item.category.uppercase(),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (item.code.isNotBlank()) {
+                            Box(
+                                modifier = Modifier
+                                    .background(
+                                        MaterialTheme.colorScheme.primary,
+                                        shape = RoundedCornerShape(6.dp)
+                                    )
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = item.code,
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold),
+                                    color = MaterialTheme.colorScheme.onPrimary
+                                )
+                            }
+                        }
+
+                        Text(
+                            text = item.name,
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .background(
+                                MaterialTheme.colorScheme.secondaryContainer,
+                                shape = RoundedCornerShape(6.dp)
+                            )
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = item.category.uppercase(),
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
                     text = item.description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                // Display Included Extras if present
+                if (extrasList.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "✨ Incluye:",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        extrasList.forEach { extra ->
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = extra,
+                                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
 
                 if (variants.isNotEmpty() && activeVariant != null) {
-                    // Variant / Size Selector
                     Text(
-                        text = "Seleccionar Variante / Tamaño:",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
+                        text = "Seleccionar Variante / Formato:",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.primary
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                    // Horizontal list of variants as chips
+                    // Variant selector chips
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -612,137 +827,117 @@ fun ClientCatalogCard(
                             val isSelected = index == selectedVariantIndex
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
+                                    .clip(RoundedCornerShape(10.dp))
                                     .background(
                                         if (isSelected) MaterialTheme.colorScheme.primary
                                         else MaterialTheme.colorScheme.surfaceVariant
                                     )
                                     .border(
                                         width = 1.dp,
-                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                                        shape = RoundedCornerShape(8.dp)
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                                        shape = RoundedCornerShape(10.dp)
                                     )
                                     .clickable { selectedVariantIndex = index }
-                                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                                    .padding(horizontal = 14.dp, vertical = 10.dp)
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Text(
                                         text = variant.name,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        fontWeight = FontWeight.Bold,
+                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                         color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     Text(
-                                        text = "$${String.format("%.2f", variant.price)}",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f) else MaterialTheme.colorScheme.primary
+                                        text = "$${String.format("%.2f", variant.price)} USD",
+                                        style = MaterialTheme.typography.bodyLarge.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f) else MaterialTheme.colorScheme.primary
+                                        )
                                     )
                                 }
                             }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(1.dp)
-                            .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
-                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Divider()
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Quantity selector + Price summary + Add Button row
+                    // Bottom Row: Add Extras "+" Button + Quantity Selector + Add Button
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        // "+" Button to add extra items to this package
+                        OutlinedButton(
+                            onClick = onOpenExtras,
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                        ) {
+                            Icon(Icons.Default.AddCircleOutline, contentDescription = "Añadir extras", modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Extras",
+                                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
+                            )
+                        }
+
                         // Quantity selector
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
                                 .background(
                                     MaterialTheme.colorScheme.surfaceVariant,
-                                    shape = RoundedCornerShape(8.dp)
+                                    shape = RoundedCornerShape(10.dp)
                                 )
-                                .padding(2.dp)
+                                .padding(horizontal = 4.dp, vertical = 2.dp)
                         ) {
                             IconButton(
                                 onClick = { if (quantity > 1) quantity-- },
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .testTag("quantity_decrease_${item.id}")
+                                modifier = Modifier.size(38.dp)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Remove,
-                                    contentDescription = "Menos",
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
+                                Text("-", fontWeight = FontWeight.Bold, fontSize = 22.sp)
                             }
                             Text(
                                 text = quantity.toString(),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 12.dp)
+                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                                modifier = Modifier.padding(horizontal = 10.dp)
                             )
                             IconButton(
                                 onClick = { quantity++ },
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .testTag("quantity_increase_${item.id}")
+                                modifier = Modifier.size(38.dp)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Add,
-                                    contentDescription = "Más",
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
+                                Icon(Icons.Default.Add, contentDescription = "Más", modifier = Modifier.size(20.dp))
                             }
                         }
 
                         // Price and add button
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text(
-                                text = "Total: $${String.format("%.2f", activeVariant.price * quantity)}",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
+                        Button(
+                            onClick = {
+                                onAddToCart(item, activeVariant, quantity)
+                                quantity = 1
+                                Toast.makeText(context, "Agregado al carrito: ${item.name}", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.height(48.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AddShoppingCart,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
                             )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Button(
-                                onClick = {
-                                    onAddToCart(item, activeVariant, quantity)
-                                    quantity = 1 // Reset quantity on successful add
-                                    Toast.makeText(
-                                        context,
-                                        "Agregado al carrito",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                },
-                                modifier = Modifier
-                                    .height(42.dp)
-                                    .testTag("add_to_cart_button_${item.id}"),
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.AddShoppingCart,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Agregar",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimary
-                                )
-                            }
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "$${String.format("%.2f", activeVariant.price * quantity)}",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                            )
                         }
                     }
                 } else {
                     Text(
                         text = "Sin variantes configuradas",
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.error
                     )
                 }
@@ -772,7 +967,7 @@ fun SideCartItemRow(
             CatalogItemImage(
                 imageBytes = cartItem.item.imageBytes,
                 modifier = Modifier
-                    .size(50.dp)
+                    .size(54.dp)
                     .clip(RoundedCornerShape(8.dp))
             )
 
@@ -781,28 +976,26 @@ fun SideCartItemRow(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = cartItem.item.name,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = "Var: ${cartItem.variant.name}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = "$${String.format("%.2f", cartItem.variant.price)} x ${cartItem.quantity}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold
+                    text = "$${String.format("%.2f", cartItem.variant.price)} x ${cartItem.quantity} = $${String.format("%.2f", cartItem.subtotal)}",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
 
             Column(horizontalAlignment = Alignment.End) {
                 IconButton(
                     onClick = { onRemove(cartItem) },
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(28.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
@@ -819,34 +1012,29 @@ fun SideCartItemRow(
                     modifier = Modifier
                         .background(
                             MaterialTheme.colorScheme.surfaceVariant,
-                            shape = RoundedCornerShape(4.dp)
+                            shape = RoundedCornerShape(6.dp)
                         )
                         .padding(horizontal = 4.dp, vertical = 2.dp)
                 ) {
                     IconButton(
                         onClick = { onUpdateQty(cartItem, cartItem.quantity - 1) },
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(24.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Remove,
-                            contentDescription = "Menos",
-                            modifier = Modifier.size(12.dp)
-                        )
+                        Text("-", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }
                     Text(
                         text = cartItem.quantity.toString(),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                         modifier = Modifier.padding(horizontal = 6.dp)
                     )
                     IconButton(
                         onClick = { onUpdateQty(cartItem, cartItem.quantity + 1) },
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(24.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Add,
                             contentDescription = "Más",
-                            modifier = Modifier.size(12.dp)
+                            modifier = Modifier.size(14.dp)
                         )
                     }
                 }
@@ -880,7 +1068,7 @@ fun CatalogItemImage(imageBytes: ByteArray?, modifier: Modifier = Modifier) {
                 brush = Brush.linearGradient(
                     colors = listOf(
                         MaterialTheme.colorScheme.tertiary,
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
                     )
                 )
             ),
@@ -891,14 +1079,13 @@ fun CatalogItemImage(imageBytes: ByteArray?, modifier: Modifier = Modifier) {
                     imageVector = Icons.Default.CameraAlt,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(40.dp)
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "FOTO ESTUDIO",
-                    style = MaterialTheme.typography.labelSmall,
+                    text = "FXESTUDIO BAYAMO",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onPrimary,
-                    fontWeight = FontWeight.Bold,
                     letterSpacing = 2.sp
                 )
             }
@@ -922,7 +1109,7 @@ fun AdminScreen(
     var showAddEditDialog by remember { mutableStateOf(false) }
     var itemToEdit by remember { mutableStateOf<CatalogItem?>(null) }
 
-    var adminTabSelected by remember { mutableStateOf(0) } // 0 = Catalog CRUD, 1 = Config, 2 = Backup
+    var adminTabSelected by remember { mutableStateOf(0) } // 0 = Catalog CRUD, 1 = Appointments, 2 = Config, 3 = Backup
 
     Column(
         modifier = Modifier
@@ -959,30 +1146,32 @@ fun AdminScreen(
                         color = MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        text = "Configuración y Catálogo",
+                        text = "FXestudio • Configuración & Gestión",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            Button(
-                onClick = {
-                    itemToEdit = null
-                    showAddEditDialog = true
-                },
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.testTag("admin_new_item_button")
-            ) {
-                Icon(imageVector = Icons.Default.Add, contentDescription = null)
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Nuevo")
+            if (adminTabSelected == 0) {
+                Button(
+                    onClick = {
+                        itemToEdit = null
+                        showAddEditDialog = true
+                    },
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.testTag("admin_new_item_button")
+                ) {
+                    Icon(imageVector = Icons.Default.Add, contentDescription = null)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Nuevo")
+                }
             }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Admin Navigation Tabs
+        // Admin Navigation Tabs (Items, Citas, Ajustes, Respaldo)
         TabRow(
             selectedTabIndex = adminTabSelected,
             containerColor = Color.Transparent,
@@ -991,18 +1180,24 @@ fun AdminScreen(
             Tab(
                 selected = adminTabSelected == 0,
                 onClick = { adminTabSelected = 0 },
-                text = { Text("Items", fontWeight = FontWeight.Bold) },
+                text = { Text("Catálogo", fontWeight = FontWeight.Bold) },
                 icon = { Icon(Icons.Default.PhotoLibrary, contentDescription = null) }
             )
             Tab(
                 selected = adminTabSelected == 1,
                 onClick = { adminTabSelected = 1 },
-                text = { Text("Ajustes", fontWeight = FontWeight.Bold) },
-                icon = { Icon(Icons.Default.Settings, contentDescription = null) }
+                text = { Text("Citas", fontWeight = FontWeight.Bold) },
+                icon = { Icon(Icons.Default.CalendarMonth, contentDescription = null) }
             )
             Tab(
                 selected = adminTabSelected == 2,
                 onClick = { adminTabSelected = 2 },
+                text = { Text("Ajustes", fontWeight = FontWeight.Bold) },
+                icon = { Icon(Icons.Default.Settings, contentDescription = null) }
+            )
+            Tab(
+                selected = adminTabSelected == 3,
+                onClick = { adminTabSelected = 3 },
                 text = { Text("Respaldo", fontWeight = FontWeight.Bold) },
                 icon = { Icon(Icons.Default.Backup, contentDescription = null) }
             )
@@ -1027,6 +1222,10 @@ fun AdminScreen(
                                         itemToEdit = item
                                         showAddEditDialog = true
                                     },
+                                    onDuplicate = {
+                                        viewModel.duplicateCatalogItem(item)
+                                        Toast.makeText(context, "Item duplicado", Toast.LENGTH_SHORT).show()
+                                    },
                                     onDelete = {
                                         viewModel.deleteCatalogItem(item.id)
                                         Toast.makeText(context, "Item eliminado", Toast.LENGTH_SHORT).show()
@@ -1037,6 +1236,10 @@ fun AdminScreen(
                     }
                 }
                 1 -> {
+                    // Appointments View
+                    AppointmentsAdminView(viewModel = viewModel)
+                }
+                2 -> {
                     // Configuration Form
                     AdminSettingsView(
                         viewModel = viewModel,
@@ -1056,7 +1259,7 @@ fun AdminScreen(
                         }
                     )
                 }
-                2 -> {
+                3 -> {
                     // Backup & Import
                     AdminBackupView(
                         viewModel = viewModel
@@ -1070,13 +1273,15 @@ fun AdminScreen(
         AddEditItemDialog(
             item = itemToEdit,
             onDismiss = { showAddEditDialog = false },
-            onSave = { name, desc, cat, variants, imgBytes ->
+            onSave = { code, name, desc, cat, variants, includedExtras, imgBytes ->
                 viewModel.saveCatalogItem(
                     id = itemToEdit?.id ?: 0,
+                    code = code,
                     name = name,
                     description = desc,
                     category = cat,
                     variants = variants,
+                    includedExtras = includedExtras,
                     imageBytes = imgBytes
                 )
                 showAddEditDialog = false
@@ -1090,12 +1295,13 @@ fun AdminScreen(
 fun AdminCatalogItemCard(
     item: CatalogItem,
     onEdit: () -> Unit,
+    onDuplicate: () -> Unit,
     onDelete: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Row(
             modifier = Modifier
@@ -1106,32 +1312,57 @@ fun AdminCatalogItemCard(
             CatalogItemImage(
                 imageBytes = item.imageBytes,
                 modifier = Modifier
-                    .size(60.dp)
+                    .size(64.dp)
                     .clip(RoundedCornerShape(8.dp))
             )
 
             Spacer(modifier = Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = item.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (item.code.isNotBlank()) {
+                        Text(
+                            text = "[${item.code}] ",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Text(
+                        text = item.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
                 Text(
                     text = item.category,
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = "${item.getVariants().size} variantes cargadas",
+                    text = "${item.getVariants().size} variantes",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                if (item.includedExtras.isNotBlank()) {
+                    Text(
+                        text = "Incluye: ${item.includedExtras}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
 
             Row {
+                IconButton(onClick = onDuplicate) {
+                    Icon(
+                        imageVector = Icons.Default.ContentCopy,
+                        contentDescription = "Duplicar",
+                        tint = MaterialTheme.colorScheme.secondary
+                    )
+                }
                 IconButton(onClick = onEdit) {
                     Icon(
                         imageVector = Icons.Default.Edit,
@@ -1178,14 +1409,14 @@ fun AdminSettingsView(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Configuración WhatsApp Destinatario",
+                        text = "Configuración WhatsApp FXestudio",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Ingresa el número de WhatsApp con código de país (sin el signo + ni espacios, ej: 5491122334455) al cual se enviarán las cotizaciones.",
+                        text = "Ingresa el número de WhatsApp (ej: 55823513 o 5355823513) al cual se enviarán los pedidos y reservaciones.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1305,27 +1536,7 @@ fun AdminBackupView(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var importTextJson by remember { mutableStateOf("") }
-    var pendingExportJson by remember { mutableStateOf<String?>(null) }
 
-    // Backup export: crea un archivo .json real en donde el usuario elija (Descargas, Drive, etc.)
-    val exportLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/json")
-    ) { uri: Uri? ->
-        val json = pendingExportJson
-        if (uri != null && json != null) {
-            try {
-                context.contentResolver.openOutputStream(uri)?.use { out ->
-                    out.write(json.toByteArray())
-                }
-                Toast.makeText(context, "Respaldo guardado correctamente", Toast.LENGTH_LONG).show()
-            } catch (e: Exception) {
-                Toast.makeText(context, "Error al guardar el respaldo: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
-            }
-        }
-        pendingExportJson = null
-    }
-    
-    // Backup import pick file setup
     val importLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -1368,7 +1579,7 @@ fun AdminBackupView(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Exporta todo el catálogo de fotos, variantes, precios e imágenes como un archivo JSON. Puedes guardarlo o transferirlo a otra tablet del estudio.",
+                        text = "Exporta todo el catálogo de fotos, variantes, códigos, extras incluidos, precios e imágenes como un archivo JSON.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1378,9 +1589,13 @@ fun AdminBackupView(
                         onClick = {
                             coroutineScope.launch {
                                 val json = viewModel.exportBackupJson()
-                                pendingExportJson = json
-                                val fileName = "respaldo_fotoestudio_${System.currentTimeMillis()}.json"
-                                exportLauncher.launch(fileName)
+                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_SUBJECT, "Respaldo FXestudio")
+                                    putExtra(Intent.EXTRA_TEXT, json)
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                context.startActivity(Intent.createChooser(shareIntent, "Guardar Respaldo"))
                             }
                         },
                         modifier = Modifier
@@ -1409,7 +1624,7 @@ fun AdminBackupView(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Selecciona un archivo JSON exportado previamente para reestablecer todo el catálogo y configuraciones en este dispositivo.",
+                        text = "Selecciona un archivo JSON exportado previamente para reestablecer todo el catálogo y configuraciones.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1430,15 +1645,9 @@ fun AdminBackupView(
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(1.dp)
-                            .background(MaterialTheme.colorScheme.outline)
-                    )
+                    Divider()
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Text import alternative
                     Text(
                         text = "O pega el texto JSON directamente aquí:",
                         style = MaterialTheme.typography.bodySmall,
@@ -1488,10 +1697,7 @@ fun AdminBackupView(
 // DIALOGS & OVERLAYS
 // ==========================================
 
-// 1. PIN Access Dialog
-// ==========================================
-// LICENSE ACTIVATION SCREEN (bloqueo mensual)
-// ==========================================
+// 0. License Activation Screen (blocking gate before the whole app)
 @Composable
 fun LicenseActivationScreen(
     viewModel: StudioViewModel
@@ -1593,6 +1799,7 @@ fun LicenseActivationScreen(
     }
 }
 
+// 1. PIN Access Dialog
 @Composable
 fun PinEntryDialog(
     onDismiss: () -> Unit,
@@ -1641,7 +1848,6 @@ fun PinEntryDialog(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Displays dots representing the currently entered PIN
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     modifier = Modifier.padding(vertical = 8.dp)
@@ -1654,8 +1860,7 @@ fun PinEntryDialog(
                                 .clip(RoundedCornerShape(50.dp))
                                 .background(
                                     if (active) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.surfaceVariant
-                                        .copy(alpha = 0.5f)
+                                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                                 )
                                 .border(
                                     width = 1.dp,
@@ -1668,7 +1873,6 @@ fun PinEntryDialog(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Custom On-Screen Numerical Pad (Extremely ergonomic for tablets/touch)
                 val numbers = listOf(
                     listOf("1", "2", "3"),
                     listOf("4", "5", "6"),
@@ -1701,7 +1905,6 @@ fun PinEntryDialog(
                                             else -> {
                                                 if (pin.length < 4) {
                                                     pin += char
-                                                    // Auto-submit on 4th digit
                                                     if (pin.length == 4) {
                                                         onVerify(pin)
                                                     }
@@ -1748,10 +1951,9 @@ fun SummaryDialog(
     viewModel: StudioViewModel,
     cart: List<CartItem>,
     total: Double,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onProceedToContract: () -> Unit
 ) {
-    val context = LocalContext.current
-
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier
@@ -1766,10 +1968,9 @@ fun SummaryDialog(
                     .fillMaxWidth()
                     .padding(20.dp)
             ) {
-                // Receipt Header
                 Text(
                     text = "RESUMEN DE COTIZACIÓN",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.ExtraBold,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.fillMaxWidth(),
@@ -1777,23 +1978,17 @@ fun SummaryDialog(
                 )
 
                 Text(
-                    text = "Estudio Fotográfico Profesional",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    text = "FXestudio • Bayamo, Granma, Cuba",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.fillMaxWidth(),
                     textAlign = TextAlign.Center
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .background(MaterialTheme.colorScheme.outline)
-                )
+                Divider()
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Items list
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1808,13 +2003,13 @@ fun SummaryDialog(
                             ) {
                                 Text(
                                     text = item.item.name,
-                                    style = MaterialTheme.typography.bodyMedium,
+                                    style = MaterialTheme.typography.bodyLarge,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.weight(0.7f)
                                 )
                                 Text(
-                                    text = "$${String.format("%.2f", item.subtotal)}",
-                                    style = MaterialTheme.typography.bodyMedium,
+                                    text = "$${String.format("%.2f", item.subtotal)} USD",
+                                    style = MaterialTheme.typography.bodyLarge,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.weight(0.3f),
@@ -1822,72 +2017,55 @@ fun SummaryDialog(
                                 )
                             }
                             Text(
-                                text = "Tamaño/Var: ${item.variant.name}",
-                                style = MaterialTheme.typography.labelSmall,
+                                text = "Formato/Var: ${item.variant.name}",
+                                style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                text = "Cant: ${item.quantity} x $${String.format("%.2f", item.variant.price)}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                                text = "Cant: ${item.quantity} x $${String.format("%.2f", item.variant.price)} USD",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .background(MaterialTheme.colorScheme.outline)
-                )
+                Divider()
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Grand Total
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
                         text = "TOTAL GENERAL:",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.ExtraBold
                     )
                     Text(
-                        text = "$${String.format("%.2f", total)}",
-                        style = MaterialTheme.typography.titleMedium,
+                        text = "$${String.format("%.2f", total)} USD",
+                        style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.ExtraBold,
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
-                // Actions
                 Button(
-                    onClick = {
-                        val uriString = viewModel.generateWhatsAppUri()
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uriString)).apply {
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        }
-                        try {
-                            context.startActivity(intent)
-                        } catch (e: Exception) {
-                            Toast.makeText(context, "No se pudo abrir WhatsApp: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
-                        }
-                    },
+                    onClick = onProceedToContract,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp)
+                        .height(52.dp)
                         .testTag("confirm_whatsapp_button"),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Icon(imageVector = Icons.Default.Send, contentDescription = null)
+                    Icon(imageVector = Icons.Default.Draw, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        "Enviar por WhatsApp",
-                        style = MaterialTheme.typography.titleSmall,
+                        "Continuar y Firmar Contrato",
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimary
                     )
@@ -1906,31 +2084,30 @@ fun SummaryDialog(
     }
 }
 
-// 3. Add / Edit Catalog Item Dialog
+// 3. Add / Edit Catalog Item Dialog with Code, IncludedExtras, and Quick Size Templates
 @Composable
 fun AddEditItemDialog(
     item: CatalogItem?,
     onDismiss: () -> Unit,
-    onSave: (name: String, desc: String, cat: String, variants: List<CatalogVariant>, imgBytes: ByteArray?) -> Unit
+    onSave: (code: String, name: String, desc: String, cat: String, variants: List<CatalogVariant>, includedExtras: String, imgBytes: ByteArray?) -> Unit
 ) {
     val context = LocalContext.current
 
+    var code by remember { mutableStateOf(item?.code ?: "") }
     var name by remember { mutableStateOf(item?.name ?: "") }
     var description by remember { mutableStateOf(item?.description ?: "") }
-    var category by remember { mutableStateOf(item?.category ?: "Retratos") }
+    var category by remember { mutableStateOf(item?.category ?: "Primer Año") }
+    var includedExtras by remember { mutableStateOf(item?.includedExtras ?: "") }
 
-    // List of standard photography categories
-    val defaultCategories = listOf("Retratos", "Bodas y Parejas", "Books", "Impresiones", "Sesión Familiar", "Otros")
+    val defaultCategories = listOf("Primer Año", "Bodas", "15 años", "Ofertas Especiales", "Retratos", "Ampliaciones", "Otros")
     var showCategoryMenu by remember { mutableStateOf(false) }
 
-    // Variants sub-editor state
     var variantsList by remember {
         mutableStateOf(item?.getVariants() ?: emptyList())
     }
     var newVariantName by remember { mutableStateOf("") }
     var newVariantPrice by remember { mutableStateOf("") }
 
-    // Image upload picker state
     var imageBytesState by remember { mutableStateOf<ByteArray?>(null) }
     var imageUriState by remember { mutableStateOf<Uri?>(null) }
 
@@ -1954,7 +2131,7 @@ fun AddEditItemDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 12.dp)
-                .heightIn(max = 620.dp),
+                .heightIn(max = 680.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             shape = RoundedCornerShape(16.dp)
         ) {
@@ -1976,7 +2153,7 @@ fun AddEditItemDialog(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(130.dp)
+                        .height(120.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                         .clickable { photoPickerLauncher.launch("image/*") },
@@ -2019,14 +2196,25 @@ fun AddEditItemDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Item Details fields
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Nombre del Servicio") },
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = code,
+                        onValueChange = { code = it },
+                        label = { Text("Código (ej: A1, B1, Qt1)") },
+                        modifier = Modifier.weight(0.35f),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        label = { Text("Nombre del Paquete") },
+                        modifier = Modifier.weight(0.65f),
+                        singleLine = true
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -2040,12 +2228,22 @@ fun AddEditItemDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Category dropdown simulation
+                OutlinedTextField(
+                    value = includedExtras,
+                    onValueChange = { includedExtras = it },
+                    label = { Text("Extras Incluidos (separados por coma)") },
+                    placeholder = { Text("ej: 1 foto 8x12 enmarcada, Maquillaje mamá, Taza") },
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 2
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
                 Box(modifier = Modifier.fillMaxWidth()) {
                     OutlinedTextField(
                         value = category,
                         onValueChange = { category = it },
-                        label = { Text("Categoría (selecciona o escribe)") },
+                        label = { Text("Categoría") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         trailingIcon = {
@@ -2072,25 +2270,36 @@ fun AddEditItemDialog(
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
-                )
+                Divider()
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // VARIANTS SUB-EDITOR
-                Text(
-                    text = "Variantes / Tamaños / Precios:",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                // Quick Size Templates
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Variantes y Precios:",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    TextButton(
+                        onClick = {
+                            variantsList = listOf(
+                                CatalogVariant("5x7 / 6x8", 50.00),
+                                CatalogVariant("8x10 / 8x12", 65.00),
+                                CatalogVariant("Digital", 40.00)
+                            )
+                        }
+                    ) {
+                        Text("Plantilla Rápida", style = MaterialTheme.typography.labelMedium)
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // List of current variants with delete button
                 if (variantsList.isEmpty()) {
                     Text(
                         text = "Sin variantes cargadas. Debe agregar al menos una.",
@@ -2112,9 +2321,8 @@ fun AddEditItemDialog(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "${variant.name} -> $${String.format("%.2f", variant.price)}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontWeight = FontWeight.Bold
+                                    text = "${variant.name} -> $${String.format("%.2f", variant.price)} USD",
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
                                 )
                                 IconButton(
                                     onClick = {
@@ -2136,7 +2344,6 @@ fun AddEditItemDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Input to add a new variant
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -2145,15 +2352,15 @@ fun AddEditItemDialog(
                     OutlinedTextField(
                         value = newVariantName,
                         onValueChange = { newVariantName = it },
-                        label = { Text("E.g., 8x10 o Digital") },
-                        modifier = Modifier.weight(0.5f),
+                        label = { Text("Variante (ej: 6x8)") },
+                        modifier = Modifier.weight(0.55f),
                         singleLine = true
                     )
 
                     OutlinedTextField(
                         value = newVariantPrice,
                         onValueChange = { newVariantPrice = it },
-                        label = { Text("Precio ($)") },
+                        label = { Text("Precio") },
                         modifier = Modifier.weight(0.35f),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
@@ -2167,7 +2374,7 @@ fun AddEditItemDialog(
                                 newVariantName = ""
                                 newVariantPrice = ""
                             } else {
-                                Toast.makeText(context, "Nombre de variante y precio válido requerido", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Nombre y precio válidos requeridos", Toast.LENGTH_SHORT).show()
                             }
                         },
                         modifier = Modifier
@@ -2187,7 +2394,6 @@ fun AddEditItemDialog(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Main form Actions
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -2203,7 +2409,7 @@ fun AddEditItemDialog(
                     Button(
                         onClick = {
                             if (name.isNotBlank() && description.isNotBlank() && category.isNotBlank() && variantsList.isNotEmpty()) {
-                                onSave(name, description, category, variantsList, imageBytesState)
+                                onSave(code, name, description, category, variantsList, includedExtras, imageBytesState)
                             } else {
                                 Toast.makeText(context, "Por favor complete todos los campos y cargue al menos una variante.", Toast.LENGTH_LONG).show()
                             }

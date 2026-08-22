@@ -11,10 +11,12 @@ data class CatalogVariant(
 @Entity(tableName = "catalog_items")
 data class CatalogItem(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val code: String = "",
     val name: String,
     val description: String,
     val category: String,
     val variantsString: String, // Format: "name1:price1|name2:price2"
+    val includedExtras: String = "", // Comma-separated list e.g. "Taza, Llavero, Pullover"
     val imageBytes: ByteArray? = null
 ) {
     fun getVariants(): List<CatalogVariant> {
@@ -31,6 +33,11 @@ data class CatalogItem(
         } catch (e: Exception) {
             emptyList()
         }
+    }
+
+    fun getExtrasList(): List<String> {
+        if (includedExtras.isBlank()) return emptyList()
+        return includedExtras.split(",").map { it.trim() }.filter { it.isNotEmpty() }
     }
 
     companion object {
