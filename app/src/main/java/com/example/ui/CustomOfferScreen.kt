@@ -921,7 +921,11 @@ private fun QuantityAndAddRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Price tag
-        Column {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(end = 8.dp)
+        ) {
             Text(
                 text = "Precio Unitario: $${String.format("%.2f", unitPrice)} USD",
                 style = MaterialTheme.typography.bodyMedium,

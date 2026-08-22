@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -82,6 +83,8 @@ fun MainApp() {
 
     var currentScreen by remember { mutableStateOf(Screen.CLIENT) }
     var showPinDialog by remember { mutableStateOf(false) }
+    // rememberSaveable: al girar la pantalla no debe reaparecer la portada.
+    var showWelcome by rememberSaveable { mutableStateOf(true) }
 
     val licenseChecked by viewModel.licenseChecked.collectAsState()
     val licenseValid by viewModel.licenseValid.collectAsState()
@@ -95,6 +98,13 @@ fun MainApp() {
     }
     if (!licenseValid) {
         LicenseActivationScreen(viewModel = viewModel)
+        return
+    }
+
+    // Portada de bienvenida. Va fuera del Scaffold para que la foto llegue a
+    // los bordes de la pantalla, sin los márgenes de las barras del sistema.
+    if (showWelcome) {
+        WelcomeScreen(onEnter = { showWelcome = false })
         return
     }
 
@@ -582,7 +592,13 @@ fun ClientHeader(onOpenAdminRequest: () -> Unit) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column {
+        // weight(1f) cede el espacio sobrante al botón de admin: sin él, el
+        // subtítulo largo ocupa todo el ancho y empuja el candado fuera de pantalla.
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(end = 8.dp)
+        ) {
             Text(
                 text = "FXestudio",
                 style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.ExtraBold),
@@ -728,6 +744,9 @@ fun ClientCatalogCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(end = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {

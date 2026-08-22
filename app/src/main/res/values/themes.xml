@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.MyApplication" parent="android:Theme.DeviceDefault.NoActionBar" />
+    <!-- Tema claro fijo: la app usa siempre la paleta del catálogo, así que el
+         fondo de ventana se fija al crema de marca para evitar un destello
+         oscuro al arrancar en teléfonos con modo oscuro activado. -->
+    <style name="Theme.MyApplication" parent="android:Theme.DeviceDefault.Light.NoActionBar">
+        <item name="android:windowBackground">@color/fx_cream</item>
+    </style>
 </resources>
