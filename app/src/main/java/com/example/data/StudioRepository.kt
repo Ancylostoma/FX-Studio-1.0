@@ -31,6 +31,14 @@ class StudioRepository(private val studioDao: StudioDao) {
         return studioDao.getAllAppointmentsOnce()
     }
 
+    suspend fun updateAppointmentPayment(id: Int, monto: Double, anticipo: Double) {
+        studioDao.updateAppointmentPayment(id, monto, anticipo)
+    }
+
+    suspend fun updateAppointmentStatus(id: Int, estado: String) {
+        studioDao.updateAppointmentStatus(id, estado)
+    }
+
     /** Reemplaza la agenda completa al restaurar un respaldo que la incluya. */
     suspend fun replaceAppointments(appointments: List<AppointmentEntity>) {
         studioDao.clearAppointments()
@@ -55,6 +63,29 @@ class StudioRepository(private val studioDao: StudioDao) {
 
     suspend fun getAllConfigs(): List<AppConfig> {
         return studioDao.getAllConfigs()
+    }
+
+    /** Tasa USD→CUP. 0 significa "no mostrar precios en CUP". */
+    suspend fun getCupRate(): Double {
+        return studioDao.getConfig(KEY_CUP_RATE)?.value?.toDoubleOrNull() ?: 0.0
+    }
+
+    suspend fun setCupRate(rate: Double) {
+        studioDao.insertConfig(AppConfig(KEY_CUP_RATE, rate.toString()))
+    }
+
+    /** Texto del contrato. Vacío significa "usar el texto por defecto". */
+    suspend fun getContractText(): String {
+        return studioDao.getConfig(KEY_CONTRACT)?.value ?: ""
+    }
+
+    suspend fun setContractText(text: String) {
+        studioDao.insertConfig(AppConfig(KEY_CONTRACT, text))
+    }
+
+    companion object {
+        const val KEY_CUP_RATE = "usd_to_cup_rate"
+        const val KEY_CONTRACT = "contract_text"
     }
 
     // Acceso genérico de configuración (usado por el sistema de licencia)

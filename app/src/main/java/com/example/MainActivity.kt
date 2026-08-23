@@ -165,10 +165,16 @@ fun ClientScreen(
     val items by viewModel.catalogItems.collectAsState()
     val cart by viewModel.cart.collectAsState()
     val cartTotal by viewModel.cartTotal.collectAsState()
+    val cartSubtotal by viewModel.cartSubtotal.collectAsState()
+    val descuento by viewModel.discount.collectAsState()
     val cartCount by viewModel.cartCount.collectAsState()
+    val contractText by viewModel.contractText.collectAsState()
+
+    val cupRate by viewModel.cupRate.collectAsState()
 
     var activeTab by remember { mutableStateOf(ClientTab.OFERTAS) }
     var selectedCategory by remember { mutableStateOf("Todos") }
+    var searchQuery by remember { mutableStateOf("") }
     var showSummaryDialog by remember { mutableStateOf(false) }
     var showContractForOrder by remember { mutableStateOf(false) }
     var itemForExtrasDialog by remember { mutableStateOf<CatalogItem?>(null) }
@@ -180,9 +186,24 @@ fun ClientScreen(
         list
     }
 
-    val filteredItems = remember(items, selectedCategory) {
-        if (selectedCategory == "Todos") items
-        else items.filter { it.category == selectedCategory }
+    val filteredItems = remember(items, selectedCategory, searchQuery) {
+        val porCategoria =
+            if (selectedCategory == "Todos") items
+            else items.filter { it.category == selectedCategory }
+
+        val q = searchQuery.trim()
+        if (q.isBlank()) porCategoria
+        else porCategoria.filter {
+            it.code.contains(q, ignoreCase = true) ||
+                it.name.contains(q, ignoreCase = true) ||
+                it.description.contains(q, ignoreCase = true)
+        }
+    }
+
+    // remember(cupRate) hace que las etiquetas en CUP se recalculen en cuanto
+    // se guarda una tasa nueva desde Ajustes.
+    val cupLabelFor: (Double) -> String? = remember(cupRate) {
+        { usd -> viewModel.cupLabel(usd) }
     }
 
     // Determine tablet or wide split screen layout
@@ -273,6 +294,11 @@ fun ClientScreen(
 
                     when (activeTab) {
                         ClientTab.OFERTAS -> {
+                            CatalogSearchField(
+                                query = searchQuery,
+                                onQueryChange = { searchQuery = it }
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
                             CategorySelector(
                                 categories = categories,
                                 selected = selectedCategory,
@@ -286,7 +312,8 @@ fun ClientScreen(
                                 },
                                 onOpenExtras = { item ->
                                     itemForExtrasDialog = item
-                                }
+                                },
+                                cupLabelFor = cupLabelFor
                             )
                         }
                         ClientTab.CREAR_PROPIA -> {
@@ -392,13 +419,24 @@ fun ClientScreen(
                                 text = "TOTAL:",
                                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                             )
-                            Text(
-                                text = "$${String.format("%.2f", cartTotal)} USD",
-                                style = MaterialTheme.typography.headlineSmall.copy(
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = MaterialTheme.colorScheme.primary
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    text = "$${String.format("%.2f", cartTotal)} USD",
+                                    style = MaterialTheme.typography.headlineSmall.copy(
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
                                 )
-                            )
+                                cupLabelFor(cartTotal)?.let {
+                                    Text(
+                                        text = it,
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            fontWeight = FontWeight.Medium
+                                        ),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(14.dp))
@@ -437,6 +475,11 @@ fun ClientScreen(
                     when (activeTab) {
                         ClientTab.OFERTAS -> {
                             Column(modifier = Modifier.fillMaxSize()) {
+                                CatalogSearchField(
+                                    query = searchQuery,
+                                    onQueryChange = { searchQuery = it }
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
                                 CategorySelector(
                                     categories = categories,
                                     selected = selectedCategory,
@@ -450,7 +493,8 @@ fun ClientScreen(
                                     },
                                     onOpenExtras = { item ->
                                         itemForExtrasDialog = item
-                                    }
+                                    },
+                                    cupLabelFor = cupLabelFor
                                 )
                             }
                         }
@@ -516,6 +560,13 @@ fun ClientScreen(
                                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold),
                                         color = MaterialTheme.colorScheme.primary
                                     )
+                                    cupLabelFor(cartTotal)?.let {
+                                        Text(
+                                            text = it,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                        )
+                                    }
                                 }
                             }
 
@@ -557,6 +608,10 @@ fun ClientScreen(
             viewModel = viewModel,
             cart = cart,
             total = cartTotal,
+            subtotal = cartSubtotal,
+            descuento = descuento,
+            onDiscountChange = { viewModel.setDiscount(it) },
+            cupLabelFor = cupLabelFor,
             onDismiss = { showSummaryDialog = false },
             onProceedToContract = {
                 showSummaryDialog = false
@@ -569,6 +624,7 @@ fun ClientScreen(
     if (showContractForOrder) {
         ContractSignatureDialog(
             title = "Contrato de Sesión - Confirmación de Pedido",
+            contractText = contractText,
             onDismiss = { showContractForOrder = false },
             onConfirm = { signatureBytes ->
                 showContractForOrder = false
@@ -632,6 +688,32 @@ fun ClientHeader(onOpenAdminRequest: () -> Unit) {
     }
 }
 
+/** Busca por código (A14, Qt7…), nombre o descripción del paquete. */
+@Composable
+fun CatalogSearchField(
+    query: String,
+    onQueryChange: (String) -> Unit
+) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        placeholder = { Text("Buscar por código o nombre… (ej: A14, bodas)") },
+        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+        trailingIcon = {
+            if (query.isNotEmpty()) {
+                IconButton(onClick = { onQueryChange("") }) {
+                    Icon(Icons.Default.Close, contentDescription = "Limpiar búsqueda")
+                }
+            }
+        },
+        singleLine = true,
+        shape = RoundedCornerShape(14.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("catalog_search_field")
+    )
+}
+
 @Composable
 fun CategorySelector(
     categories: List<String>,
@@ -669,7 +751,8 @@ fun CategorySelector(
 fun ClientCatalogList(
     items: List<CatalogItem>,
     onAddToCart: (CatalogItem, CatalogVariant, Int) -> Unit,
-    onOpenExtras: (CatalogItem) -> Unit
+    onOpenExtras: (CatalogItem) -> Unit,
+    cupLabelFor: (Double) -> String? = { null }
 ) {
     if (items.isEmpty()) {
         Box(
@@ -700,7 +783,8 @@ fun ClientCatalogList(
                 ClientCatalogCard(
                     item = item,
                     onAddToCart = onAddToCart,
-                    onOpenExtras = { onOpenExtras(item) }
+                    onOpenExtras = { onOpenExtras(item) },
+                    cupLabelFor = cupLabelFor
                 )
             }
         }
@@ -711,7 +795,8 @@ fun ClientCatalogList(
 fun ClientCatalogCard(
     item: CatalogItem,
     onAddToCart: (CatalogItem, CatalogVariant, Int) -> Unit,
-    onOpenExtras: () -> Unit
+    onOpenExtras: () -> Unit,
+    cupLabelFor: (Double) -> String? = { null }
 ) {
     val context = LocalContext.current
     val variants = remember(item) { item.getVariants() }
@@ -874,6 +959,16 @@ fun ClientCatalogCard(
                                             color = if (isSelected) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f) else MaterialTheme.colorScheme.primary
                                         )
                                     )
+                                    cupLabelFor(variant.price)?.let { enCup ->
+                                        Text(
+                                            text = enCup,
+                                            style = MaterialTheme.typography.bodyMedium.copy(
+                                                fontWeight = FontWeight.Medium,
+                                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
+                                                else MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -1472,8 +1567,18 @@ fun AdminSettingsView(
     onSaveWhatsapp: (String) -> Unit,
     onSavePin: (String) -> Unit
 ) {
+    val context = LocalContext.current
     var whatsappInput by remember { mutableStateOf(currentWhatsapp) }
     var pinInput by remember { mutableStateOf(currentPin) }
+
+    val cupRate by viewModel.cupRate.collectAsState()
+    val contractText by viewModel.contractText.collectAsState()
+    var rateInput by remember(cupRate) {
+        mutableStateOf(if (cupRate > 0.0) cupRate.toInt().toString() else "")
+    }
+    var contractInput by remember(contractText) {
+        mutableStateOf(contractText.ifBlank { FULL_CONTRACT_TEXT })
+    }
 
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(20.dp),
@@ -1481,6 +1586,67 @@ fun AdminSettingsView(
     ) {
         item {
             LicenseStatusCard(viewModel = viewModel)
+        }
+
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Tasa de cambio USD → CUP",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Cuántos CUP vale 1 USD hoy. La app mostrará el equivalente aproximado " +
+                            "junto a cada precio. Déjalo vacío o en 0 para no mostrar precios en CUP.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    OutlinedTextField(
+                        value = rateInput,
+                        onValueChange = { rateInput = it.filter { c -> c.isDigit() } },
+                        label = { Text("CUP por 1 USD") },
+                        placeholder = { Text("ej: 400") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("admin_cup_rate_input"),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+
+                    if (cupRate > 0.0) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Ejemplo actual: un paquete de $100.00 USD se mostrará como " +
+                                "${viewModel.cupLabel(100.0)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Button(
+                        onClick = {
+                            viewModel.updateCupRate(rateInput.toDoubleOrNull() ?: 0.0)
+                            Toast.makeText(context, "Tasa guardada", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Icon(imageVector = Icons.Default.CurrencyExchange, contentDescription = null)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Guardar Tasa")
+                    }
+                }
+            }
         }
 
         item {
@@ -1571,6 +1737,83 @@ fun AdminSettingsView(
                         Icon(imageVector = Icons.Default.Lock, contentDescription = null)
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("Actualizar PIN")
+                    }
+                }
+            }
+        }
+
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Texto del Contrato",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Es el texto que el cliente lee y firma. Edítalo aquí cuando cambien " +
+                            "tus condiciones, sin necesidad de actualizar la aplicación.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    OutlinedTextField(
+                        value = contractInput,
+                        onValueChange = { contractInput = it },
+                        label = { Text("Contrato de Sesión Fotográfica") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(220.dp)
+                            .testTag("admin_contract_input")
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                contractInput = FULL_CONTRACT_TEXT
+                                viewModel.updateContractText("")
+                                Toast.makeText(
+                                    context,
+                                    "Restaurado el contrato original",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Restaurar original")
+                        }
+
+                        Button(
+                            onClick = {
+                                if (contractInput.isBlank()) {
+                                    Toast.makeText(
+                                        context,
+                                        "El contrato no puede quedar vacío",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                } else {
+                                    viewModel.updateContractText(contractInput)
+                                    Toast.makeText(context, "Contrato guardado", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(imageVector = Icons.Default.Save, contentDescription = null)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Guardar")
+                        }
                     }
                 }
             }
@@ -2033,6 +2276,10 @@ fun SummaryDialog(
     viewModel: StudioViewModel,
     cart: List<CartItem>,
     total: Double,
+    subtotal: Double,
+    descuento: Double,
+    onDiscountChange: (Double) -> Unit,
+    cupLabelFor: (Double) -> String? = { null },
     onDismiss: () -> Unit,
     onProceedToContract: () -> Unit
 ) {
@@ -2116,6 +2363,65 @@ fun SummaryDialog(
                 Divider()
                 Spacer(modifier = Modifier.height(12.dp))
 
+                // Descuento: el contrato admite negociar el precio, así que se
+                // aplica aquí en vez de inventar un ítem con importe negativo.
+                // Sin clave en remember: si dependiera de `descuento`, cada tecla
+                // reescribiría el campo y sería imposible teclear decimales.
+                var descuentoInput by remember {
+                    mutableStateOf(if (descuento > 0.0) String.format("%.2f", descuento) else "")
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedTextField(
+                        value = descuentoInput,
+                        onValueChange = { nuevo ->
+                            descuentoInput = nuevo.filter { it.isDigit() || it == '.' }
+                            onDiscountChange(descuentoInput.toDoubleOrNull() ?: 0.0)
+                        },
+                        label = { Text("Descuento (USD)") },
+                        leadingIcon = { Icon(Icons.Default.LocalOffer, contentDescription = null) },
+                        singleLine = true,
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("discount_input"),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                }
+
+                if (descuento > 0.0) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Subtotal:", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            text = "$${String.format("%.2f", subtotal)} USD",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            "Descuento:",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        Text(
+                            text = "-$${String.format("%.2f", descuento)} USD",
+                            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
@@ -2125,12 +2431,23 @@ fun SummaryDialog(
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.ExtraBold
                     )
-                    Text(
-                        text = "$${String.format("%.2f", total)} USD",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = "$${String.format("%.2f", total)} USD",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        cupLabelFor(total)?.let {
+                            Text(
+                                text = it,
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    fontWeight = FontWeight.SemiBold
+                                ),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))

@@ -43,6 +43,7 @@ fun CalendarScreen(
     val cartItems by viewModel.cart.collectAsState()
     val cartTotal by viewModel.cartTotal.collectAsState()
     val appointments by viewModel.appointments.collectAsState()
+    val contractText by viewModel.contractText.collectAsState()
 
     // Calendar state
     val calendar = remember { Calendar.getInstance() }
@@ -58,6 +59,8 @@ fun CalendarScreen(
     var clientPhone by remember { mutableStateOf("") }
     var packageSelection by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
+    var montoInput by remember { mutableStateOf("") }
+    var anticipoInput by remember { mutableStateOf("") }
 
     var showContractDialog by remember { mutableStateOf(false) }
     var bookingSuccessAppointment by remember { mutableStateOf<AppointmentEntity?>(null) }
@@ -69,6 +72,11 @@ fun CalendarScreen(
                 "${it.item.name} (${it.variant.name}) x${it.quantity}"
             } + " [Total: \$${String.format("%.2f", cartTotal)} USD]"
             packageSelection = summary
+        }
+        // El monto acordado se propone desde el carrito; sigue siendo editable
+        // porque el contrato admite negociar el precio.
+        if (montoInput.isBlank() && cartTotal > 0.0) {
+            montoInput = String.format("%.2f", cartTotal)
         }
     }
 
@@ -91,6 +99,13 @@ fun CalendarScreen(
         "09:00 AM", "10:00 AM", "11:00 AM", "12:00 PM",
         "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM"
     )
+
+    // Fecha de hoy como número aaaammdd, para comparar días sin líos de zona
+    // horaria ni de formato.
+    val hoyComparable = remember {
+        val c = Calendar.getInstance()
+        c.get(Calendar.YEAR) * 10000 + (c.get(Calendar.MONTH) + 1) * 100 + c.get(Calendar.DAY_OF_MONTH)
+    }
 
     // Horas ya reservadas para el día elegido: evita agendar dos clientes
     // en el mismo turno.
@@ -237,6 +252,9 @@ fun CalendarScreen(
                                     val isSunday = col == 6
                                     val dateStr = String.format("%02d/%02d/%04d", dayNumber, displayedMonth + 1, displayedYear)
                                     val isSelected = selectedDateString == dateStr
+                                    // No se puede reservar para un día que ya pasó.
+                                    val esPasado = (displayedYear * 10000 + (displayedMonth + 1) * 100 + dayNumber) < hoyComparable
+                                    val habilitado = !isSunday && !esPasado
 
                                     Box(
                                         modifier = Modifier
@@ -247,11 +265,11 @@ fun CalendarScreen(
                                             .background(
                                                 when {
                                                     isSelected -> MaterialTheme.colorScheme.primary
-                                                    isSunday -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                                                    !habilitado -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
                                                     else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
                                                 }
                                             )
-                                            .clickable(enabled = !isSunday) {
+                                            .clickable(enabled = habilitado) {
                                                 selectedDateString = dateStr
                                                 selectedDayOfWeek = col
                                             },
@@ -263,6 +281,7 @@ fun CalendarScreen(
                                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                                 color = when {
                                                     isSelected -> MaterialTheme.colorScheme.onPrimary
+                                                    esPasado -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
                                                     isSunday -> MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
                                                     else -> MaterialTheme.colorScheme.onSurface
                                                 }
@@ -426,6 +445,53 @@ fun CalendarScreen(
                         maxLines = 3
                     )
 
+                    // El contrato exige un anticipo al reservar: queda registrado
+                    // junto al monto total para poder ver el saldo pendiente.
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = montoInput,
+                            onValueChange = { montoInput = it.filter { c -> c.isDigit() || c == '.' } },
+                            label = { Text("Monto acordado (USD)") },
+                            leadingIcon = { Icon(Icons.Default.Payments, contentDescription = null) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("monto_acordado_input"),
+                            singleLine = true,
+                            shape = RoundedCornerShape(10.dp)
+                        )
+
+                        OutlinedTextField(
+                            value = anticipoInput,
+                            onValueChange = { anticipoInput = it.filter { c -> c.isDigit() || c == '.' } },
+                            label = { Text("Anticipo pagado (USD)") },
+                            leadingIcon = { Icon(Icons.Default.Savings, contentDescription = null) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("anticipo_input"),
+                            singleLine = true,
+                            shape = RoundedCornerShape(10.dp)
+                        )
+                    }
+
+                    val montoNum = montoInput.toDoubleOrNull() ?: 0.0
+                    val anticipoNum = anticipoInput.toDoubleOrNull() ?: 0.0
+                    if (montoNum > 0.0) {
+                        val saldo = (montoNum - anticipoNum).coerceAtLeast(0.0)
+                        Text(
+                            text = "Saldo pendiente: $${String.format("%.2f", saldo)} USD" +
+                                (viewModel.cupLabel(saldo)?.let { "  ($it)" } ?: ""),
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Button(
@@ -552,6 +618,7 @@ fun CalendarScreen(
     if (showContractDialog) {
         ContractSignatureDialog(
             title = "Contrato de Sesión - Reservación",
+            contractText = contractText,
             onDismiss = { showContractDialog = false },
             onConfirm = { signatureBytes ->
                 showContractDialog = false
@@ -564,6 +631,8 @@ fun CalendarScreen(
                     notas = notes,
                     firmaBytes = signatureBytes,
                     terminosAceptados = true,
+                    montoAcordado = montoInput.toDoubleOrNull() ?: 0.0,
+                    anticipoPagado = anticipoInput.toDoubleOrNull() ?: 0.0,
                     onSuccess = { savedEntity ->
                         bookingSuccessAppointment = savedEntity
                         Toast.makeText(context, "Reservación registrada con éxito", Toast.LENGTH_LONG).show()

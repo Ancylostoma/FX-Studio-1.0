@@ -92,9 +92,12 @@ Gracias por elegirnos y feliz sesión fotográfica."""
 @Composable
 fun ContractSignatureDialog(
     title: String = "Contrato de Sesión Fotográfica",
+    // Texto editable desde Ajustes; en blanco se usa el de fábrica.
+    contractText: String = "",
     onDismiss: () -> Unit,
     onConfirm: (signatureBytes: ByteArray?) -> Unit
 ) {
+    val textoContrato = contractText.ifBlank { FULL_CONTRACT_TEXT }
     var termsAccepted by remember { mutableStateOf(false) }
     var hasSignature by remember { mutableStateOf(false) }
     var exportSignatureFn by remember { mutableStateOf<(() -> ByteArray?)?>(null) }
@@ -180,7 +183,7 @@ fun ContractSignatureDialog(
                         shape = RoundedCornerShape(10.dp)
                     ) {
                         Text(
-                            text = FULL_CONTRACT_TEXT,
+                            text = textoContrato,
                             style = MaterialTheme.typography.bodyMedium.copy(
                                 lineHeight = 22.sp,
                                 fontSize = 15.sp
