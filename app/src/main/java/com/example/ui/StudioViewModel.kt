@@ -50,6 +50,19 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
     private val _adminPin = MutableStateFlow("1234")
     val adminPin: StateFlow<String> = _adminPin.asStateFlow()
 
+    // Tasa USD→CUP. En 0 la app no muestra precios en CUP, para no enseñar
+    // una conversión inventada antes de que el estudio fije la tasa real.
+    private val _cupRate = MutableStateFlow(0.0)
+    val cupRate: StateFlow<Double> = _cupRate.asStateFlow()
+
+    // Texto del contrato: vacío = se usa el de fábrica.
+    private val _contractText = MutableStateFlow("")
+    val contractText: StateFlow<String> = _contractText.asStateFlow()
+
+    // Descuento aplicado al pedido actual, en USD.
+    private val _discount = MutableStateFlow(0.0)
+    val discount: StateFlow<Double> = _discount.asStateFlow()
+
     // Licencia mensual
     private val _licenseChecked = MutableStateFlow(false)
     val licenseChecked: StateFlow<Boolean> = _licenseChecked.asStateFlow()
@@ -65,8 +78,13 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
     val cart: StateFlow<List<CartItem>> = _cart.asStateFlow()
 
     // Calculated fields
-    val cartTotal: StateFlow<Double> = _cart.map { list ->
+    val cartSubtotal: StateFlow<Double> = _cart.map { list ->
         list.sumOf { it.subtotal }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
+
+    // Total a cobrar, ya con el descuento aplicado (nunca baja de cero).
+    val cartTotal: StateFlow<Double> = combine(_cart, _discount) { list, desc ->
+        (list.sumOf { it.subtotal } - desc).coerceAtLeast(0.0)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
     val cartCount: StateFlow<Int> = _cart.map { list ->
@@ -85,6 +103,40 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
         val num = repository.getWhatsAppNumber()
         _whatsappNumber.value = if (num.isNotBlank()) num else "55823513"
         _adminPin.value = repository.getAdminPin()
+        _cupRate.value = repository.getCupRate()
+        _contractText.value = repository.getContractText()
+    }
+
+    fun updateCupRate(rate: Double) {
+        viewModelScope.launch {
+            repository.setCupRate(rate)
+            _cupRate.value = rate
+        }
+    }
+
+    fun updateContractText(text: String) {
+        viewModelScope.launch {
+            repository.setContractText(text)
+            _contractText.value = text
+        }
+    }
+
+    fun setDiscount(amount: Double) {
+        _discount.value = amount.coerceAtLeast(0.0)
+    }
+
+    /**
+     * Equivalente aproximado en CUP, ya formateado. Devuelve null cuando no
+     * hay tasa configurada, para que la interfaz simplemente no muestre nada.
+     */
+    fun cupLabel(usd: Double): String? {
+        val rate = _cupRate.value
+        if (rate <= 0.0) return null
+        val cup = usd * rate
+        // Sin decimales y con separador de miles: "≈ 318 000 CUP"
+        val entero = Math.round(cup).toString()
+            .reversed().chunked(3).joinToString(" ").reversed()
+        return "≈ $entero CUP"
     }
 
     // Revisa si la app está activada para el mes actual (o desbloqueada con llave maestra)
@@ -174,6 +226,7 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
 
     fun clearCart() {
         _cart.value = emptyList()
+        _discount.value = 0.0
     }
 
     fun getCartSummaryText(): String {
@@ -256,6 +309,8 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
         notas: String,
         firmaBytes: ByteArray?,
         terminosAceptados: Boolean = true,
+        montoAcordado: Double = 0.0,
+        anticipoPagado: Double = 0.0,
         onSuccess: (AppointmentEntity) -> Unit
     ) {
         viewModelScope.launch {
@@ -267,7 +322,9 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
                 detalleSeleccion = detalleSeleccion,
                 notas = notas,
                 firmaBytes = firmaBytes,
-                terminosAceptados = terminosAceptados
+                terminosAceptados = terminosAceptados,
+                montoAcordado = montoAcordado,
+                anticipoPagado = anticipoPagado
             )
             val generatedId = repository.insertAppointment(appointment)
             val savedAppointment = appointment.copy(id = generatedId.toInt())
@@ -278,6 +335,18 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
     fun deleteAppointment(id: Int) {
         viewModelScope.launch {
             repository.deleteAppointmentById(id)
+        }
+    }
+
+    fun updateAppointmentPayment(id: Int, montoAcordado: Double, anticipoPagado: Double) {
+        viewModelScope.launch {
+            repository.updateAppointmentPayment(id, montoAcordado, anticipoPagado)
+        }
+    }
+
+    fun updateAppointmentStatus(id: Int, estado: String) {
+        viewModelScope.launch {
+            repository.updateAppointmentStatus(id, estado)
         }
     }
 
@@ -332,6 +401,9 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
             obj.put("notas", appt.notas)
             obj.put("terminosAceptados", appt.terminosAceptados)
             obj.put("createdAt", appt.createdAt)
+            obj.put("montoAcordado", appt.montoAcordado)
+            obj.put("anticipoPagado", appt.anticipoPagado)
+            obj.put("estado", appt.estado)
             val firma = appt.firmaBytes?.let { Base64.encodeToString(it, Base64.NO_WRAP) } ?: ""
             obj.put("firmaBytes", firma)
             appointmentsArray.put(obj)
@@ -406,7 +478,10 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
                                 notas = obj.optString("notas", ""),
                                 firmaBytes = firma,
                                 terminosAceptados = obj.optBoolean("terminosAceptados", true),
-                                createdAt = obj.optLong("createdAt", System.currentTimeMillis())
+                                createdAt = obj.optLong("createdAt", System.currentTimeMillis()),
+                                montoAcordado = obj.optDouble("montoAcordado", 0.0),
+                                anticipoPagado = obj.optDouble("anticipoPagado", 0.0),
+                                estado = obj.optString("estado", EstadoCita.RESERVADA)
                             )
                         )
                     }
@@ -496,7 +571,12 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
         }
 
         sb.append("-------------------------------------------\n")
+        if (discount.value > 0.0) {
+            sb.append("Subtotal: $${String.format("%.2f", cartSubtotal.value)} USD\n")
+            sb.append("🏷️ *Descuento aplicado: -$${String.format("%.2f", discount.value)} USD*\n")
+        }
         sb.append("💰 *TOTAL GENERAL: $${String.format("%.2f", cartTotal.value)} USD*\n")
+        cupLabel(cartTotal.value)?.let { sb.append("💱 *$it* (tasa del día)\n") }
         sb.append("💵 _Se acepta Zelle y CUP al cambio del día._\n")
         sb.append("-------------------------------------------\n")
         sb.append("✍️ *Contrato de Sesión Fotográfica:* ✅ FIRMADO Y ACEPTADO\n")
@@ -533,6 +613,16 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
         sb.append("${appointment.detalleSeleccion}\n\n")
         if (appointment.notas.isNotBlank()) {
             sb.append("📝 *Notas adicionales:* ${appointment.notas}\n")
+        }
+        if (appointment.montoAcordado > 0.0) {
+            sb.append("-------------------------------------------\n")
+            sb.append("💰 *Monto acordado:* $${String.format("%.2f", appointment.montoAcordado)} USD")
+            cupLabel(appointment.montoAcordado)?.let { sb.append("  ($it)") }
+            sb.append("\n")
+            sb.append("✅ *Anticipo pagado:* $${String.format("%.2f", appointment.anticipoPagado)} USD\n")
+            sb.append("🔸 *Saldo pendiente:* $${String.format("%.2f", appointment.saldoPendiente)} USD")
+            cupLabel(appointment.saldoPendiente)?.let { sb.append("  ($it)") }
+            sb.append("\n")
         }
         sb.append("-------------------------------------------\n")
         sb.append("✍️ *Contrato de Sesión Fotográfica:* ✅ FIRMADO Y ACEPTADO\n")

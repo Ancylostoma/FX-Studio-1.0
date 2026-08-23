@@ -54,4 +54,10 @@ interface StudioDao {
 
     @Query("DELETE FROM appointments WHERE id = :id")
     suspend fun deleteAppointmentById(id: Int)
+
+    @Query("UPDATE appointments SET montoAcordado = :monto, anticipoPagado = :anticipo WHERE id = :id")
+    suspend fun updateAppointmentPayment(id: Int, monto: Double, anticipo: Double)
+
+    @Query("UPDATE appointments SET estado = :estado WHERE id = :id")
+    suspend fun updateAppointmentStatus(id: Int, estado: String)
 }
