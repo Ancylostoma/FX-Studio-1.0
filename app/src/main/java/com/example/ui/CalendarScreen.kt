@@ -31,6 +31,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.AppointmentEntity
+import com.example.data.StudioInfo
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -95,10 +96,19 @@ fun CalendarScreen(
     // Convert to Monday=0, Sunday=6 offset
     val startingOffset = if (firstDayOfWeek == Calendar.SUNDAY) 6 else firstDayOfWeek - 2
 
-    val availableHours = listOf(
-        "09:00 AM", "10:00 AM", "11:00 AM", "12:00 PM",
-        "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM"
-    )
+    // Los turnos dependen del día: el sábado el estudio cierra al mediodía.
+    val availableHours = remember(selectedDayOfWeek) {
+        if (selectedDayOfWeek in 0..6) StudioInfo.turnosPara(selectedDayOfWeek)
+        else StudioInfo.TURNOS_SEMANA
+    }
+
+    // Si el turno elegido no existe el día seleccionado, se pasa al primero
+    // disponible para no enviar una reserva a una hora cerrada.
+    LaunchedEffect(availableHours) {
+        if (availableHours.isNotEmpty() && selectedTimeSlot !in availableHours) {
+            selectedTimeSlot = availableHours.first()
+        }
+    }
 
     // Fecha de hoy como número aaaammdd, para comparar días sin líos de zona
     // horaria ni de formato.
@@ -149,7 +159,7 @@ fun CalendarScreen(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "FXestudio • Bayamo, Granma\nLunes a Sábado de 9:00 AM a 5:00 PM (Domingos cerrado)",
+                            text = "${StudioInfo.NOMBRE} • ${StudioInfo.UBICACION}\n${StudioInfo.HORARIO_SEMANA}\n${StudioInfo.HORARIO_SABADO} • ${StudioInfo.HORARIO_DOMINGO}",
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -296,7 +306,7 @@ fun CalendarScreen(
                     if (selectedDayOfWeek == 6) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "❌ Estudio cerrado los domingos. Por favor seleccione de Lunes a Sábado.",
+                            text = "❌ Los domingos el estudio está cerrado. Elija de lunes a sábado.",
                             style = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.error)
                         )
                     }
@@ -316,7 +326,7 @@ fun CalendarScreen(
 
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
-                            text = "Seleccione la Hora (Horario: 9:00 AM – 5:00 PM):",
+                            text = if (selectedDayOfWeek == 5) "Seleccione la Hora (sábado: 9:00 AM – 12:00 PM):" else "Seleccione la Hora (9:00 AM – 5:00 PM):",
                             style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
                         )
                         Spacer(modifier = Modifier.height(6.dp))
