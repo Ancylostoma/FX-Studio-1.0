@@ -59,10 +59,16 @@ enum class Screen {
     ADMIN
 }
 
-enum class ClientTab(val title: String) {
-    OFERTAS("Ofertas"),
-    CREAR_PROPIA("Crear Oferta Propia"),
-    CALENDARIO("Calendario")
+/**
+ * Vistas que ocupan los dos tercios inferiores. La banda de marca superior
+ * permanece fija en todas ellas.
+ */
+enum class ClientView {
+    INICIO,      // foto, los cinco accesos y la ficha de contacto
+    OFERTAS,     // lista de paquetes de una categoría
+    DETALLE,     // un paquete concreto, a pantalla completa
+    PROPIA,      // diseñar la oferta a la medida
+    CALENDARIO   // disponibilidad y reserva
 }
 
 class MainActivity : ComponentActivity() {
@@ -84,8 +90,6 @@ fun MainApp() {
 
     var currentScreen by remember { mutableStateOf(Screen.CLIENT) }
     var showPinDialog by remember { mutableStateOf(false) }
-    // rememberSaveable: al girar la pantalla no debe reaparecer la portada.
-    var showWelcome by rememberSaveable { mutableStateOf(true) }
 
     val licenseChecked by viewModel.licenseChecked.collectAsState()
     val licenseValid by viewModel.licenseValid.collectAsState()
@@ -102,12 +106,8 @@ fun MainApp() {
         return
     }
 
-    // Portada de bienvenida. Va fuera del Scaffold para que la foto llegue a
-    // los bordes de la pantalla, sin los márgenes de las barras del sistema.
-    if (showWelcome) {
-        WelcomeScreen(onEnter = { showWelcome = false })
-        return
-    }
+    // La portada ya es la propia pantalla de inicio del cliente (banda de
+    // marca, foto y accesos), así que no hace falta una bienvenida aparte.
 
     // Edge-to-edge container handling status bars and navigation bars
     Scaffold(
@@ -169,440 +169,212 @@ fun ClientScreen(
     val descuento by viewModel.discount.collectAsState()
     val cartCount by viewModel.cartCount.collectAsState()
     val contractText by viewModel.contractText.collectAsState()
-
     val cupRate by viewModel.cupRate.collectAsState()
 
-    var activeTab by remember { mutableStateOf(ClientTab.OFERTAS) }
-    var selectedCategory by remember { mutableStateOf("Todos") }
-    var searchQuery by remember { mutableStateOf("") }
+    // Vista activa dentro de los dos tercios inferiores. La banda de marca de
+    // arriba no cambia nunca.
+    var vista by rememberSaveable { mutableStateOf(ClientView.INICIO) }
+    var categoriaActiva by rememberSaveable { mutableStateOf("Bodas") }
+    var itemDetalleId by rememberSaveable { mutableStateOf(-1) }
+
     var showSummaryDialog by remember { mutableStateOf(false) }
     var showContractForOrder by remember { mutableStateOf(false) }
     var itemForExtrasDialog by remember { mutableStateOf<CatalogItem?>(null) }
 
-    // Dynamically retrieve unique categories from database items
-    val categories = remember(items) {
-        val list = mutableListOf("Todos")
-        list.addAll(items.map { it.category }.distinct())
-        list
+    val itemDetalle = remember(items, itemDetalleId) {
+        items.firstOrNull { it.id == itemDetalleId }
     }
 
-    val filteredItems = remember(items, selectedCategory, searchQuery) {
-        val porCategoria =
-            if (selectedCategory == "Todos") items
-            else items.filter { it.category == selectedCategory }
-
-        val q = searchQuery.trim()
-        if (q.isBlank()) porCategoria
-        else porCategoria.filter {
-            it.code.contains(q, ignoreCase = true) ||
-                it.name.contains(q, ignoreCase = true) ||
-                it.description.contains(q, ignoreCase = true)
-        }
+    val ofertasCategoria = remember(items, categoriaActiva) {
+        items.filter { it.category == categoriaActiva }
     }
 
-    // remember(cupRate) hace que las etiquetas en CUP se recalculen en cuanto
-    // se guarda una tasa nueva desde Ajustes.
     val cupLabelFor: (Double) -> String? = remember(cupRate) {
         { usd -> viewModel.cupLabel(usd) }
     }
 
-    // Determine tablet or wide split screen layout
-    val configuration = LocalConfiguration.current
-    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-    val isWideScreen = isLandscape || configuration.screenWidthDp >= 720
+    fun volverAInicio() {
+        vista = ClientView.INICIO
+        itemDetalleId = -1
+    }
 
-    Scaffold(
-        bottomBar = {
-            NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surface,
-                tonalElevation = 8.dp
-            ) {
-                NavigationBarItem(
-                    selected = activeTab == ClientTab.OFERTAS,
-                    onClick = { activeTab = ClientTab.OFERTAS },
-                    icon = {
-                        Icon(
-                            imageVector = if (activeTab == ClientTab.OFERTAS) Icons.Filled.Stars else Icons.Outlined.Stars,
-                            contentDescription = "Ofertas",
-                            modifier = Modifier.size(26.dp)
-                        )
-                    },
-                    label = {
-                        Text(
-                            text = "Ofertas",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                        )
-                    },
-                    modifier = Modifier.testTag("tab_ofertas")
-                )
+    Column(modifier = Modifier.fillMaxSize()) {
+        // ---- TERCIO SUPERIOR: fijo, siempre visible ----
+        StudioHeaderBand(
+            onOpenAdminRequest = onOpenAdminRequest,
+            // En la portada se muestra grande; dentro de una sección se
+            // compacta para dejar sitio al contenido.
+            compacto = vista != ClientView.INICIO
+        )
 
-                NavigationBarItem(
-                    selected = activeTab == ClientTab.CREAR_PROPIA,
-                    onClick = { activeTab = ClientTab.CREAR_PROPIA },
-                    icon = {
-                        Icon(
-                            imageVector = if (activeTab == ClientTab.CREAR_PROPIA) Icons.Filled.AutoFixHigh else Icons.Outlined.AutoFixHigh,
-                            contentDescription = "Crear Oferta",
-                            modifier = Modifier.size(26.dp)
+        // ---- DOS TERCIOS INFERIORES: cambian según la vista ----
+        Box(modifier = Modifier.weight(1f)) {
+            when (vista) {
+                ClientView.INICIO -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        HomeContent(
+                            onCategoria = { cat ->
+                                categoriaActiva = cat
+                                vista = ClientView.OFERTAS
+                            },
+                            onOfertaPropia = { vista = ClientView.PROPIA },
+                            onCalendario = { vista = ClientView.CALENDARIO }
                         )
-                    },
-                    label = {
-                        Text(
-                            text = "Crear Oferta Propia",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                        )
-                    },
-                    modifier = Modifier.testTag("tab_crear_propia")
-                )
+                    }
+                }
 
-                NavigationBarItem(
-                    selected = activeTab == ClientTab.CALENDARIO,
-                    onClick = { activeTab = ClientTab.CALENDARIO },
-                    icon = {
-                        Icon(
-                            imageVector = if (activeTab == ClientTab.CALENDARIO) Icons.Filled.CalendarMonth else Icons.Outlined.CalendarMonth,
-                            contentDescription = "Calendario",
-                            modifier = Modifier.size(26.dp)
+                ClientView.OFERTAS -> {
+                    OffersListScreen(
+                        categoria = categoriaActiva,
+                        items = ofertasCategoria,
+                        cupLabelFor = cupLabelFor,
+                        onAbrirOferta = { item ->
+                            itemDetalleId = item.id
+                            vista = ClientView.DETALLE
+                        },
+                        onCambiarCategoria = { categoriaActiva = it }
+                    )
+                }
+
+                ClientView.DETALLE -> {
+                    val detalle = itemDetalle
+                    if (detalle == null) {
+                        // El paquete pudo borrarse desde el panel admin.
+                        LaunchedEffect(Unit) { vista = ClientView.OFERTAS }
+                    } else {
+                        OfferDetailScreen(
+                            item = detalle,
+                            cupLabelFor = cupLabelFor,
+                            onAddToCart = { it0, variant, qty ->
+                                viewModel.addToCart(it0, variant, qty)
+                            },
+                            onOpenExtras = { itemForExtrasDialog = detalle },
+                            onVolver = { vista = ClientView.OFERTAS }
                         )
-                    },
-                    label = {
-                        Text(
-                            text = "Calendario",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                        )
-                    },
-                    modifier = Modifier.testTag("tab_calendario")
-                )
+                    }
+                }
+
+                ClientView.PROPIA -> {
+                    CustomOfferScreen(
+                        viewModel = viewModel,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+
+                ClientView.CALENDARIO -> {
+                    CalendarScreen(
+                        viewModel = viewModel,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+
+            // Botón para regresar a la portada desde cualquier sección.
+            if (vista != ClientView.INICIO && vista != ClientView.DETALLE) {
+                FilledTonalButton(
+                    onClick = { volverAInicio() },
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(start = 12.dp, bottom = 12.dp)
+                        .testTag("btn_inicio")
+                ) {
+                    Icon(Icons.Default.Home, contentDescription = null)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Inicio", fontWeight = FontWeight.Bold)
+                }
             }
         }
-    ) { paddingValues ->
-        if (isWideScreen) {
-            // LANDSCAPE / TABLET LAYOUT: Split 65% Main Content - 35% Permanent Cart side panel
-            Row(
+
+        // ---- BARRA DEL PEDIDO: solo aparece si hay algo en el carrito ----
+        // El carrito ya no ocupa un panel propio; vive aquí abajo y se abre
+        // completo al confirmar.
+        if (cart.isNotEmpty()) {
+            Surface(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
+                    .fillMaxWidth()
+                    .clickable { showSummaryDialog = true }
+                    .testTag("view_summary_button"),
+                color = MaterialTheme.colorScheme.primary,
+                tonalElevation = 8.dp
             ) {
-                Column(
+                Row(
                     modifier = Modifier
-                        .weight(0.65f)
-                        .fillMaxHeight()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .fillMaxWidth()
+                        .padding(horizontal = 18.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    ClientHeader(onOpenAdminRequest = onOpenAdminRequest)
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    when (activeTab) {
-                        ClientTab.OFERTAS -> {
-                            CatalogSearchField(
-                                query = searchQuery,
-                                onQueryChange = { searchQuery = it }
-                            )
-                            Spacer(modifier = Modifier.height(10.dp))
-                            CategorySelector(
-                                categories = categories,
-                                selected = selectedCategory,
-                                onSelect = { selectedCategory = it }
-                            )
-                            Spacer(modifier = Modifier.height(14.dp))
-                            ClientCatalogList(
-                                items = filteredItems,
-                                onAddToCart = { item, variant, qty ->
-                                    viewModel.addToCart(item, variant, qty)
-                                },
-                                onOpenExtras = { item ->
-                                    itemForExtrasDialog = item
-                                },
-                                cupLabelFor = cupLabelFor
-                            )
-                        }
-                        ClientTab.CREAR_PROPIA -> {
-                            CustomOfferScreen(
-                                viewModel = viewModel,
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                        ClientTab.CALENDARIO -> {
-                            CalendarScreen(
-                                viewModel = viewModel,
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-                }
-
-                // Vertical Divider
-                Box(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .width(1.dp)
-                        .background(MaterialTheme.colorScheme.outlineVariant)
-                )
-
-                // Permanent Side Cart Panel
-                Column(
-                    modifier = Modifier
-                        .weight(0.35f)
-                        .fillMaxHeight()
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
-                        .padding(16.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Tu Pedido / Carrito",
-                            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        if (cart.isNotEmpty()) {
-                            TextButton(onClick = { viewModel.clearCart() }) {
-                                Text("Vaciar", color = MaterialTheme.colorScheme.error)
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    if (cart.isEmpty()) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
                             modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    imageVector = Icons.Default.ShoppingCart,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                                    modifier = Modifier.size(64.dp)
+                                .background(
+                                    MaterialTheme.colorScheme.onPrimary,
+                                    shape = RoundedCornerShape(10.dp)
                                 )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = "El carrito está vacío",
-                                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                                )
-                            }
-                        }
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            items(cart) { cartItem ->
-                                SideCartItemRow(
-                                    cartItem = cartItem,
-                                    onUpdateQty = { item, qty ->
-                                        viewModel.updateCartQuantity(item, qty)
-                                    },
-                                    onRemove = { item ->
-                                        viewModel.removeFromCart(item)
-                                    }
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Divider()
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
                         ) {
                             Text(
-                                text = "TOTAL:",
-                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                                text = cartCount.toString(),
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.ExtraBold
+                                ),
+                                color = MaterialTheme.colorScheme.primary
                             )
-                            Column(horizontalAlignment = Alignment.End) {
-                                Text(
-                                    text = "$${String.format("%.2f", cartTotal)} USD",
-                                    style = MaterialTheme.typography.headlineSmall.copy(
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                )
-                                cupLabelFor(cartTotal)?.let {
-                                    Text(
-                                        text = it,
-                                        style = MaterialTheme.typography.bodyMedium.copy(
-                                            fontWeight = FontWeight.Medium
-                                        ),
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
                         }
-
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        Button(
-                            onClick = { showSummaryDialog = true },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp)
-                                .testTag("view_summary_button"),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Icon(imageVector = Icons.Default.CheckCircle, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(14.dp))
+                        Column {
                             Text(
-                                text = "Confirmar y Firmar Contrato",
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                                text = "Tu pedido",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f)
+                            )
+                            Text(
+                                text = "$${String.format("%.2f", cartTotal)} USD",
+                                style = MaterialTheme.typography.titleLarge.copy(
+                                    fontWeight = FontWeight.ExtraBold
+                                ),
+                                color = MaterialTheme.colorScheme.onPrimary
                             )
                         }
                     }
-                }
-            }
-        } else {
-            // MOBILE PORTRAIT LAYOUT: Single Column + Sticky Bottom Cart Summary
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(horizontal = 14.dp, vertical = 8.dp)
-            ) {
-                ClientHeader(onOpenAdminRequest = onOpenAdminRequest)
-                Spacer(modifier = Modifier.height(10.dp))
 
-                Box(modifier = Modifier.weight(1f)) {
-                    when (activeTab) {
-                        ClientTab.OFERTAS -> {
-                            Column(modifier = Modifier.fillMaxSize()) {
-                                CatalogSearchField(
-                                    query = searchQuery,
-                                    onQueryChange = { searchQuery = it }
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                CategorySelector(
-                                    categories = categories,
-                                    selected = selectedCategory,
-                                    onSelect = { selectedCategory = it }
-                                )
-                                Spacer(modifier = Modifier.height(10.dp))
-                                ClientCatalogList(
-                                    items = filteredItems,
-                                    onAddToCart = { item, variant, qty ->
-                                        viewModel.addToCart(item, variant, qty)
-                                    },
-                                    onOpenExtras = { item ->
-                                        itemForExtrasDialog = item
-                                    },
-                                    cupLabelFor = cupLabelFor
-                                )
-                            }
-                        }
-                        ClientTab.CREAR_PROPIA -> {
-                            CustomOfferScreen(
-                                viewModel = viewModel,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        }
-                        ClientTab.CALENDARIO -> {
-                            CalendarScreen(
-                                viewModel = viewModel,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        }
-                    }
-                }
-
-                // Sticky Bottom Cart Summary Bar
-                if (cart.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(16.dp))
-                            .clickable { showSummaryDialog = true }
-                            .testTag("view_summary_button"),
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        tonalElevation = 8.dp
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .background(
-                                            MaterialTheme.colorScheme.primary,
-                                            shape = RoundedCornerShape(8.dp)
-                                        )
-                                        .padding(horizontal = 10.dp, vertical = 6.dp)
-                                ) {
-                                    Text(
-                                        text = cartCount.toString(),
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onPrimary,
-                                        style = MaterialTheme.typography.bodyLarge
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column {
-                                    Text(
-                                        text = "Total del Pedido",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                                    )
-                                    Text(
-                                        text = "$${String.format("%.2f", cartTotal)} USD",
-                                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold),
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                    cupLabelFor(cartTotal)?.let {
-                                        Text(
-                                            text = it,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                                        )
-                                    }
-                                }
-                            }
-
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = "Ver Pedido",
-                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Icon(
-                                    imageVector = Icons.Default.ChevronRight,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Confirmar",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(30.dp)
+                        )
                     }
                 }
             }
         }
     }
 
-    // Extras Dialog for "+" button on cards
+    // Extras del paquete abierto
     itemForExtrasDialog?.let { item ->
         OfferExtrasDialog(
             item = item,
             onDismiss = { itemForExtrasDialog = null },
             onAddExtra = { title, cat, variant, price, qty ->
                 viewModel.addCustomToCart(title, cat, variant, price, qty, "Extra añadido a ${item.name}")
-                Toast.makeText(context, "Extra añadido al carrito", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Extra añadido al pedido", Toast.LENGTH_SHORT).show()
             }
         )
     }
 
-    // Receipt-style Summary Dialog with direct contract signing link
+    // Resumen del pedido, ya al final del recorrido
     if (showSummaryDialog) {
         SummaryDialog(
             viewModel = viewModel,
@@ -620,7 +392,7 @@ fun ClientScreen(
         )
     }
 
-    // Mandatory Contract & Signature Dialog before finalizing order
+    // Contrato y firma antes de enviar el pedido
     if (showContractForOrder) {
         ContractSignatureDialog(
             title = "Contrato de Sesión - Confirmación de Pedido",
@@ -641,6 +413,7 @@ fun ClientScreen(
         )
     }
 }
+
 
 @Composable
 fun ClientHeader(onOpenAdminRequest: () -> Unit) {
@@ -687,479 +460,6 @@ fun ClientHeader(onOpenAdminRequest: () -> Unit) {
         }
     }
 }
-
-/** Busca por código (A14, Qt7…), nombre o descripción del paquete. */
-@Composable
-fun CatalogSearchField(
-    query: String,
-    onQueryChange: (String) -> Unit
-) {
-    OutlinedTextField(
-        value = query,
-        onValueChange = onQueryChange,
-        placeholder = { Text("Buscar por código o nombre… (ej: A14, bodas)") },
-        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-        trailingIcon = {
-            if (query.isNotEmpty()) {
-                IconButton(onClick = { onQueryChange("") }) {
-                    Icon(Icons.Default.Close, contentDescription = "Limpiar búsqueda")
-                }
-            }
-        },
-        singleLine = true,
-        shape = RoundedCornerShape(14.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag("catalog_search_field")
-    )
-}
-
-@Composable
-fun CategorySelector(
-    categories: List<String>,
-    selected: String,
-    onSelect: (String) -> Unit
-) {
-    LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        contentPadding = PaddingValues(vertical = 4.dp)
-    ) {
-        items(categories) { category ->
-            val isSelected = category == selected
-            FilterChip(
-                selected = isSelected,
-                onClick = { onSelect(category) },
-                label = {
-                    Text(
-                        text = category,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                        )
-                    )
-                },
-                shape = RoundedCornerShape(20.dp),
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primary,
-                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary
-                )
-            )
-        }
-    }
-}
-
-@Composable
-fun ClientCatalogList(
-    items: List<CatalogItem>,
-    onAddToCart: (CatalogItem, CatalogVariant, Int) -> Unit,
-    onOpenExtras: (CatalogItem) -> Unit,
-    cupLabelFor: (Double) -> String? = { null }
-) {
-    if (items.isEmpty()) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(
-                    imageVector = Icons.Default.PhotoLibrary,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                    modifier = Modifier.size(72.dp)
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = "No hay paquetes en esta categoría",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                )
-            }
-        }
-    } else {
-        LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(18.dp),
-            contentPadding = PaddingValues(bottom = 90.dp)
-        ) {
-            items(items) { item ->
-                ClientCatalogCard(
-                    item = item,
-                    onAddToCart = onAddToCart,
-                    onOpenExtras = { onOpenExtras(item) },
-                    cupLabelFor = cupLabelFor
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun ClientCatalogCard(
-    item: CatalogItem,
-    onAddToCart: (CatalogItem, CatalogVariant, Int) -> Unit,
-    onOpenExtras: () -> Unit,
-    cupLabelFor: (Double) -> String? = { null }
-) {
-    val context = LocalContext.current
-    val variants = remember(item) { item.getVariants() }
-    val extrasList = remember(item) { item.getExtrasList() }
-    var selectedVariantIndex by remember { mutableStateOf(0) }
-    var quantity by remember { mutableStateOf(1) }
-
-    val activeVariant = variants.getOrNull(selectedVariantIndex)
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag("catalog_item_card_${item.id}"),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(18.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-    ) {
-        Column {
-            CatalogItemImage(
-                imageBytes = item.imageBytes,
-                category = item.category,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-            )
-
-            Column(modifier = Modifier.padding(18.dp)) {
-                // Header with Code and Category
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(end = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        if (item.code.isNotBlank()) {
-                            Box(
-                                modifier = Modifier
-                                    .background(
-                                        MaterialTheme.colorScheme.primary,
-                                        shape = RoundedCornerShape(6.dp)
-                                    )
-                                    .padding(horizontal = 8.dp, vertical = 4.dp)
-                            ) {
-                                Text(
-                                    text = item.code,
-                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold),
-                                    color = MaterialTheme.colorScheme.onPrimary
-                                )
-                            }
-                        }
-
-                        Text(
-                            text = item.name,
-                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .background(
-                                MaterialTheme.colorScheme.secondaryContainer,
-                                shape = RoundedCornerShape(6.dp)
-                            )
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = item.category.uppercase(),
-                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = item.description,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                // Display Included Extras if present
-                if (extrasList.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Text(
-                        text = "✨ Incluye:",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        extrasList.forEach { extra ->
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = extra,
-                                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                if (variants.isNotEmpty() && activeVariant != null) {
-                    Text(
-                        text = "Seleccionar Variante / Formato:",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Variant selector chips
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        itemsIndexed(variants) { index, variant ->
-                            val isSelected = index == selectedVariantIndex
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(
-                                        if (isSelected) MaterialTheme.colorScheme.primary
-                                        else MaterialTheme.colorScheme.surfaceVariant
-                                    )
-                                    .border(
-                                        width = 1.dp,
-                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-                                        shape = RoundedCornerShape(10.dp)
-                                    )
-                                    .clickable { selectedVariantIndex = index }
-                                    .padding(horizontal = 14.dp, vertical = 10.dp)
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(
-                                        text = variant.name,
-                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        text = "$${String.format("%.2f", variant.price)} USD",
-                                        style = MaterialTheme.typography.bodyLarge.copy(
-                                            fontWeight = FontWeight.Bold,
-                                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f) else MaterialTheme.colorScheme.primary
-                                        )
-                                    )
-                                    cupLabelFor(variant.price)?.let { enCup ->
-                                        Text(
-                                            text = enCup,
-                                            style = MaterialTheme.typography.bodyMedium.copy(
-                                                fontWeight = FontWeight.Medium,
-                                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
-                                                else MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-                    Divider()
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Bottom Row: Add Extras "+" Button + Quantity Selector + Add Button
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // "+" Button to add extra items to this package
-                        OutlinedButton(
-                            onClick = onOpenExtras,
-                            shape = RoundedCornerShape(10.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
-                        ) {
-                            Icon(Icons.Default.AddCircleOutline, contentDescription = "Añadir extras", modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Extras",
-                                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
-                            )
-                        }
-
-                        // Quantity selector
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .background(
-                                    MaterialTheme.colorScheme.surfaceVariant,
-                                    shape = RoundedCornerShape(10.dp)
-                                )
-                                .padding(horizontal = 4.dp, vertical = 2.dp)
-                        ) {
-                            IconButton(
-                                onClick = { if (quantity > 1) quantity-- },
-                                modifier = Modifier.size(38.dp)
-                            ) {
-                                Text("-", fontWeight = FontWeight.Bold, fontSize = 22.sp)
-                            }
-                            Text(
-                                text = quantity.toString(),
-                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                                modifier = Modifier.padding(horizontal = 10.dp)
-                            )
-                            IconButton(
-                                onClick = { quantity++ },
-                                modifier = Modifier.size(38.dp)
-                            ) {
-                                Icon(Icons.Default.Add, contentDescription = "Más", modifier = Modifier.size(20.dp))
-                            }
-                        }
-
-                        // Price and add button
-                        Button(
-                            onClick = {
-                                onAddToCart(item, activeVariant, quantity)
-                                quantity = 1
-                                Toast.makeText(context, "Agregado al carrito: ${item.name}", Toast.LENGTH_SHORT).show()
-                            },
-                            modifier = Modifier.height(48.dp),
-                            shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.AddShoppingCart,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "$${String.format("%.2f", activeVariant.price * quantity)}",
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                            )
-                        }
-                    }
-                } else {
-                    Text(
-                        text = "Sin variantes configuradas",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-            }
-        }
-    }
-}
-
-// Side Cart Row Component
-@Composable
-fun SideCartItemRow(
-    cartItem: CartItem,
-    onUpdateQty: (CartItem, Int) -> Unit,
-    onRemove: (CartItem) -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            CatalogItemImage(
-                imageBytes = cartItem.item.imageBytes,
-                category = cartItem.item.category,
-                modifier = Modifier
-                    .size(54.dp)
-                    .clip(RoundedCornerShape(8.dp))
-            )
-
-            Spacer(modifier = Modifier.width(10.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = cartItem.item.name,
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = "Var: ${cartItem.variant.name}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = "$${String.format("%.2f", cartItem.variant.price)} x ${cartItem.quantity} = $${String.format("%.2f", cartItem.subtotal)}",
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-
-            Column(horizontalAlignment = Alignment.End) {
-                IconButton(
-                    onClick = { onRemove(cartItem) },
-                    modifier = Modifier.size(28.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Quitar",
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .background(
-                            MaterialTheme.colorScheme.surfaceVariant,
-                            shape = RoundedCornerShape(6.dp)
-                        )
-                        .padding(horizontal = 4.dp, vertical = 2.dp)
-                ) {
-                    IconButton(
-                        onClick = { onUpdateQty(cartItem, cartItem.quantity - 1) },
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Text("-", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    }
-                    Text(
-                        text = cartItem.quantity.toString(),
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                        modifier = Modifier.padding(horizontal = 6.dp)
-                    )
-                    IconButton(
-                        onClick = { onUpdateQty(cartItem, cartItem.quantity + 1) },
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Más",
-                            modifier = Modifier.size(14.dp)
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
 @Composable
 fun CatalogItemImage(
     imageBytes: ByteArray?,
