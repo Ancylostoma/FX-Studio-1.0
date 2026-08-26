@@ -50,6 +50,11 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
     private val _adminPin = MutableStateFlow("1234")
     val adminPin: StateFlow<String> = _adminPin.asStateFlow()
 
+    // Textos de la portada, ficha de contacto y tasas de cambio, todo
+    // editable por el administrador desde Ajustes.
+    private val _studioConfig = MutableStateFlow(StudioConfig())
+    val studioConfig: StateFlow<StudioConfig> = _studioConfig.asStateFlow()
+
     // Tasa USD→CUP. En 0 la app no muestra precios en CUP, para no enseñar
     // una conversión inventada antes de que el estudio fije la tasa real.
     private val _cupRate = MutableStateFlow(0.0)
@@ -105,12 +110,30 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
         _adminPin.value = repository.getAdminPin()
         _cupRate.value = repository.getCupRate()
         _contractText.value = repository.getContractText()
+        _studioConfig.value = repository.getStudioConfig()
     }
 
     fun updateCupRate(rate: Double) {
         viewModelScope.launch {
             repository.setCupRate(rate)
             _cupRate.value = rate
+            _studioConfig.value = repository.getStudioConfig()
+        }
+    }
+
+    fun updateStudioConfig(config: StudioConfig) {
+        viewModelScope.launch {
+            repository.saveStudioConfig(config)
+            _studioConfig.value = config
+            _cupRate.value = config.tasas.firstOrNull { it.id == StudioConfig.ID_CUP }?.tasa ?: 0.0
+        }
+    }
+
+    /** Devuelve los textos de la portada a los de fábrica. */
+    fun resetStudioTexts() {
+        viewModelScope.launch {
+            repository.resetStudioTexts()
+            _studioConfig.value = repository.getStudioConfig()
         }
     }
 
@@ -126,18 +149,20 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     /**
-     * Equivalente aproximado en CUP, ya formateado. Devuelve null cuando no
-     * hay tasa configurada, para que la interfaz simplemente no muestre nada.
+     * Equivalencias del importe en las formas de pago que el administrador
+     * dejó visibles. Lista vacía cuando no hay ninguna tasa configurada, para
+     * que la interfaz no muestre una conversión inventada.
      */
-    fun cupLabel(usd: Double): String? {
-        val rate = _cupRate.value
-        if (rate <= 0.0) return null
-        val cup = usd * rate
-        // Sin decimales y con separador de miles: "≈ 318 000 CUP"
-        val entero = Math.round(cup).toString()
-            .reversed().chunked(3).joinToString(" ").reversed()
-        return "≈ $entero CUP"
-    }
+    fun equivalencias(usd: Double): List<String> = _studioConfig.value.equivalencias(usd)
+
+    /**
+     * Primera equivalencia, en una línea. Devuelve null si no hay tasas, para
+     * que quien la use simplemente no pinte nada.
+     */
+    fun cupLabel(usd: Double): String? = equivalencias(usd).firstOrNull()
+
+    /** Todas las equivalencias en una sola línea, para los mensajes. */
+    fun equivalenciasLinea(usd: Double): String? = _studioConfig.value.equivalenciasLinea(usd)
 
     // Revisa si la app está activada para el mes actual (o desbloqueada con llave maestra)
     private suspend fun checkLicense() {
@@ -308,6 +333,7 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
         detalleSeleccion: String,
         notas: String,
         firmaBytes: ByteArray?,
+        fotoClienteBytes: ByteArray? = null,
         terminosAceptados: Boolean = true,
         montoAcordado: Double = 0.0,
         anticipoPagado: Double = 0.0,
@@ -322,6 +348,7 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
                 detalleSeleccion = detalleSeleccion,
                 notas = notas,
                 firmaBytes = firmaBytes,
+                fotoClienteBytes = fotoClienteBytes,
                 terminosAceptados = terminosAceptados,
                 montoAcordado = montoAcordado,
                 anticipoPagado = anticipoPagado
@@ -406,6 +433,8 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
             obj.put("estado", appt.estado)
             val firma = appt.firmaBytes?.let { Base64.encodeToString(it, Base64.NO_WRAP) } ?: ""
             obj.put("firmaBytes", firma)
+            val fotoCliente = appt.fotoClienteBytes?.let { Base64.encodeToString(it, Base64.NO_WRAP) } ?: ""
+            obj.put("fotoClienteBytes", fotoCliente)
             appointmentsArray.put(obj)
         }
         root.put("appointments", appointmentsArray)
@@ -468,6 +497,14 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
                                 null
                             }
                         } else null
+                        val fotoB64 = obj.optString("fotoClienteBytes", "")
+                        val fotoCliente = if (fotoB64.isNotEmpty()) {
+                            try {
+                                Base64.decode(fotoB64, Base64.NO_WRAP)
+                            } catch (e: Exception) {
+                                null
+                            }
+                        } else null
                         importedAppointments.add(
                             AppointmentEntity(
                                 fecha = obj.getString("fecha"),
@@ -477,6 +514,7 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
                                 detalleSeleccion = obj.getString("detalleSeleccion"),
                                 notas = obj.optString("notas", ""),
                                 firmaBytes = firma,
+                                fotoClienteBytes = fotoCliente,
                                 terminosAceptados = obj.optBoolean("terminosAceptados", true),
                                 createdAt = obj.optLong("createdAt", System.currentTimeMillis()),
                                 montoAcordado = obj.optDouble("montoAcordado", 0.0),
@@ -538,14 +576,43 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    /**
+     * Deja el número listo para WhatsApp: solo dígitos y con el 53 de Cuba
+     * delante cuando viene de 8 cifras, como se marca aquí.
+     */
+    private fun normalizarTelefono(numero: String): String {
+        val raw = numero.filter { it.isDigit() }
+        return when {
+            raw.isEmpty() -> "5355823513"
+            raw.length == 8 -> "53$raw"
+            else -> raw
+        }
+    }
+
+    /** El número del estudio, listo para WhatsApp. */
+    private fun telefonoEstudio(): String = normalizarTelefono(whatsappNumber.value)
+
+    /**
+     * Número de destino del mensaje. WhatsApp solo abre un chat por vez, así
+     * que la copia al cliente se envía en un segundo toque.
+     */
+    private fun destinoWhatsApp(telefonoCliente: String): String =
+        if (telefonoCliente.isNotBlank()) normalizarTelefono(telefonoCliente) else telefonoEstudio()
+
     // Build the WhatsApp message for Shopping Cart Orders with Studio Info & Signed Terms
-    fun generateWhatsAppUri(clientName: String = "", clientPhone: String = ""): String {
-        val phoneFiltered = if (whatsappNumber.value.isNotBlank()) {
-            val raw = whatsappNumber.value.filter { it.isDigit() }
-            if (raw.length == 8) "53$raw" else raw
-        } else "5355823513"
+    fun generateWhatsAppUri(
+        clientName: String = "",
+        clientPhone: String = "",
+        // Vacío = va al estudio. Con número = va al chat del cliente.
+        enviarACliente: Boolean = false
+    ): String {
+        val phoneFiltered = if (enviarACliente) destinoWhatsApp(clientPhone) else telefonoEstudio()
 
         val sb = StringBuilder()
+        if (enviarACliente) {
+            sb.append("¡Gracias por elegir FXestudio! 💙\n")
+            sb.append("Esta es su copia del pedido:\n\n")
+        }
         sb.append("📸 *FXESTUDIO — Pedido y Cotización de Sesión*\n")
         sb.append("📍 _Bayamo, Granma, Cuba_\n")
         sb.append("-------------------------------------------\n")
@@ -576,7 +643,7 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
             sb.append("🏷️ *Descuento aplicado: -$${String.format("%.2f", discount.value)} USD*\n")
         }
         sb.append("💰 *TOTAL GENERAL: $${String.format("%.2f", cartTotal.value)} USD*\n")
-        cupLabel(cartTotal.value)?.let { sb.append("💱 *$it* (tasa del día)\n") }
+        equivalenciasLinea(cartTotal.value)?.let { sb.append("💱 *$it*\n") }
         sb.append("💵 _Se acepta Zelle y CUP al cambio del día._\n")
         sb.append("-------------------------------------------\n")
         sb.append("✍️ *Contrato de Sesión Fotográfica:* ✅ FIRMADO Y ACEPTADO\n")
@@ -594,13 +661,19 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     // Build WhatsApp message for Appointments
-    fun generateAppointmentWhatsAppUri(appointment: AppointmentEntity): String {
-        val phoneFiltered = if (whatsappNumber.value.isNotBlank()) {
-            val raw = whatsappNumber.value.filter { it.isDigit() }
-            if (raw.length == 8) "53$raw" else raw
-        } else "5355823513"
+    fun generateAppointmentWhatsAppUri(
+        appointment: AppointmentEntity,
+        // true = se abre el chat del cliente con su copia de la reservación.
+        enviarACliente: Boolean = false
+    ): String {
+        val phoneFiltered =
+            if (enviarACliente) destinoWhatsApp(appointment.telefono) else telefonoEstudio()
 
         val sb = StringBuilder()
+        if (enviarACliente) {
+            sb.append("¡Gracias por reservar con FXestudio! 💙\n")
+            sb.append("Esta es su copia de la reservación:\n\n")
+        }
         sb.append("📅 *FXESTUDIO — Reservación de Cita / Sesión*\n")
         sb.append("📍 _Bayamo, Granma, Cuba_\n")
         sb.append("-------------------------------------------\n")
@@ -617,11 +690,11 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
         if (appointment.montoAcordado > 0.0) {
             sb.append("-------------------------------------------\n")
             sb.append("💰 *Monto acordado:* $${String.format("%.2f", appointment.montoAcordado)} USD")
-            cupLabel(appointment.montoAcordado)?.let { sb.append("  ($it)") }
+            equivalenciasLinea(appointment.montoAcordado)?.let { sb.append("  ($it)") }
             sb.append("\n")
             sb.append("✅ *Anticipo pagado:* $${String.format("%.2f", appointment.anticipoPagado)} USD\n")
             sb.append("🔸 *Saldo pendiente:* $${String.format("%.2f", appointment.saldoPendiente)} USD")
-            cupLabel(appointment.saldoPendiente)?.let { sb.append("  ($it)") }
+            equivalenciasLinea(appointment.saldoPendiente)?.let { sb.append("  ($it)") }
             sb.append("\n")
         }
         sb.append("-------------------------------------------\n")
