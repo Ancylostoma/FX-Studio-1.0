@@ -89,18 +89,34 @@ Recomendamos seguirnos en las redes sociales y apoyarnos con (likes) o comentari
 
 Gracias por elegirnos y feliz sesión fotográfica."""
 
+/** Lo que devuelve el diálogo cuando el cliente firma y confirma. */
+data class ContratoFirmado(
+    val firmaBytes: ByteArray?,
+    val fotoClienteBytes: ByteArray?,
+    val nombreCliente: String,
+    val telefonoCliente: String
+)
+
 @Composable
 fun ContractSignatureDialog(
     title: String = "Contrato de Sesión Fotográfica",
     // Texto editable desde Ajustes; en blanco se usa el de fábrica.
     contractText: String = "",
+    // En el pedido del carrito todavía no se conocen los datos del cliente, así
+    // que se piden aquí para poder enviarle también su copia por WhatsApp.
+    pedirDatosCliente: Boolean = false,
     onDismiss: () -> Unit,
-    onConfirm: (signatureBytes: ByteArray?) -> Unit
+    onConfirm: (ContratoFirmado) -> Unit
 ) {
     val textoContrato = contractText.ifBlank { FULL_CONTRACT_TEXT }
     var termsAccepted by remember { mutableStateOf(false) }
     var hasSignature by remember { mutableStateOf(false) }
     var exportSignatureFn by remember { mutableStateOf<(() -> ByteArray?)?>(null) }
+    var fotoCliente by remember { mutableStateOf<ByteArray?>(null) }
+    var nombreCliente by remember { mutableStateOf("") }
+    var telefonoCliente by remember { mutableStateOf("") }
+    val datosCompletos = !pedirDatosCliente ||
+        (nombreCliente.isNotBlank() && telefonoCliente.filter { it.isDigit() }.length >= 8)
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -193,6 +209,55 @@ fun ContractSignatureDialog(
                         )
                     }
 
+                    // Datos del cliente (solo en el pedido del carrito)
+                    if (pedirDatosCliente) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Text(
+                                    text = "Datos del cliente",
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                OutlinedTextField(
+                                    value = nombreCliente,
+                                    onValueChange = { nombreCliente = it },
+                                    label = { Text("Nombre y apellidos") },
+                                    singleLine = true,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("contract_client_name")
+                                )
+                                OutlinedTextField(
+                                    value = telefonoCliente,
+                                    onValueChange = { nuevo ->
+                                        telefonoCliente = nuevo.filter { it.isDigit() || it == '+' }
+                                    },
+                                    label = { Text("Teléfono (WhatsApp)") },
+                                    singleLine = true,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("contract_client_phone")
+                                )
+                                Text(
+                                    text = "Se usa para enviarle su copia del pedido por WhatsApp.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
                     // Acceptance Checkbox
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -234,6 +299,13 @@ fun ContractSignatureDialog(
                             exportSignatureFn = exportFn
                         }
                     )
+
+                    // Foto del cliente como respaldo de la confirmación.
+                    ClientPhotoCapture(
+                        fotoBytes = fotoCliente,
+                        onFotoTomada = { fotoCliente = it },
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
 
                 Divider(modifier = Modifier.padding(vertical = 12.dp))
@@ -258,9 +330,16 @@ fun ContractSignatureDialog(
                     Button(
                         onClick = {
                             val signatureBytes = exportSignatureFn?.invoke()
-                            onConfirm(signatureBytes)
+                            onConfirm(
+                                ContratoFirmado(
+                                    firmaBytes = signatureBytes,
+                                    fotoClienteBytes = fotoCliente,
+                                    nombreCliente = nombreCliente.trim(),
+                                    telefonoCliente = telefonoCliente.trim()
+                                )
+                            )
                         },
-                        enabled = termsAccepted,
+                        enabled = termsAccepted && datosCompletos,
                         modifier = Modifier
                             .weight(1.5f)
                             .height(52.dp)

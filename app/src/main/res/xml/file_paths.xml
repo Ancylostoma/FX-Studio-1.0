@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Carpeta temporal donde la cámara deja la foto de confirmación antes
+         de que la app la comprima y la guarde en la base de datos. -->
+    <cache-path name="fotos_temporales" path="fotos/" />
+</paths>

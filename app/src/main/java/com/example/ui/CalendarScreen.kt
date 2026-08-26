@@ -45,6 +45,7 @@ fun CalendarScreen(
     val cartTotal by viewModel.cartTotal.collectAsState()
     val appointments by viewModel.appointments.collectAsState()
     val contractText by viewModel.contractText.collectAsState()
+    val studioConfig by viewModel.studioConfig.collectAsState()
 
     // Calendar state
     val calendar = remember { Calendar.getInstance() }
@@ -618,6 +619,58 @@ fun CalendarScreen(
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                             )
                         }
+
+                        // WhatsApp solo abre un chat a la vez, así que la copia
+                        // para el cliente se manda en un segundo toque.
+                        OutlinedButton(
+                            onClick = {
+                                val uriStr = viewModel.generateAppointmentWhatsAppUri(
+                                    appt,
+                                    enviarACliente = true
+                                )
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uriStr))
+                                try {
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    Toast.makeText(
+                                        context,
+                                        "No se pudo abrir el WhatsApp del cliente",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("send_copy_to_client_button"),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Share,
+                                contentDescription = null,
+                                tint = Color(0xFF25D366)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Enviar copia al cliente (${appt.telefono})",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                            )
+                        }
+
+                        // Pasa la cita al calendario del teléfono o la tablet.
+                        OutlinedButton(
+                            onClick = {
+                                agregarCitaAlCalendarioDelEquipo(context, appt, studioConfig)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(Icons.Default.EditCalendar, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Agregar al calendario del equipo",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                            )
+                        }
                     }
                 }
             }
@@ -630,7 +683,7 @@ fun CalendarScreen(
             title = "Contrato de Sesión - Reservación",
             contractText = contractText,
             onDismiss = { showContractDialog = false },
-            onConfirm = { signatureBytes ->
+            onConfirm = { firmado ->
                 showContractDialog = false
                 viewModel.saveAppointment(
                     fecha = selectedDateString,
@@ -639,7 +692,8 @@ fun CalendarScreen(
                     telefono = clientPhone,
                     detalleSeleccion = packageSelection,
                     notas = notes,
-                    firmaBytes = signatureBytes,
+                    firmaBytes = firmado.firmaBytes,
+                    fotoClienteBytes = firmado.fotoClienteBytes,
                     terminosAceptados = true,
                     montoAcordado = montoInput.toDoubleOrNull() ?: 0.0,
                     anticipoPagado = anticipoInput.toDoubleOrNull() ?: 0.0,

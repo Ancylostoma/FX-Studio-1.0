@@ -169,7 +169,7 @@ fun ClientScreen(
     val descuento by viewModel.discount.collectAsState()
     val cartCount by viewModel.cartCount.collectAsState()
     val contractText by viewModel.contractText.collectAsState()
-    val cupRate by viewModel.cupRate.collectAsState()
+    val studioConfig by viewModel.studioConfig.collectAsState()
 
     // Vista activa dentro de los dos tercios inferiores. La banda de marca de
     // arriba no cambia nunca.
@@ -179,6 +179,7 @@ fun ClientScreen(
 
     var showSummaryDialog by remember { mutableStateOf(false) }
     var showContractForOrder by remember { mutableStateOf(false) }
+    var pedidoConfirmado by remember { mutableStateOf<ContratoFirmado?>(null) }
     var itemForExtrasDialog by remember { mutableStateOf<CatalogItem?>(null) }
 
     val itemDetalle = remember(items, itemDetalleId) {
@@ -189,7 +190,7 @@ fun ClientScreen(
         items.filter { it.category == categoriaActiva }
     }
 
-    val cupLabelFor: (Double) -> String? = remember(cupRate) {
+    val cupLabelFor: (Double) -> String? = remember(studioConfig) {
         { usd -> viewModel.cupLabel(usd) }
     }
 
@@ -202,6 +203,7 @@ fun ClientScreen(
         // ---- TERCIO SUPERIOR: fijo, siempre visible ----
         StudioHeaderBand(
             onOpenAdminRequest = onOpenAdminRequest,
+            config = studioConfig,
             // En la portada se muestra grande; dentro de una sección se
             // compacta para dejar sitio al contenido.
             compacto = vista != ClientView.INICIO
@@ -222,7 +224,8 @@ fun ClientScreen(
                                 vista = ClientView.OFERTAS
                             },
                             onOfertaPropia = { vista = ClientView.PROPIA },
-                            onCalendario = { vista = ClientView.CALENDARIO }
+                            onCalendario = { vista = ClientView.CALENDARIO },
+                            config = studioConfig
                         )
                     }
                 }
@@ -397,10 +400,15 @@ fun ClientScreen(
         ContractSignatureDialog(
             title = "Contrato de Sesión - Confirmación de Pedido",
             contractText = contractText,
+            pedirDatosCliente = true,
             onDismiss = { showContractForOrder = false },
-            onConfirm = { signatureBytes ->
+            onConfirm = { firmado ->
                 showContractForOrder = false
-                val uriString = viewModel.generateWhatsAppUri()
+                pedidoConfirmado = firmado
+                val uriString = viewModel.generateWhatsAppUri(
+                    clientName = firmado.nombreCliente,
+                    clientPhone = firmado.telefonoCliente
+                )
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uriString)).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
@@ -408,6 +416,62 @@ fun ClientScreen(
                     context.startActivity(intent)
                 } catch (e: Exception) {
                     Toast.makeText(context, "No se pudo abrir WhatsApp: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                }
+            }
+        )
+    }
+
+    // WhatsApp solo abre un chat a la vez: la copia para el cliente se envía
+    // en un segundo toque, al volver del chat del estudio.
+    pedidoConfirmado?.let { firmado ->
+        AlertDialog(
+            onDismissRequest = { pedidoConfirmado = null },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            },
+            title = { Text("Pedido enviado al estudio") },
+            text = {
+                Text(
+                    "El pedido de ${firmado.nombreCliente} ya salió hacia el WhatsApp de " +
+                        "FXestudio.\n\n¿Desea enviarle también su copia al " +
+                        "${firmado.telefonoCliente}?"
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val uriString = viewModel.generateWhatsAppUri(
+                            clientName = firmado.nombreCliente,
+                            clientPhone = firmado.telefonoCliente,
+                            enviarACliente = true
+                        )
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uriString)).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        try {
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            Toast.makeText(
+                                context,
+                                "No se pudo abrir el WhatsApp del cliente",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                        pedidoConfirmado = null
+                    }
+                ) {
+                    Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Enviar copia al cliente")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { pedidoConfirmado = null }) {
+                    Text("Ahora no")
                 }
             }
         )
@@ -614,10 +678,13 @@ fun AdminScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         // Admin Navigation Tabs (Items, Citas, Ajustes, Respaldo)
-        TabRow(
+        // Cinco pestañas ya no caben repartidas a lo ancho de un teléfono:
+        // con ScrollableTabRow se deslizan de lado sin recortar los nombres.
+        ScrollableTabRow(
             selectedTabIndex = adminTabSelected,
             containerColor = Color.Transparent,
-            contentColor = MaterialTheme.colorScheme.primary
+            contentColor = MaterialTheme.colorScheme.primary,
+            edgePadding = 0.dp
         ) {
             Tab(
                 selected = adminTabSelected == 0,
@@ -634,12 +701,18 @@ fun AdminScreen(
             Tab(
                 selected = adminTabSelected == 2,
                 onClick = { adminTabSelected = 2 },
-                text = { Text("Ajustes", fontWeight = FontWeight.Bold) },
-                icon = { Icon(Icons.Default.Settings, contentDescription = null) }
+                text = { Text("Portada", fontWeight = FontWeight.Bold) },
+                icon = { Icon(Icons.Default.Edit, contentDescription = null) }
             )
             Tab(
                 selected = adminTabSelected == 3,
                 onClick = { adminTabSelected = 3 },
+                text = { Text("Ajustes", fontWeight = FontWeight.Bold) },
+                icon = { Icon(Icons.Default.Settings, contentDescription = null) }
+            )
+            Tab(
+                selected = adminTabSelected == 4,
+                onClick = { adminTabSelected = 4 },
                 text = { Text("Respaldo", fontWeight = FontWeight.Bold) },
                 icon = { Icon(Icons.Default.Backup, contentDescription = null) }
             )
@@ -679,6 +752,10 @@ fun AdminScreen(
                     AppointmentsAdminView(viewModel = viewModel)
                 }
                 2 -> {
+                    // Editor de la portada y de la ficha de contacto
+                    AdminCoverView(viewModel = viewModel)
+                }
+                3 -> {
                     // Configuration Form
                     AdminSettingsView(
                         viewModel = viewModel,
@@ -698,7 +775,7 @@ fun AdminScreen(
                         }
                     )
                 }
-                3 -> {
+                4 -> {
                     // Backup & Import
                     AdminBackupView(
                         viewModel = viewModel
@@ -871,11 +948,7 @@ fun AdminSettingsView(
     var whatsappInput by remember { mutableStateOf(currentWhatsapp) }
     var pinInput by remember { mutableStateOf(currentPin) }
 
-    val cupRate by viewModel.cupRate.collectAsState()
     val contractText by viewModel.contractText.collectAsState()
-    var rateInput by remember(cupRate) {
-        mutableStateOf(if (cupRate > 0.0) cupRate.toInt().toString() else "")
-    }
     var contractInput by remember(contractText) {
         mutableStateOf(contractText.ifBlank { FULL_CONTRACT_TEXT })
     }
@@ -889,64 +962,7 @@ fun AdminSettingsView(
         }
 
         item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Tasa de cambio USD → CUP",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Cuántos CUP vale 1 USD hoy. La app mostrará el equivalente aproximado " +
-                            "junto a cada precio. Déjalo vacío o en 0 para no mostrar precios en CUP.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    OutlinedTextField(
-                        value = rateInput,
-                        onValueChange = { rateInput = it.filter { c -> c.isDigit() } },
-                        label = { Text("CUP por 1 USD") },
-                        placeholder = { Text("ej: 400") },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("admin_cup_rate_input"),
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                    )
-
-                    if (cupRate > 0.0) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Ejemplo actual: un paquete de $100.00 USD se mostrará como " +
-                                "${viewModel.cupLabel(100.0)}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Button(
-                        onClick = {
-                            viewModel.updateCupRate(rateInput.toDoubleOrNull() ?: 0.0)
-                            Toast.makeText(context, "Tasa guardada", Toast.LENGTH_SHORT).show()
-                        },
-                        modifier = Modifier.align(Alignment.End)
-                    ) {
-                        Icon(imageVector = Icons.Default.CurrencyExchange, contentDescription = null)
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Guardar Tasa")
-                    }
-                }
-            }
+            AdminRatesCard(viewModel = viewModel)
         }
 
         item {

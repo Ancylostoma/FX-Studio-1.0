@@ -74,6 +74,89 @@ class StudioRepository(private val studioDao: StudioDao) {
         studioDao.insertConfig(AppConfig(KEY_CUP_RATE, rate.toString()))
     }
 
+    /**
+     * Carga la configuración editable. Cada campo cae en su valor por defecto
+     * mientras el administrador no lo haya cambiado.
+     */
+    suspend fun getStudioConfig(): StudioConfig {
+        val d = StudioConfig()
+        fun txt(clave: String, porDefecto: String) =
+            studioDao.getConfig(clave)?.value?.takeIf { it.isNotBlank() } ?: porDefecto
+
+        // La tasa de CUP se hereda de la clave antigua para no perder lo que
+        // el estudio ya hubiera configurado.
+        val cupHeredada = studioDao.getConfig(KEY_CUP_RATE)?.value?.toDoubleOrNull() ?: 0.0
+
+        val tasas = StudioConfig.TASAS_POR_DEFECTO.map { base ->
+            val tasa = studioDao.getConfig("tasa_${base.id}")?.value?.toDoubleOrNull()
+                ?: if (base.id == StudioConfig.ID_CUP) cupHeredada else base.tasa
+            val visible = studioDao.getConfig("tasa_${base.id}_visible")?.value?.toBooleanStrictOrNull()
+                ?: base.visible
+            base.copy(tasa = tasa, visible = visible)
+        }
+
+        return StudioConfig(
+            titulo = txt(KEY_TITULO, d.titulo),
+            lema = txt(KEY_LEMA, d.lema),
+            frasePortada = txt(KEY_FRASE, d.frasePortada),
+            btnBodas = txt(KEY_BTN_BODAS, d.btnBodas),
+            btnQuince = txt(KEY_BTN_QUINCE, d.btnQuince),
+            btnPrimerAno = txt(KEY_BTN_PRIMER, d.btnPrimerAno),
+            btnOfertaPropia = txt(KEY_BTN_PROPIA, d.btnOfertaPropia),
+            btnCalendario = txt(KEY_BTN_CALENDARIO, d.btnCalendario),
+            ubicacion = txt(KEY_UBICACION, d.ubicacion),
+            direccion = txt(KEY_DIRECCION, d.direccion),
+            telefonos = txt(KEY_TELEFONOS, d.telefonos),
+            horarioSemana = txt(KEY_HOR_SEMANA, d.horarioSemana),
+            horarioSabado = txt(KEY_HOR_SABADO, d.horarioSabado),
+            horarioDomingo = txt(KEY_HOR_DOMINGO, d.horarioDomingo),
+            catalogoUrl = txt(KEY_CATALOGO, d.catalogoUrl),
+            facebookUrl = txt(KEY_FACEBOOK, d.facebookUrl),
+            tasas = tasas
+        )
+    }
+
+    suspend fun saveStudioConfig(c: StudioConfig) {
+        val pares = listOf(
+            KEY_TITULO to c.titulo,
+            KEY_LEMA to c.lema,
+            KEY_FRASE to c.frasePortada,
+            KEY_BTN_BODAS to c.btnBodas,
+            KEY_BTN_QUINCE to c.btnQuince,
+            KEY_BTN_PRIMER to c.btnPrimerAno,
+            KEY_BTN_PROPIA to c.btnOfertaPropia,
+            KEY_BTN_CALENDARIO to c.btnCalendario,
+            KEY_UBICACION to c.ubicacion,
+            KEY_DIRECCION to c.direccion,
+            KEY_TELEFONOS to c.telefonos,
+            KEY_HOR_SEMANA to c.horarioSemana,
+            KEY_HOR_SABADO to c.horarioSabado,
+            KEY_HOR_DOMINGO to c.horarioDomingo,
+            KEY_CATALOGO to c.catalogoUrl,
+            KEY_FACEBOOK to c.facebookUrl
+        )
+        pares.forEach { (k, v) -> studioDao.insertConfig(AppConfig(k, v)) }
+
+        c.tasas.forEach { t ->
+            studioDao.insertConfig(AppConfig("tasa_${t.id}", t.tasa.toString()))
+            studioDao.insertConfig(AppConfig("tasa_${t.id}_visible", t.visible.toString()))
+        }
+        // Se mantiene la clave antigua sincronizada por compatibilidad.
+        c.tasas.firstOrNull { it.id == StudioConfig.ID_CUP }?.let {
+            studioDao.insertConfig(AppConfig(KEY_CUP_RATE, it.tasa.toString()))
+        }
+    }
+
+    /** Borra los textos personalizados para volver a los de fábrica. */
+    suspend fun resetStudioTexts() {
+        listOf(
+            KEY_TITULO, KEY_LEMA, KEY_FRASE, KEY_BTN_BODAS, KEY_BTN_QUINCE,
+            KEY_BTN_PRIMER, KEY_BTN_PROPIA, KEY_BTN_CALENDARIO, KEY_UBICACION,
+            KEY_DIRECCION, KEY_TELEFONOS, KEY_HOR_SEMANA, KEY_HOR_SABADO,
+            KEY_HOR_DOMINGO, KEY_CATALOGO, KEY_FACEBOOK
+        ).forEach { studioDao.insertConfig(AppConfig(it, "")) }
+    }
+
     /** Texto del contrato. Vacío significa "usar el texto por defecto". */
     suspend fun getContractText(): String {
         return studioDao.getConfig(KEY_CONTRACT)?.value ?: ""
@@ -86,6 +169,24 @@ class StudioRepository(private val studioDao: StudioDao) {
     companion object {
         const val KEY_CUP_RATE = "usd_to_cup_rate"
         const val KEY_CONTRACT = "contract_text"
+
+        // Textos de la portada y de la ficha de contacto, editables por el admin.
+        const val KEY_TITULO = "home_titulo"
+        const val KEY_LEMA = "home_lema"
+        const val KEY_FRASE = "home_frase"
+        const val KEY_BTN_BODAS = "home_btn_bodas"
+        const val KEY_BTN_QUINCE = "home_btn_quince"
+        const val KEY_BTN_PRIMER = "home_btn_primer"
+        const val KEY_BTN_PROPIA = "home_btn_propia"
+        const val KEY_BTN_CALENDARIO = "home_btn_calendario"
+        const val KEY_UBICACION = "info_ubicacion"
+        const val KEY_DIRECCION = "info_direccion"
+        const val KEY_TELEFONOS = "info_telefonos"
+        const val KEY_HOR_SEMANA = "info_horario_semana"
+        const val KEY_HOR_SABADO = "info_horario_sabado"
+        const val KEY_HOR_DOMINGO = "info_horario_domingo"
+        const val KEY_CATALOGO = "info_catalogo_url"
+        const val KEY_FACEBOOK = "info_facebook_url"
     }
 
     // Acceso genérico de configuración (usado por el sistema de licencia)

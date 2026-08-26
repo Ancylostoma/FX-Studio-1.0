@@ -28,8 +28,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
+import com.example.data.StudioConfig
 import com.example.data.StudioInfo
 import com.example.ui.theme.FxGold
+
+/** Primer número de la lista de teléfonos, para el botón de llamar. */
+private fun primerTelefono(telefonos: String): String =
+    telefonos.split("/", ",").firstOrNull()?.filter { it.isDigit() || it == '+' }
+        ?.ifBlank { StudioInfo.TELEFONO_1 } ?: StudioInfo.TELEFONO_1
 
 /**
  * Banda superior fija con la marca. Permanece visible en todas las vistas del
@@ -38,6 +44,8 @@ import com.example.ui.theme.FxGold
 @Composable
 fun StudioHeaderBand(
     onOpenAdminRequest: () -> Unit,
+    // Textos editables desde el panel del admin (pestaña Portada).
+    config: StudioConfig = StudioConfig(),
     compacto: Boolean = false,
     modifier: Modifier = Modifier
 ) {
@@ -60,7 +68,7 @@ fun StudioHeaderBand(
             verticalArrangement = Arrangement.Center
         ) {
             Text(
-                text = StudioInfo.NOMBRE,
+                text = config.titulo,
                 style = if (compacto) MaterialTheme.typography.headlineMedium
                 else MaterialTheme.typography.displayMedium,
                 fontWeight = FontWeight.ExtraBold,
@@ -83,7 +91,7 @@ fun StudioHeaderBand(
             }
 
             Text(
-                text = StudioInfo.LEMA,
+                text = config.lema,
                 style = if (compacto) MaterialTheme.typography.titleSmall
                 else MaterialTheme.typography.titleLarge,
                 color = Color.White.copy(alpha = 0.95f),
@@ -165,6 +173,8 @@ fun HomeContent(
     onCategoria: (String) -> Unit,
     onOfertaPropia: () -> Unit,
     onCalendario: () -> Unit,
+    // Textos editables desde el panel del admin (pestaña Portada).
+    config: StudioConfig = StudioConfig(),
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -200,7 +210,7 @@ fun HomeContent(
                     )
             )
             Text(
-                text = "Inmortalizamos la felicidad\ncreando recuerdos del alma.",
+                text = config.frasePortada,
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                 color = Color.White,
                 textAlign = TextAlign.Center,
@@ -219,7 +229,7 @@ fun HomeContent(
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 MenuPrincipalBoton(
-                    titulo = "Ofertas\nde Bodas",
+                    titulo = config.btnBodas,
                     icono = Icons.Default.Favorite,
                     atenuado = false,
                     resaltado = false,
@@ -229,7 +239,7 @@ fun HomeContent(
                         .testTag("btn_bodas")
                 )
                 MenuPrincipalBoton(
-                    titulo = "Ofertas\nde Quince",
+                    titulo = config.btnQuince,
                     icono = Icons.Default.Stars,
                     atenuado = false,
                     resaltado = false,
@@ -239,7 +249,7 @@ fun HomeContent(
                         .testTag("btn_quince")
                 )
                 MenuPrincipalBoton(
-                    titulo = "Ofertas\nde 1er Año",
+                    titulo = config.btnPrimerAno,
                     icono = Icons.Default.ChildCare,
                     atenuado = false,
                     resaltado = false,
@@ -252,7 +262,7 @@ fun HomeContent(
 
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 MenuPrincipalBoton(
-                    titulo = "Diseña tu\npropia oferta",
+                    titulo = config.btnOfertaPropia,
                     icono = Icons.Default.AutoFixHigh,
                     atenuado = false,
                     resaltado = false,
@@ -262,7 +272,7 @@ fun HomeContent(
                         .testTag("btn_oferta_propia")
                 )
                 MenuPrincipalBoton(
-                    titulo = "Calendario\ny reservas",
+                    titulo = config.btnCalendario,
                     icono = Icons.Default.CalendarMonth,
                     atenuado = false,
                     resaltado = false,
@@ -293,13 +303,13 @@ fun HomeContent(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "🤗📸 Bienvenido a ${StudioInfo.NOMBRE}",
+                    text = "🤗📸 Bienvenido a ${config.titulo}",
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.primary,
                     textAlign = TextAlign.Center
                 )
                 Text(
-                    text = "${StudioInfo.UBICACION} 🇨🇺",
+                    text = "${config.ubicacion} 🇨🇺",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
@@ -315,15 +325,15 @@ fun HomeContent(
                     Spacer(modifier = Modifier.width(10.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = StudioInfo.HORARIO_SEMANA,
+                            text = config.horarioSemana,
                             style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
                         )
                         Text(
-                            text = StudioInfo.HORARIO_SABADO,
+                            text = config.horarioSabado,
                             style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
                         )
                         Text(
-                            text = "${StudioInfo.HORARIO_DOMINGO} 😴",
+                            text = "${config.horarioDomingo} 😴",
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.error
                         )
@@ -337,11 +347,11 @@ fun HomeContent(
                     Text("📞", style = MaterialTheme.typography.titleLarge)
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = "${StudioInfo.TELEFONO_1} / ${StudioInfo.TELEFONO_2}",
+                        text = config.telefonos,
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         modifier = Modifier.weight(1f)
                     )
-                    TextButton(onClick = { abrir("tel:${StudioInfo.TELEFONO_1}") }) {
+                    TextButton(onClick = { abrir("tel:${primerTelefono(config.telefonos)}") }) {
                         Text("Llamar")
                     }
                 }
@@ -353,7 +363,7 @@ fun HomeContent(
                     Text("📍", style = MaterialTheme.typography.titleLarge)
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = StudioInfo.DIRECCION,
+                        text = config.direccion,
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.weight(1f)
@@ -362,27 +372,30 @@ fun HomeContent(
 
                 Spacer(modifier = Modifier.height(18.dp))
 
-                // QR del catálogo
-                Text(
-                    text = "📖 Escanea para ver nuestro catálogo",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-                Image(
-                    painter = painterResource(id = R.drawable.qr_catalogo),
-                    contentDescription = "Código QR del catálogo de FXestudio",
-                    modifier = Modifier
-                        .size(190.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color.White)
-                        .padding(8.dp)
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
+                // El QR es una imagen ya impresa que apunta al catálogo
+                // original: si el admin cambia el enlace, se oculta para no
+                // mandar al cliente a la dirección equivocada.
+                if (config.catalogoUrl == StudioInfo.CATALOGO_URL) {
+                    Text(
+                        text = "📖 Escanea para ver nuestro catálogo",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Image(
+                        painter = painterResource(id = R.drawable.qr_catalogo),
+                        contentDescription = "Código QR del catálogo de FXestudio",
+                        modifier = Modifier
+                            .size(190.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.White)
+                            .padding(8.dp)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
 
                 Button(
-                    onClick = { abrir(StudioInfo.CATALOGO_URL) },
+                    onClick = { abrir(config.catalogoUrl) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -394,7 +407,7 @@ fun HomeContent(
                 Spacer(modifier = Modifier.height(10.dp))
 
                 Button(
-                    onClick = { abrir(StudioInfo.FACEBOOK_URL) },
+                    onClick = { abrir(config.facebookUrl) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1877F2))
