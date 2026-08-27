@@ -116,6 +116,7 @@ class StudioRepository(private val studioDao: StudioDao) {
             horarioDomingo = txt(KEY_HOR_DOMINGO, d.horarioDomingo),
             catalogoUrl = txt(KEY_CATALOGO, d.catalogoUrl),
             facebookUrl = txt(KEY_FACEBOOK, d.facebookUrl),
+            temaId = txt(KEY_TEMA, d.temaId),
             tasas = tasas
         )
     }
@@ -137,7 +138,8 @@ class StudioRepository(private val studioDao: StudioDao) {
             KEY_HOR_SABADO to c.horarioSabado,
             KEY_HOR_DOMINGO to c.horarioDomingo,
             KEY_CATALOGO to c.catalogoUrl,
-            KEY_FACEBOOK to c.facebookUrl
+            KEY_FACEBOOK to c.facebookUrl,
+            KEY_TEMA to c.temaId
         )
         pares.forEach { (k, v) -> studioDao.insertConfig(AppConfig(k, v)) }
 
@@ -191,6 +193,7 @@ class StudioRepository(private val studioDao: StudioDao) {
         const val KEY_HOR_DOMINGO = "info_horario_domingo"
         const val KEY_CATALOGO = "info_catalogo_url"
         const val KEY_FACEBOOK = "info_facebook_url"
+        const val KEY_TEMA = "app_tema"
     }
 
     // Acceso genérico de configuración (usado por el sistema de licencia)

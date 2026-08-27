@@ -52,6 +52,8 @@ import com.example.data.CatalogItem
 import com.example.data.CatalogVariant
 import com.example.ui.*
 import com.example.ui.theme.MyApplicationTheme
+import androidx.core.content.FileProvider
+import java.io.File
 import java.io.InputStream
 
 enum class Screen {
@@ -76,7 +78,12 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            MyApplicationTheme {
+            // El ViewModel se pide aquí arriba para conocer el tema elegido
+            // antes de pintar nada. viewModel() devuelve la misma instancia
+            // que usa MainApp, así que no se duplica nada.
+            val viewModel: StudioViewModel = viewModel()
+            val studioConfig by viewModel.studioConfig.collectAsState()
+            MyApplicationTheme(temaId = studioConfig.temaId) {
                 MainApp()
             }
         }
@@ -872,36 +879,28 @@ fun AdminCatalogItemCard(
 
             Spacer(modifier = Modifier.width(12.dp))
 
+            // El código y el nombre van en la MISMA cadena, no en dos Text
+            // dentro de un Row: allí el segundo se quedaba con las sobras del
+            // ancho y el nombre salía partido letra a letra, en vertical.
             Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (item.code.isNotBlank()) {
-                        Text(
-                            text = "[${item.code}] ",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold),
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    Text(
-                        text = item.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
                 Text(
-                    text = item.category,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = if (item.code.isNotBlank()) "[${item.code}] ${item.name}" else item.name,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = "${item.getVariants().size} variantes",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = "${item.category}  •  ${item.getVariants().size} variantes",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 if (item.includedExtras.isNotBlank()) {
                     Text(
                         text = "Incluye: ${item.includedExtras}",
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -909,26 +908,40 @@ fun AdminCatalogItemCard(
                 }
             }
 
-            Row {
-                IconButton(onClick = onDuplicate) {
-                    Icon(
-                        imageVector = Icons.Default.ContentCopy,
-                        contentDescription = "Duplicar",
-                        tint = MaterialTheme.colorScheme.secondary
-                    )
-                }
-                IconButton(onClick = onEdit) {
+            // Los tres botones se apilan en columna: en horizontal se comían
+            // 144dp del ancho y no dejaban sitio al nombre.
+            Column {
+                IconButton(
+                    onClick = onEdit,
+                    modifier = Modifier.size(36.dp)
+                ) {
                     Icon(
                         imageVector = Icons.Default.Edit,
                         contentDescription = "Editar",
-                        tint = MaterialTheme.colorScheme.primary
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
-                IconButton(onClick = onDelete) {
+                IconButton(
+                    onClick = onDuplicate,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ContentCopy,
+                        contentDescription = "Duplicar",
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(36.dp)
+                ) {
                     Icon(
                         imageVector = Icons.Default.Delete,
                         contentDescription = "Eliminar",
-                        tint = MaterialTheme.colorScheme.error
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
@@ -959,6 +972,10 @@ fun AdminSettingsView(
     ) {
         item {
             LicenseStatusCard(viewModel = viewModel)
+        }
+
+        item {
+            AdminThemeCard(viewModel = viewModel)
         }
 
         item {
@@ -1246,6 +1263,72 @@ fun AdminBackupView(
                         Icon(imageVector = Icons.Default.Share, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Exportar Catálogo")
+                    }
+                }
+            }
+        }
+
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Exportar a Excel",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Crea un archivo de Excel con tres hojas: un resumen de cuentas, " +
+                            "todas las reservaciones y el catálogo completo con sus precios. " +
+                            "Sirve para llevar las cuentas en la computadora; para conservar las " +
+                            "firmas y las fotos usa la copia de seguridad de arriba.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Button(
+                        onClick = {
+                            coroutineScope.launch {
+                                try {
+                                    val carpeta = File(context.cacheDir, "exports")
+                                    val archivo = viewModel.exportarExcel(carpeta)
+                                    val uri = FileProvider.getUriForFile(
+                                        context,
+                                        "${context.packageName}.fileprovider",
+                                        archivo
+                                    )
+                                    val enviar = Intent(Intent.ACTION_SEND).apply {
+                                        type = "application/vnd.openxmlformats-officedocument" +
+                                            ".spreadsheetml.sheet"
+                                        putExtra(Intent.EXTRA_STREAM, uri)
+                                        putExtra(Intent.EXTRA_SUBJECT, archivo.name)
+                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    context.startActivity(
+                                        Intent.createChooser(enviar, "Guardar o enviar el Excel")
+                                    )
+                                } catch (e: Exception) {
+                                    Toast.makeText(
+                                        context,
+                                        "No se pudo crear el Excel: ${e.localizedMessage}",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("admin_export_excel_button")
+                    ) {
+                        Icon(imageVector = Icons.Default.TableChart, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Exportar a Excel")
                     }
                 }
             }
@@ -1742,10 +1825,13 @@ fun SummaryDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
+                    // Sin weight, la etiqueta se comía el ancho y las cifras
+                    // salían partidas en vertical en pantallas estrechas.
                     Text(
                         text = "TOTAL GENERAL:",
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.ExtraBold
+                        fontWeight = FontWeight.ExtraBold,
+                        modifier = Modifier.weight(1f).padding(end = 8.dp)
                     )
                     Column(horizontalAlignment = Alignment.End) {
                         Text(

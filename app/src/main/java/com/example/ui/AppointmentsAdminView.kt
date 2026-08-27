@@ -11,7 +11,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,9 +30,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.example.data.AppointmentEntity
 import com.example.data.EstadoCita
 import java.util.Calendar
@@ -357,6 +359,169 @@ private fun CalendarioAgenda(
     }
 }
 
+
+/** Encabezado de la tabla, como la fila de títulos de una hoja de cálculo. */
+@Composable
+private fun CabeceraTabla() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp))
+            .background(MaterialTheme.colorScheme.primary)
+            .padding(horizontal = 10.dp, vertical = 8.dp)
+    ) {
+        Text(
+            text = "FECHA Y HORA",
+            modifier = Modifier.weight(0.27f),
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.ExtraBold),
+            color = MaterialTheme.colorScheme.onPrimary,
+            maxLines = 1
+        )
+        Text(
+            text = "CLIENTE",
+            modifier = Modifier.weight(0.46f),
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.ExtraBold),
+            color = MaterialTheme.colorScheme.onPrimary,
+            maxLines = 1
+        )
+        Text(
+            text = "SALDO",
+            modifier = Modifier.weight(0.27f),
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.ExtraBold),
+            color = MaterialTheme.colorScheme.onPrimary,
+            textAlign = TextAlign.End,
+            maxLines = 1
+        )
+    }
+}
+
+/**
+ * Una reservación en dos renglones y tres columnas alineadas, como la vista
+ * de detalles de una carpeta del ordenador. Al tocarla se abre la ficha
+ * completa con todo lo que se puede hacer con ella.
+ */
+@Composable
+private fun FilaCita(
+    cita: AppointmentEntity,
+    rayada: Boolean,
+    esHoy: Boolean,
+    onAbrir: () -> Unit
+) {
+    val fondo = when {
+        esHoy -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+        rayada -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+        else -> MaterialTheme.colorScheme.surface
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(fondo)
+            .clickable { onAbrir() }
+            .padding(horizontal = 10.dp, vertical = 8.dp)
+    ) {
+        Row(modifier = Modifier.fillMaxWidth()) {
+            // Columna 1: cuándo
+            Column(modifier = Modifier.weight(0.27f)) {
+                Text(
+                    text = cita.fecha,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = cita.hora,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1
+                )
+            }
+
+            // Columna 2: quién
+            Column(modifier = Modifier.weight(0.46f).padding(horizontal = 6.dp)) {
+                Text(
+                    text = cita.nombreCliente,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = cita.telefono,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            // Columna 3: cuánto queda
+            Column(
+                modifier = Modifier.weight(0.27f),
+                horizontalAlignment = Alignment.End
+            ) {
+                Text(
+                    text = when {
+                        cita.montoAcordado <= 0.0 -> "—"
+                        cita.saldoPendiente <= 0.0 -> "Pagado"
+                        else -> "$${String.format("%.2f", cita.saldoPendiente)}"
+                    },
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                    color = when {
+                        cita.montoAcordado <= 0.0 -> MaterialTheme.colorScheme.onSurfaceVariant
+                        cita.saldoPendiente <= 0.0 -> MaterialTheme.colorScheme.primary
+                        else -> MaterialTheme.colorScheme.error
+                    },
+                    maxLines = 1
+                )
+                Text(
+                    text = cita.estado,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.End,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+
+        // Segundo renglón: el paquete, que es lo que más se consulta.
+        Text(
+            text = cita.detalleSeleccion.replace("\n", " · "),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 2.dp)
+        )
+    }
+    Divider(
+        thickness = 0.5.dp,
+        color = MaterialTheme.colorScheme.outlineVariant
+    )
+}
+
+/** Etiqueta y valor, alineados, dentro de la ficha completa. */
+@Composable
+private fun DatoFicha(etiqueta: String, valor: String) {
+    if (valor.isBlank()) return
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+        Text(
+            text = etiqueta,
+            modifier = Modifier.width(104.dp),
+            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = valor,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+    }
+}
+
 @Composable
 fun AppointmentsAdminView(
     viewModel: StudioViewModel
@@ -364,6 +529,7 @@ fun AppointmentsAdminView(
     val context = LocalContext.current
     val appointmentsRaw by viewModel.appointments.collectAsState()
     val studioConfig by viewModel.studioConfig.collectAsState()
+    var citaAbierta by remember { mutableStateOf<AppointmentEntity?>(null) }
     var selectedAppointmentForSignature by remember { mutableStateOf<AppointmentEntity?>(null) }
     // Una cita firmada es un contrato: se pide confirmación antes de borrarla.
     var appointmentPendingDelete by remember { mutableStateOf<AppointmentEntity?>(null) }
@@ -374,6 +540,7 @@ fun AppointmentsAdminView(
     var orden by rememberSaveable { mutableStateOf(OrdenAgenda.FECHA) }
     var filtroEstado by rememberSaveable { mutableStateOf("") }
     var diaSeleccionado by rememberSaveable { mutableStateOf<Int?>(null) }
+    var mostrarCalendario by rememberSaveable { mutableStateOf(false) }
 
     val hoy = remember { comparableDeHoy(0) }
     val manana = remember { comparableDeHoy(1) }
@@ -419,8 +586,16 @@ fun AppointmentsAdminView(
             }
     }
 
+    // La ficha abierta se vuelve a leer de la lista viva, para que al cambiar
+    // el estado o el pago se vea al momento sin cerrarla.
+    val citaEnFicha = remember(citaAbierta, appointmentsRaw) {
+        citaAbierta?.let { abierta -> appointmentsRaw.firstOrNull { it.id == abierta.id } }
+    }
+
+    // Sin verticalArrangement: las filas de la tabla van pegadas unas a otras,
+    // como en una hoja de cálculo. Los controles de arriba llevan su propio
+    // margen inferior.
     LazyColumn(
-        verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 24.dp)
     ) {
@@ -428,7 +603,7 @@ fun AppointmentsAdminView(
         // así el estudio ve a quién llamar sin buscar en toda la lista.
         item {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 ResumenDiaCard(
@@ -447,14 +622,6 @@ fun AppointmentsAdminView(
         }
 
         item {
-            CalendarioAgenda(
-                citasPorDia = citasPorDia,
-                diaSeleccionado = diaSeleccionado,
-                onDiaSeleccionado = { diaSeleccionado = it }
-            )
-        }
-
-        item {
             OutlinedTextField(
                 value = busqueda,
                 onValueChange = { busqueda = it },
@@ -468,12 +635,47 @@ fun AppointmentsAdminView(
                         }
                     }
                 },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp)
             )
         }
 
+        // El calendario se despliega solo si hace falta: si no, se come media
+        // pantalla antes de llegar a la lista.
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            OutlinedButton(
+                onClick = { mostrarCalendario = !mostrarCalendario },
+                modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = when {
+                        diaSeleccionado != null -> "Día filtrado — tocar para cambiar"
+                        mostrarCalendario -> "Ocultar el calendario"
+                        else -> "Buscar por calendario"
+                    }
+                )
+            }
+        }
+
+        if (mostrarCalendario || diaSeleccionado != null) {
+            item {
+                Box(modifier = Modifier.padding(bottom = 10.dp)) {
+                    CalendarioAgenda(
+                        citasPorDia = citasPorDia,
+                        diaSeleccionado = diaSeleccionado,
+                        onDiaSeleccionado = { diaSeleccionado = it }
+                    )
+                }
+            }
+        }
+
+        item {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.padding(bottom = 10.dp)
+            ) {
                 Text(
                     text = "Ordenar:",
                     style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
@@ -519,9 +721,10 @@ fun AppointmentsAdminView(
                     }
                 }
 
+                val palabra = if (appointmentsRaw.size == 1) "reservación" else "reservaciones"
                 Text(
-                    text = "${appointments.size} de ${appointmentsRaw.size} " +
-                        if (appointmentsRaw.size == 1) "reservación" else "reservaciones",
+                    text = "${appointments.size} de ${appointmentsRaw.size} $palabra" +
+                        "  •  toca una fila para ver la ficha",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -553,76 +756,85 @@ fun AppointmentsAdminView(
                     )
                 }
             }
-        }
+        } else {
+            item { CabeceraTabla() }
 
-        items(appointments) { appt ->
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                border = androidx.compose.foundation.BorderStroke(
-                    1.dp,
-                    MaterialTheme.colorScheme.outlineVariant
+            itemsIndexed(appointments) { indice, appt ->
+                FilaCita(
+                    cita = appt,
+                    rayada = indice % 2 == 1,
+                    esHoy = fechaComparable(appt.fecha) == hoy,
+                    onAbrir = { citaAbierta = appt }
                 )
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------------
+    // Ficha completa de una reservación
+    // ---------------------------------------------------------------------
+    citaEnFicha?.let { appt ->
+        Dialog(
+            onDismissRequest = { citaAbierta = null },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                        .heightIn(max = 620.dp)
+                        .verticalScroll(rememberScrollState())
+                        .padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(end = 8.dp)
-                        ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                             Text(
                                 text = appt.nombreCliente,
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                                 color = MaterialTheme.colorScheme.primary
                             )
                             Text(
-                                text = "Tel: ${appt.telefono}",
+                                text = "${appt.fecha} • ${appt.hora}",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(MaterialTheme.colorScheme.primaryContainer)
-                                .padding(horizontal = 10.dp, vertical = 4.dp)
-                        ) {
-                            Text(
-                                text = "${appt.fecha} • ${appt.hora}",
-                                style = MaterialTheme.typography.labelLarge.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            )
+                        IconButton(onClick = { citaAbierta = null }) {
+                            Icon(Icons.Default.Close, contentDescription = "Cerrar ficha")
                         }
                     }
 
-                    // Etapa del trabajo: se cambia tocando el chip.
-                    EstadoSelector(
-                        estadoActual = appt.estado,
-                        onCambiar = { nuevo ->
-                            viewModel.updateAppointmentStatus(appt.id, nuevo)
-                        }
+                    Divider()
+
+                    DatoFicha("Teléfono", appt.telefono)
+                    DatoFicha("Paquete", appt.detalleSeleccion)
+                    DatoFicha("Notas", appt.notas)
+                    DatoFicha(
+                        "Registrada",
+                        java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.getDefault())
+                            .format(java.util.Date(appt.createdAt))
                     )
 
-                    // Pagos: solo se muestra si hay un monto registrado.
+                    Divider()
+
+                    EstadoSelector(
+                        estadoActual = appt.estado,
+                        onCambiar = { nuevo -> viewModel.updateAppointmentStatus(appt.id, nuevo) }
+                    )
+
+                    // Pagos
                     if (appt.montoAcordado > 0.0) {
-                        Row(
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(10.dp))
@@ -632,180 +844,128 @@ fun AppointmentsAdminView(
                                     else
                                         MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
                                 )
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                                .padding(12.dp)
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Acordado $${String.format("%.2f", appt.montoAcordado)}  •  " +
-                                        "Anticipo $${String.format("%.2f", appt.anticipoPagado)}",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = if (appt.saldoPendiente <= 0.0) "✅ Pagado completo"
-                                    else "Saldo pendiente: $${String.format("%.2f", appt.saldoPendiente)} USD",
-                                    style = MaterialTheme.typography.titleMedium.copy(
-                                        fontWeight = FontWeight.Bold
-                                    ),
-                                    color = if (appt.saldoPendiente <= 0.0)
-                                        MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.error
-                                )
-                                if (appt.saldoPendiente > 0.0) {
-                                    viewModel.equivalenciasLinea(appt.saldoPendiente)?.let { eq ->
-                                        Text(
-                                            text = eq,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
+                            Text(
+                                text = "Acordado $${String.format("%.2f", appt.montoAcordado)}  •  " +
+                                    "Anticipo $${String.format("%.2f", appt.anticipoPagado)}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = if (appt.saldoPendiente <= 0.0) "✅ Pagado completo"
+                                else "Saldo pendiente: $${String.format("%.2f", appt.saldoPendiente)} USD",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = if (appt.saldoPendiente <= 0.0)
+                                    MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.error
+                            )
+                            if (appt.saldoPendiente > 0.0) {
+                                viewModel.equivalenciasLinea(appt.saldoPendiente)?.let { eq ->
+                                    Text(
+                                        text = eq,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
                             }
-                            TextButton(onClick = { appointmentPendingPayment = appt }) {
-                                Text("Editar")
+                            TextButton(
+                                onClick = { appointmentPendingPayment = appt },
+                                modifier = Modifier.align(Alignment.End)
+                            ) {
+                                Text("Editar pago")
                             }
                         }
                     } else {
-                        TextButton(
+                        OutlinedButton(
                             onClick = { appointmentPendingPayment = appt },
-                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp)
                         ) {
-                            Icon(
-                                Icons.Default.Payments,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(Icons.Default.Payments, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
                             Text("Registrar pago")
                         }
                     }
 
-                    Divider(modifier = Modifier.padding(vertical = 4.dp))
+                    Divider()
 
-                    Text(
-                        text = "Opción / Paquete:",
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
-                    )
-                    Text(
-                        text = appt.detalleSeleccion,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-
-                    if (appt.notas.isNotBlank()) {
+                    // Firma y foto
+                    if (appt.firmaBytes != null || appt.fotoClienteBytes != null) {
+                        OutlinedButton(
+                            onClick = { selectedAppointmentForSignature = appt },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(Icons.Default.Draw, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                if (appt.fotoClienteBytes != null) "Ver firma y foto"
+                                else "Ver firma digital"
+                            )
+                        }
+                    } else {
                         Text(
-                            text = "Notas: ${appt.notas}",
+                            text = "Sin firma registrada",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.error
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(4.dp))
-
+                    // Acciones
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        if (appt.firmaBytes != null || appt.fotoClienteBytes != null) {
-                            OutlinedButton(
-                                onClick = { selectedAppointmentForSignature = appt },
-                                shape = RoundedCornerShape(8.dp),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                modifier = Modifier.weight(1f).padding(end = 8.dp)
-                            ) {
-                                Icon(Icons.Default.Draw, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = if (appt.fotoClienteBytes != null) "Ver firma y foto"
-                                    else "Ver firma digital",
-                                    style = MaterialTheme.typography.labelLarge
-                                )
-                            }
-                        } else {
-                            Text(
-                                text = "Sin firma registrada",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.weight(1f).padding(end = 8.dp)
-                            )
+                        OutlinedButton(
+                            onClick = {
+                                val tel = appt.telefono.filter { it.isDigit() || it == '+' }
+                                val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$tel"))
+                                try {
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "No se pudo abrir el teléfono", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(Icons.Default.Call, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Llamar")
                         }
-
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            IconButton(
-                                onClick = {
-                                    val tel = appt.telefono.filter { it.isDigit() || it == '+' }
-                                    val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$tel"))
-                                    try {
-                                        context.startActivity(intent)
-                                    } catch (e: Exception) {
-                                        Toast.makeText(
-                                            context,
-                                            "No se pudo abrir el teléfono",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
-                                }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Call,
-                                    contentDescription = "Llamar al cliente",
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
-
-                            // Pasa la cita al calendario del teléfono o la tablet.
-                            IconButton(
-                                onClick = {
-                                    agregarCitaAlCalendarioDelEquipo(context, appt, studioConfig)
-                                }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.EditCalendar,
-                                    contentDescription = "Agregar al calendario del equipo",
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
-
-                            IconButton(
-                                onClick = {
-                                    val uriStr = viewModel.generateAppointmentWhatsAppUri(appt)
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uriStr))
-                                    try {
-                                        context.startActivity(intent)
-                                    } catch (e: Exception) {
-                                        Toast.makeText(context, "No se pudo abrir WhatsApp", Toast.LENGTH_SHORT).show()
-                                    }
-                                }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Send,
-                                    contentDescription = "Enviar por WhatsApp",
-                                    tint = Color(0xFF25D366)
-                                )
-                            }
-
-                            IconButton(
-                                onClick = { appointmentPendingDelete = appt }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = "Eliminar",
-                                    tint = MaterialTheme.colorScheme.error
-                                )
-                            }
+                        OutlinedButton(
+                            onClick = { agregarCitaAlCalendarioDelEquipo(context, appt, studioConfig) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(Icons.Default.EditCalendar, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Calendario")
                         }
                     }
 
-                    // Copia de la reservación al chat del cliente.
                     OutlinedButton(
                         onClick = {
-                            val uriStr = viewModel.generateAppointmentWhatsAppUri(
-                                appt,
-                                enviarACliente = true
-                            )
+                            val uriStr = viewModel.generateAppointmentWhatsAppUri(appt)
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uriStr))
+                            try {
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "No se pudo abrir WhatsApp", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(Icons.Default.Send, contentDescription = null, tint = Color(0xFF25D366), modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Enviar al estudio por WhatsApp")
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            val uriStr = viewModel.generateAppointmentWhatsAppUri(appt, enviarACliente = true)
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uriStr))
                             try {
                                 context.startActivity(intent)
@@ -820,14 +980,23 @@ fun AppointmentsAdminView(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(10.dp)
                     ) {
-                        Icon(
-                            Icons.Default.Share,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                            tint = Color(0xFF25D366)
-                        )
+                        Icon(Icons.Default.Share, contentDescription = null, tint = Color(0xFF25D366), modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Enviar copia al cliente")
+                    }
+
+                    TextButton(
+                        onClick = { appointmentPendingDelete = appt },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Eliminar reservación", color = MaterialTheme.colorScheme.error)
                     }
                 }
             }
@@ -933,6 +1102,7 @@ fun AppointmentsAdminView(
                     onClick = {
                         viewModel.deleteAppointment(appt.id)
                         appointmentPendingDelete = null
+                        citaAbierta = null
                         Toast.makeText(context, "Cita eliminada", Toast.LENGTH_SHORT).show()
                     },
                     colors = ButtonDefaults.buttonColors(
@@ -982,6 +1152,7 @@ fun AppointmentsAdminView(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .heightIn(max = 560.dp)
                         .verticalScroll(rememberScrollState())
                         .padding(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,

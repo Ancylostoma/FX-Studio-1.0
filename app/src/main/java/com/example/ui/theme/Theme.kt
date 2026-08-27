@@ -1,15 +1,14 @@
 package com.example.ui.theme
 
-import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
 
-private val FxColorScheme =
+/**
+ * Paleta original de la marca: rosa empolvado, dorado ámbar, marrón cálido y
+ * crema, tomada del catálogo impreso. Es la que viene puesta de fábrica.
+ */
+internal val FxColorSchemeClasico =
   lightColorScheme(
     primary = FxRose,
     onPrimary = FxWhite,
@@ -35,24 +34,19 @@ private val FxColorScheme =
     onError = FxWhite,
   )
 
+/**
+ * Tema de la app. El administrador elige la paleta desde su panel y se guarda
+ * en la base de datos, así que el modo oscuro del teléfono no la cambia: el
+ * cliente ve siempre los colores que el estudio haya decidido.
+ */
 @Composable
 fun MyApplicationTheme(
-  darkTheme: Boolean = isSystemInDarkTheme(),
-  // El color dinámico queda desactivado para respetar la paleta del catálogo.
-  dynamicColor: Boolean = false,
+  temaId: String = FxTemas.CLASICO,
   content: @Composable () -> Unit,
 ) {
-  val colorScheme =
-    when {
-      dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-        val context = LocalContext.current
-        if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-      }
-
-      // Se usa la misma paleta clara aunque el teléfono esté en modo oscuro:
-      // el cliente debe ver siempre los colores de la marca.
-      else -> FxColorScheme
-    }
-
-  MaterialTheme(colorScheme = colorScheme, typography = Typography, content = content)
+  MaterialTheme(
+    colorScheme = FxTemas.porId(temaId).esquema,
+    typography = Typography,
+    content = content,
+  )
 }

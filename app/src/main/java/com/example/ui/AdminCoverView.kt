@@ -1,11 +1,16 @@
 package com.example.ui
 
 import android.widget.Toast
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CurrencyExchange
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Save
@@ -13,6 +18,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -20,6 +26,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.data.StudioConfig
 import com.example.data.TasaPago
+import com.example.ui.theme.FxTemas
 
 /** Encabezado con título y explicación, repetido en todas las tarjetas. */
 @Composable
@@ -64,6 +71,102 @@ private fun CampoTexto(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = 4.dp, top = 2.dp)
             )
+        }
+    }
+}
+
+/**
+ * Selector de la paleta de colores. Se aplica al instante en toda la app y
+ * queda guardado, así que el modo oscuro del teléfono no lo cambia.
+ */
+@Composable
+fun AdminThemeCard(viewModel: StudioViewModel) {
+    val context = LocalContext.current
+    val config by viewModel.studioConfig.collectAsState()
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            TituloTarjeta(
+                titulo = "Colores de la app",
+                explicacion = "Elige la combinación con la que verán la app tus clientes. " +
+                    "El cambio se aplica al momento."
+            )
+
+            FxTemas.TODOS.forEach { tema ->
+                val elegido = tema.id == config.temaId
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(
+                            if (elegido) MaterialTheme.colorScheme.primaryContainer
+                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                        )
+                        .border(
+                            width = if (elegido) 2.dp else 1.dp,
+                            color = if (elegido) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.outlineVariant,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        .clickable {
+                            if (!elegido) {
+                                viewModel.updateStudioConfig(config.copy(temaId = tema.id))
+                                Toast.makeText(
+                                    context,
+                                    "Tema ${tema.nombre} aplicado",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                        .padding(12.dp)
+                        .testTag("admin_tema_${tema.id}"),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Muestras de color, para verlo antes de elegirlo.
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.padding(end = 12.dp)
+                    ) {
+                        tema.muestras.forEach { c ->
+                            Box(
+                                modifier = Modifier
+                                    .size(26.dp)
+                                    .clip(CircleShape)
+                                    .background(c)
+                                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+                            )
+                        }
+                    }
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = tema.nombre,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = if (elegido) FontWeight.Bold else FontWeight.SemiBold
+                            ),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = tema.descripcion,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    if (elegido) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "Tema activo",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -367,7 +470,7 @@ fun AdminCoverView(viewModel: StudioViewModel) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Button(
                     onClick = {
-                        viewModel.updateStudioConfig(borrador)
+                        viewModel.updateStudioConfig(borrador.copy(temaId = config.temaId))
                         Toast.makeText(context, "Portada actualizada", Toast.LENGTH_SHORT).show()
                     },
                     enabled = hayCambios,
@@ -412,7 +515,7 @@ fun AdminCoverView(viewModel: StudioViewModel) {
             text = {
                 Text(
                     "La portada volverá a los textos con los que viene la app. " +
-                        "Las tasas de cambio no se tocan."
+                        "Las tasas de cambio y los colores no se tocan."
                 )
             },
             confirmButton = {
