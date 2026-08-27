@@ -617,12 +617,14 @@ fun AdminScreen(
     val items by viewModel.catalogItems.collectAsState()
     val currentWhatsapp by viewModel.whatsappNumber.collectAsState()
     val currentPin by viewModel.adminPin.collectAsState()
+    val ultimoRespaldo by viewModel.ultimoRespaldo.collectAsState()
 
     var showAddEditDialog by remember { mutableStateOf(false) }
     var itemToEdit by remember { mutableStateOf<CatalogItem?>(null) }
     var itemPendingDelete by remember { mutableStateOf<CatalogItem?>(null) }
 
-    var adminTabSelected by remember { mutableStateOf(0) } // 0 = Catalog CRUD, 1 = Appointments, 2 = Config, 3 = Backup
+    // 0 = Catálogo, 1 = Citas, 2 = Portada, 3 = Ajustes, 4 = Respaldo
+    var adminTabSelected by remember { mutableStateOf(0) }
 
     Column(
         modifier = Modifier
@@ -682,7 +684,16 @@ fun AdminScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Aviso siempre visible de cuánto hace de la última copia. Los
+        // contratos firmados solo están en este teléfono.
+        BackupReminderBanner(
+            ultimoRespaldo = ultimoRespaldo,
+            onIrARespaldo = { adminTabSelected = 4 }
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
 
         // Admin Navigation Tabs (Items, Citas, Ajustes, Respaldo)
         // Cinco pestañas ya no caben repartidas a lo ancho de un teléfono:

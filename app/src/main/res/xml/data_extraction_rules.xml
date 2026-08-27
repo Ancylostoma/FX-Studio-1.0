@@ -1,19 +1,24 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
-   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Reglas de copia para Android 12 en adelante.
+
+    La base de datos guarda contratos firmados y fotos de los clientes. Esos
+    documentos no deben salir del teléfono por su cuenta: solo cuando el
+    estudio pulsa "Exportar copia de seguridad".
+
+    - cloud-backup: se excluye la base de datos, así nada de eso sube a la
+      copia de Google.
+    - device-transfer: sí se permite, porque es el traspaso directo de un
+      teléfono al nuevo (por cable o inalámbrico, sin pasar por internet).
+      Así al estrenar equipo se recupera todo sin exponer nada.
 -->
 <data-extraction-rules>
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <exclude domain="database" path="studio_database" />
+        <exclude domain="database" path="studio_database-shm" />
+        <exclude domain="database" path="studio_database-wal" />
     </cloud-backup>
-    <!--
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <include domain="database" path="studio_database" />
     </device-transfer>
-    -->
 </data-extraction-rules>
