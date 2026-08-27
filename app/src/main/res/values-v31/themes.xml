@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!--
+        Pantalla de arranque de marca, para Android 12 en adelante.
+
+        El logotipo dorado sobre la ciruela del icono, en vez del arranque en
+        gris que pone Android por defecto. En versiones anteriores no existen
+        estos atributos: allí sigue valiendo el windowBackground de siempre,
+        que ya evita el destello oscuro.
+    -->
+    <style name="Theme.MyApplication" parent="android:Theme.DeviceDefault.Light.NoActionBar">
+        <item name="android:windowBackground">@color/fx_cream</item>
+        <item name="android:windowSplashScreenBackground">@color/fx_splash_bg</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
+    </style>
+</resources>

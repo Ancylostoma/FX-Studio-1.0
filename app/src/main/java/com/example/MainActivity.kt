@@ -13,6 +13,16 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -31,6 +41,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -116,10 +127,21 @@ fun MainApp() {
     // La portada ya es la propia pantalla de inicio del cliente (banda de
     // marca, foto y accesos), así que no hace falta una bienvenida aparte.
 
+    // Entrada suave al arrancar: la app aparece con un fundido corto en vez
+    // de plantarse de golpe cuando se va la pantalla de marca de Android.
+    var entrada by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { entrada = true }
+    val opacidad by animateFloatAsState(
+        targetValue = if (entrada) 1f else 0f,
+        animationSpec = tween(durationMillis = 420, easing = FastOutSlowInEasing),
+        label = "entrada_app"
+    )
+
     // Edge-to-edge container handling status bars and navigation bars
     Scaffold(
         modifier = Modifier
             .fillMaxSize()
+            .graphicsLayer { alpha = opacidad }
             .windowInsetsPadding(WindowInsets.safeDrawing),
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
@@ -218,7 +240,29 @@ fun ClientScreen(
 
         // ---- DOS TERCIOS INFERIORES: cambian según la vista ----
         Box(modifier = Modifier.weight(1f)) {
-            when (vista) {
+            // Las secciones entran deslizándose desde el lado por el que se
+            // avanza y salen hacia el contrario, así el cliente entiende de un
+            // vistazo si está entrando o volviendo.
+            AnimatedContent(
+                targetState = vista,
+                transitionSpec = {
+                    val avanza = targetState.ordinal > initialState.ordinal
+                    val desplazamiento = if (avanza) 1 else -1
+                    (
+                        slideInHorizontally(
+                            animationSpec = tween(280, easing = FastOutSlowInEasing)
+                        ) { ancho -> desplazamiento * ancho / 6 } +
+                            fadeIn(animationSpec = tween(240))
+                        ) togetherWith (
+                        slideOutHorizontally(
+                            animationSpec = tween(280, easing = FastOutSlowInEasing)
+                        ) { ancho -> -desplazamiento * ancho / 10 } +
+                            fadeOut(animationSpec = tween(160))
+                        )
+                },
+                label = "vista_cliente"
+            ) { vistaActual ->
+            when (vistaActual) {
                 ClientView.INICIO -> {
                     Column(
                         modifier = Modifier
@@ -281,6 +325,7 @@ fun ClientScreen(
                         modifier = Modifier.fillMaxSize()
                     )
                 }
+            }
             }
 
             // Botón para regresar a la portada desde cualquier sección.
@@ -739,7 +784,13 @@ fun AdminScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         Box(modifier = Modifier.weight(1f)) {
-            when (adminTabSelected) {
+            // Fundido entre pestañas: el salto seco delataba lo casero.
+            Crossfade(
+                targetState = adminTabSelected,
+                animationSpec = tween(220),
+                label = "pestana_admin"
+            ) { pestana ->
+            when (pestana) {
                 0 -> {
                     // Catalog CRUD List
                     if (items.isEmpty()) {
@@ -799,6 +850,7 @@ fun AdminScreen(
                         viewModel = viewModel
                     )
                 }
+            }
             }
         }
     }
