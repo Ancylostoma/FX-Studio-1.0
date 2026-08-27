@@ -3,9 +3,17 @@ package com.example.ui
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -128,10 +137,31 @@ fun MenuPrincipalBoton(
     modifier: Modifier = Modifier
 ) {
     val alpha = if (atenuado) 0.35f else 1f
+
+    // El botón se hunde mientras se mantiene pulsado y vuelve con un rebote
+    // corto. Es lo que hace que el toque se sienta físico.
+    val interaccion = remember { MutableInteractionSource() }
+    val pulsado by interaccion.collectIsPressedAsState()
+    val escala by animateFloatAsState(
+        targetValue = if (pulsado) 0.95f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "escala_boton"
+    )
+
     Card(
         modifier = modifier
+            .graphicsLayer {
+                scaleX = escala
+                scaleY = escala
+            }
             .clip(RoundedCornerShape(18.dp))
-            .clickable { onClick() },
+            .clickable(
+                interactionSource = interaccion,
+                indication = LocalIndication.current
+            ) { onClick() },
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (resaltado) MaterialTheme.colorScheme.primary
@@ -201,12 +231,27 @@ fun HomeContent(
                 .fillMaxWidth()
                 .aspectRatio(1.2f)
         ) {
+            // Acercamiento lento al aparecer: la foto se asienta en su sitio
+            // en vez de plantarse de golpe.
+            var asentada by remember { mutableStateOf(false) }
+            LaunchedEffect(Unit) { asentada = true }
+            val zoom by animateFloatAsState(
+                targetValue = if (asentada) 1f else 1.07f,
+                animationSpec = tween(durationMillis = 1600, easing = FastOutSlowInEasing),
+                label = "zoom_portada"
+            )
+
             Image(
                 painter = painterResource(id = R.drawable.fondo_bienvenida),
                 contentDescription = "Estudio FXestudio",
                 contentScale = ContentScale.Crop,
                 alignment = BiasAlignment(0f, -0.72f),
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        scaleX = zoom
+                        scaleY = zoom
+                    }
             )
             // El velo solo entra en el cuarto inferior, donde va la frase: así
             // la cara de la modelo se ve limpia, sin oscurecer.

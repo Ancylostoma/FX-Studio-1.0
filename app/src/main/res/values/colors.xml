@@ -3,6 +3,10 @@
     <!-- Crema de la marca FXestudio, usado como fondo de ventana al arrancar -->
     <color name="fx_cream">#FFFFF8F5</color>
 
+    <!-- Ciruela del icono: fondo de la pantalla de arranque, para que el
+         logotipo dorado aparezca sobre el color de la marca. -->
+    <color name="fx_splash_bg">#FF400C24</color>
+
     <color name="purple_200">#FFBB86FC</color>
     <color name="purple_500">#FF6200EE</color>
     <color name="purple_700">#FF3700B3</color>
