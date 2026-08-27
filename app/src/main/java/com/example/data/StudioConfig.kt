@@ -52,6 +52,8 @@ data class StudioConfig(
     val horarioDomingo: String = StudioInfo.HORARIO_DOMINGO,
     val catalogoUrl: String = StudioInfo.CATALOGO_URL,
     val facebookUrl: String = StudioInfo.FACEBOOK_URL,
+    // Paleta de colores elegida en el panel
+    val temaId: String = TEMA_POR_DEFECTO,
     // Formas de pago
     val tasas: List<TasaPago> = TASAS_POR_DEFECTO
 ) {
@@ -70,6 +72,9 @@ data class StudioConfig(
     }
 
     companion object {
+        /** Id del tema de fábrica; el catálogo vive en ui.theme.FxTemas. */
+        const val TEMA_POR_DEFECTO = "clasico"
+
         const val ID_CUP = "cup"
         const val ID_ZELLE = "zelle"
         const val ID_TRANSFER = "transferencia"

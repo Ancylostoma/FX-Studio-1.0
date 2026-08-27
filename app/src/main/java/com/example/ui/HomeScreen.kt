@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -72,7 +73,7 @@ fun StudioHeaderBand(
                 style = if (compacto) MaterialTheme.typography.headlineMedium
                 else MaterialTheme.typography.displayMedium,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onPrimary,
                 textAlign = TextAlign.Center
             )
 
@@ -94,7 +95,7 @@ fun StudioHeaderBand(
                 text = config.lema,
                 style = if (compacto) MaterialTheme.typography.titleSmall
                 else MaterialTheme.typography.titleLarge,
-                color = Color.White.copy(alpha = 0.95f),
+                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.95f),
                 textAlign = TextAlign.Center
             )
         }
@@ -110,7 +111,7 @@ fun StudioHeaderBand(
             Icon(
                 imageVector = Icons.Default.Lock,
                 contentDescription = "Modo Administrador",
-                tint = Color.White.copy(alpha = 0.75f)
+                tint = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.75f)
             )
         }
     }
@@ -188,24 +189,35 @@ fun HomeContent(
     }
 
     Column(modifier = modifier.fillMaxWidth()) {
-        // Foto de portada
+        // Foto de portada.
+        //
+        // El original es muy alto (1080x2400) y la modelo está en el tercio de
+        // arriba. Con una altura fija y recorte centrado, la ventana caía sobre
+        // el torso y le cortaba la cabeza. Con una proporción fija el recorte
+        // se comporta igual en teléfono y en tablet, y la alineación sesgada
+        // hacia arriba deja dentro el sombrero, la cara y los hombros.
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(230.dp)
+                .aspectRatio(1.2f)
         ) {
             Image(
                 painter = painterResource(id = R.drawable.fondo_bienvenida),
                 contentDescription = "Estudio FXestudio",
                 contentScale = ContentScale.Crop,
+                alignment = BiasAlignment(0f, -0.72f),
                 modifier = Modifier.fillMaxSize()
             )
+            // El velo solo entra en el cuarto inferior, donde va la frase: así
+            // la cara de la modelo se ve limpia, sin oscurecer.
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         Brush.verticalGradient(
-                            listOf(Color.Transparent, Color(0x66000000))
+                            0f to Color.Transparent,
+                            0.62f to Color.Transparent,
+                            1f to Color(0x99000000)
                         )
                     )
             )

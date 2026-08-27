@@ -13,7 +13,11 @@ import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.net.URLEncoder
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 data class CartItem(
     val item: CatalogItem,
@@ -163,6 +167,9 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
 
     /** Todas las equivalencias en una sola línea, para los mensajes. */
     fun equivalenciasLinea(usd: Double): String? = _studioConfig.value.equivalenciasLinea(usd)
+
+    private val formatoFechaHora = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+    private val formatoNombreArchivo = SimpleDateFormat("yyyy-MM-dd_HHmm", Locale.US)
 
     // Revisa si la app está activada para el mes actual (o desbloqueada con llave maestra)
     private suspend fun checkLicense() {
@@ -380,6 +387,111 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
     // Verify PIN
     fun verifyPin(entered: String): Boolean {
         return entered == _adminPin.value
+    }
+
+    /**
+     * Vuelca la agenda y el catálogo en un archivo .xlsx dentro de la carpeta
+     * temporal, y devuelve el archivo para compartirlo. Las fotos y las firmas
+     * no caben en una hoja de cálculo: para eso está el respaldo JSON.
+     */
+    suspend fun exportarExcel(carpeta: File): File {
+        val citas = repository.getAllAppointmentsOnce()
+            .sortedWith(compareBy({ fechaComparable(it.fecha) }, { horaComparable(it.hora) }))
+
+        val hojaCitas = ExcelExport.Hoja(
+            nombre = "Citas",
+            encabezados = listOf(
+                "N.º", "Fecha", "Hora", "Cliente", "Teléfono", "Selección", "Notas",
+                "Estado", "Acordado USD", "Anticipo USD", "Saldo USD",
+                "Firmada", "Con foto", "Registrada el"
+            ),
+            filas = citas.map { c ->
+                listOf(
+                    ExcelExport.numero(c.id.toDouble()),
+                    ExcelExport.texto(c.fecha),
+                    ExcelExport.texto(c.hora),
+                    ExcelExport.texto(c.nombreCliente),
+                    ExcelExport.texto(c.telefono),
+                    ExcelExport.texto(c.detalleSeleccion),
+                    ExcelExport.texto(c.notas),
+                    ExcelExport.texto(c.estado),
+                    ExcelExport.numero(c.montoAcordado),
+                    ExcelExport.numero(c.anticipoPagado),
+                    ExcelExport.numero(c.saldoPendiente),
+                    ExcelExport.siNo(c.firmaBytes != null),
+                    ExcelExport.siNo(c.fotoClienteBytes != null),
+                    ExcelExport.texto(formatoFechaHora.format(Date(c.createdAt)))
+                )
+            }
+        )
+
+        // Una fila por variante: así se puede filtrar y sumar por precio.
+        val filasCatalogo = mutableListOf<List<ExcelExport.Celda>>()
+        catalogItems.value.forEach { item ->
+            val variantes = item.getVariants()
+            if (variantes.isEmpty()) {
+                filasCatalogo.add(
+                    listOf(
+                        ExcelExport.texto(item.code),
+                        ExcelExport.texto(item.name),
+                        ExcelExport.texto(item.category),
+                        ExcelExport.texto(item.description),
+                        ExcelExport.texto(item.includedExtras),
+                        ExcelExport.texto(""),
+                        ExcelExport.numero(0.0)
+                    )
+                )
+            } else {
+                variantes.forEach { v ->
+                    filasCatalogo.add(
+                        listOf(
+                            ExcelExport.texto(item.code),
+                            ExcelExport.texto(item.name),
+                            ExcelExport.texto(item.category),
+                            ExcelExport.texto(item.description),
+                            ExcelExport.texto(item.includedExtras),
+                            ExcelExport.texto(v.name),
+                            ExcelExport.numero(v.price)
+                        )
+                    )
+                }
+            }
+        }
+
+        val hojaCatalogo = ExcelExport.Hoja(
+            nombre = "Catalogo",
+            encabezados = listOf(
+                "Código", "Paquete", "Categoría", "Descripción", "Incluye",
+                "Variante", "Precio USD"
+            ),
+            filas = filasCatalogo
+        )
+
+        // Resumen corto, para no tener que sacar cuentas a mano.
+        val totalAcordado = citas.sumOf { it.montoAcordado }
+        val totalCobrado = citas.sumOf { it.anticipoPagado }
+        val hojaResumen = ExcelExport.Hoja(
+            nombre = "Resumen",
+            encabezados = listOf("Concepto", "Valor"),
+            filas = buildList {
+                add(listOf(ExcelExport.texto("Reservaciones registradas"), ExcelExport.numero(citas.size.toDouble())))
+                add(listOf(ExcelExport.texto("Paquetes en el catálogo"), ExcelExport.numero(catalogItems.value.size.toDouble())))
+                add(listOf(ExcelExport.texto("Total acordado USD"), ExcelExport.numero(totalAcordado)))
+                add(listOf(ExcelExport.texto("Total cobrado USD"), ExcelExport.numero(totalCobrado)))
+                add(listOf(ExcelExport.texto("Saldo por cobrar USD"), ExcelExport.numero(totalAcordado - totalCobrado)))
+                EstadoCita.TODOS.forEach { estado ->
+                    add(
+                        listOf(
+                            ExcelExport.texto("Citas en \"$estado\""),
+                            ExcelExport.numero(citas.count { it.estado == estado }.toDouble())
+                        )
+                    )
+                }
+            }
+        )
+
+        val nombre = "FXestudio_${formatoNombreArchivo.format(Date())}.xlsx"
+        return ExcelExport.escribir(File(carpeta, nombre), listOf(hojaResumen, hojaCitas, hojaCatalogo))
     }
 
     // Backup Export

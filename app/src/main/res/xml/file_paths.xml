@@ -3,4 +3,6 @@
     <!-- Carpeta temporal donde la cámara deja la foto de confirmación antes
          de que la app la comprima y la guarde en la base de datos. -->
     <cache-path name="fotos_temporales" path="fotos/" />
+    <!-- Carpeta donde se deja el Excel antes de compartirlo. -->
+    <cache-path name="exportados" path="exports/" />
 </paths>

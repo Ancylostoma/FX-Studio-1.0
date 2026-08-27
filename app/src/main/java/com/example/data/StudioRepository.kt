@@ -80,17 +80,21 @@ class StudioRepository(private val studioDao: StudioDao) {
      */
     suspend fun getStudioConfig(): StudioConfig {
         val d = StudioConfig()
+        // Se lee todo de un tirón: así basta una consulta para los veinte
+        // campos, y los ayudantes de abajo no necesitan tocar la base de datos.
+        val guardado = studioDao.getAllConfigs().associate { it.key to it.value }
+
         fun txt(clave: String, porDefecto: String) =
-            studioDao.getConfig(clave)?.value?.takeIf { it.isNotBlank() } ?: porDefecto
+            guardado[clave]?.takeIf { it.isNotBlank() } ?: porDefecto
 
         // La tasa de CUP se hereda de la clave antigua para no perder lo que
         // el estudio ya hubiera configurado.
-        val cupHeredada = studioDao.getConfig(KEY_CUP_RATE)?.value?.toDoubleOrNull() ?: 0.0
+        val cupHeredada = guardado[KEY_CUP_RATE]?.toDoubleOrNull() ?: 0.0
 
         val tasas = StudioConfig.TASAS_POR_DEFECTO.map { base ->
-            val tasa = studioDao.getConfig("tasa_${base.id}")?.value?.toDoubleOrNull()
+            val tasa = guardado["tasa_${base.id}"]?.toDoubleOrNull()
                 ?: if (base.id == StudioConfig.ID_CUP) cupHeredada else base.tasa
-            val visible = studioDao.getConfig("tasa_${base.id}_visible")?.value?.toBooleanStrictOrNull()
+            val visible = guardado["tasa_${base.id}_visible"]?.toBooleanStrictOrNull()
                 ?: base.visible
             base.copy(tasa = tasa, visible = visible)
         }
@@ -112,6 +116,7 @@ class StudioRepository(private val studioDao: StudioDao) {
             horarioDomingo = txt(KEY_HOR_DOMINGO, d.horarioDomingo),
             catalogoUrl = txt(KEY_CATALOGO, d.catalogoUrl),
             facebookUrl = txt(KEY_FACEBOOK, d.facebookUrl),
+            temaId = txt(KEY_TEMA, d.temaId),
             tasas = tasas
         )
     }
@@ -133,7 +138,8 @@ class StudioRepository(private val studioDao: StudioDao) {
             KEY_HOR_SABADO to c.horarioSabado,
             KEY_HOR_DOMINGO to c.horarioDomingo,
             KEY_CATALOGO to c.catalogoUrl,
-            KEY_FACEBOOK to c.facebookUrl
+            KEY_FACEBOOK to c.facebookUrl,
+            KEY_TEMA to c.temaId
         )
         pares.forEach { (k, v) -> studioDao.insertConfig(AppConfig(k, v)) }
 
@@ -187,6 +193,7 @@ class StudioRepository(private val studioDao: StudioDao) {
         const val KEY_HOR_DOMINGO = "info_horario_domingo"
         const val KEY_CATALOGO = "info_catalogo_url"
         const val KEY_FACEBOOK = "info_facebook_url"
+        const val KEY_TEMA = "app_tema"
     }
 
     // Acceso genérico de configuración (usado por el sistema de licencia)
