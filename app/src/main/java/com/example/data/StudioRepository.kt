@@ -163,6 +163,14 @@ class StudioRepository(private val studioDao: StudioDao) {
         ).forEach { studioDao.insertConfig(AppConfig(it, "")) }
     }
 
+    /** Cuándo se exportó el último respaldo. 0 = nunca. */
+    suspend fun getUltimoRespaldo(): Long =
+        studioDao.getConfig(KEY_ULTIMO_RESPALDO)?.value?.toLongOrNull() ?: 0L
+
+    suspend fun setUltimoRespaldo(cuando: Long) {
+        studioDao.insertConfig(AppConfig(KEY_ULTIMO_RESPALDO, cuando.toString()))
+    }
+
     /** Texto del contrato. Vacío significa "usar el texto por defecto". */
     suspend fun getContractText(): String {
         return studioDao.getConfig(KEY_CONTRACT)?.value ?: ""
@@ -194,6 +202,7 @@ class StudioRepository(private val studioDao: StudioDao) {
         const val KEY_CATALOGO = "info_catalogo_url"
         const val KEY_FACEBOOK = "info_facebook_url"
         const val KEY_TEMA = "app_tema"
+        const val KEY_ULTIMO_RESPALDO = "ultimo_respaldo"
     }
 
     // Acceso genérico de configuración (usado por el sistema de licencia)

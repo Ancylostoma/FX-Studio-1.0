@@ -1,13 +1,14 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
-   See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older than API 31
-   See https://developer.android.com/about/versions/12/backup-restore
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Reglas de copia para Android 11 y anteriores.
+
+    Mismo criterio que en data_extraction_rules.xml: los contratos firmados y
+    las fotos de los clientes no suben a la copia automática. Aquí no existe
+    la distinción entre nube y traspaso directo, así que se excluye la base de
+    datos entera.
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <exclude domain="database" path="studio_database" />
+    <exclude domain="database" path="studio_database-shm" />
+    <exclude domain="database" path="studio_database-wal" />
 </full-backup-content>

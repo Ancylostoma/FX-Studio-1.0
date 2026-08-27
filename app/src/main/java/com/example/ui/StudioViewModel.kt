@@ -59,6 +59,10 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
     private val _studioConfig = MutableStateFlow(StudioConfig())
     val studioConfig: StateFlow<StudioConfig> = _studioConfig.asStateFlow()
 
+    // Cuándo se exportó la última copia de seguridad. 0 = nunca.
+    private val _ultimoRespaldo = MutableStateFlow(0L)
+    val ultimoRespaldo: StateFlow<Long> = _ultimoRespaldo.asStateFlow()
+
     // Tasa USD→CUP. En 0 la app no muestra precios en CUP, para no enseñar
     // una conversión inventada antes de que el estudio fije la tasa real.
     private val _cupRate = MutableStateFlow(0.0)
@@ -115,6 +119,7 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
         _cupRate.value = repository.getCupRate()
         _contractText.value = repository.getContractText()
         _studioConfig.value = repository.getStudioConfig()
+        _ultimoRespaldo.value = repository.getUltimoRespaldo()
     }
 
     fun updateCupRate(rate: Double) {
@@ -390,6 +395,21 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     /**
+     * Arma el contrato de una cita como PDF y devuelve el archivo listo para
+     * compartir. Es el documento que se le entrega al cliente.
+     */
+    fun generarContratoPdf(carpeta: File, cita: AppointmentEntity): File {
+        val texto = _contractText.value.ifBlank { FULL_CONTRACT_TEXT }
+        return ContratoPdf.generar(
+            destino = File(carpeta, ContratoPdf.nombreArchivo(cita)),
+            cita = cita,
+            config = _studioConfig.value,
+            textoContrato = texto,
+            equivalencias = { usd -> equivalenciasLinea(usd) }
+        )
+    }
+
+    /**
      * Vuelca la agenda y el catálogo en un archivo .xlsx dentro de la carpeta
      * temporal, y devuelve el archivo para compartirlo. Las fotos y las firmas
      * no caben en una hoja de cálculo: para eso está el respaldo JSON.
@@ -550,6 +570,11 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
             appointmentsArray.put(obj)
         }
         root.put("appointments", appointmentsArray)
+
+        // Queda anotado para poder avisar cuando lleve mucho sin hacerse.
+        val ahora = System.currentTimeMillis()
+        repository.setUltimoRespaldo(ahora)
+        _ultimoRespaldo.value = ahora
 
         return root.toString(2)
     }

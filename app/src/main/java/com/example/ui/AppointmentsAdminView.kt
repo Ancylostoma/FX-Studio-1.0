@@ -35,8 +35,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.core.content.FileProvider
 import com.example.data.AppointmentEntity
 import com.example.data.EstadoCita
+import java.io.File
 import java.util.Calendar
 
 /**
@@ -943,6 +945,50 @@ fun AppointmentsAdminView(
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("Calendario")
                         }
+                    }
+
+                    // El contrato como documento, para entregárselo al cliente.
+                    OutlinedButton(
+                        onClick = {
+                            try {
+                                val carpeta = File(context.cacheDir, "exports")
+                                val archivo = viewModel.generarContratoPdf(carpeta, appt)
+                                val uri = FileProvider.getUriForFile(
+                                    context,
+                                    "${context.packageName}.fileprovider",
+                                    archivo
+                                )
+                                val enviar = Intent(Intent.ACTION_SEND).apply {
+                                    type = "application/pdf"
+                                    putExtra(Intent.EXTRA_STREAM, uri)
+                                    putExtra(Intent.EXTRA_SUBJECT, archivo.name)
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                context.startActivity(
+                                    Intent.createChooser(enviar, "Enviar o guardar el contrato")
+                                )
+                            } catch (e: Exception) {
+                                Toast.makeText(
+                                    context,
+                                    "No se pudo crear el PDF: ${e.localizedMessage}",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("contrato_pdf_button"),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.PictureAsPdf,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Contrato en PDF para el cliente")
                     }
 
                     OutlinedButton(
