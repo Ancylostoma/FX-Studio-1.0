@@ -668,7 +668,7 @@ fun AdminScreen(
     var itemToEdit by remember { mutableStateOf<CatalogItem?>(null) }
     var itemPendingDelete by remember { mutableStateOf<CatalogItem?>(null) }
 
-    // 0 = Catálogo, 1 = Citas, 2 = Portada, 3 = Ajustes, 4 = Respaldo
+    // 0 = Catálogo, 1 = Citas, 2 = Dinero, 3 = Portada, 4 = Ajustes, 5 = Respaldo
     var adminTabSelected by remember { mutableStateOf(0) }
 
     Column(
@@ -735,7 +735,7 @@ fun AdminScreen(
         // contratos firmados solo están en este teléfono.
         BackupReminderBanner(
             ultimoRespaldo = ultimoRespaldo,
-            onIrARespaldo = { adminTabSelected = 4 }
+            onIrARespaldo = { adminTabSelected = 5 }
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -764,18 +764,24 @@ fun AdminScreen(
             Tab(
                 selected = adminTabSelected == 2,
                 onClick = { adminTabSelected = 2 },
-                text = { Text("Portada", fontWeight = FontWeight.Bold) },
-                icon = { Icon(Icons.Default.Edit, contentDescription = null) }
+                text = { Text("Dinero", fontWeight = FontWeight.Bold) },
+                icon = { Icon(Icons.Default.AttachMoney, contentDescription = null) }
             )
             Tab(
                 selected = adminTabSelected == 3,
                 onClick = { adminTabSelected = 3 },
-                text = { Text("Ajustes", fontWeight = FontWeight.Bold) },
-                icon = { Icon(Icons.Default.Settings, contentDescription = null) }
+                text = { Text("Portada", fontWeight = FontWeight.Bold) },
+                icon = { Icon(Icons.Default.Edit, contentDescription = null) }
             )
             Tab(
                 selected = adminTabSelected == 4,
                 onClick = { adminTabSelected = 4 },
+                text = { Text("Ajustes", fontWeight = FontWeight.Bold) },
+                icon = { Icon(Icons.Default.Settings, contentDescription = null) }
+            )
+            Tab(
+                selected = adminTabSelected == 5,
+                onClick = { adminTabSelected = 5 },
                 text = { Text("Respaldo", fontWeight = FontWeight.Bold) },
                 icon = { Icon(Icons.Default.Backup, contentDescription = null) }
             )
@@ -821,10 +827,14 @@ fun AdminScreen(
                     AppointmentsAdminView(viewModel = viewModel)
                 }
                 2 -> {
+                    // Resumen de dinero: cobrado, por cobrar y quién debe
+                    MoneyAdminView(viewModel = viewModel)
+                }
+                3 -> {
                     // Editor de la portada y de la ficha de contacto
                     AdminCoverView(viewModel = viewModel)
                 }
-                3 -> {
+                4 -> {
                     // Configuration Form
                     AdminSettingsView(
                         viewModel = viewModel,
@@ -844,7 +854,7 @@ fun AdminScreen(
                         }
                     )
                 }
-                4 -> {
+                5 -> {
                     // Backup & Import
                     AdminBackupView(
                         viewModel = viewModel

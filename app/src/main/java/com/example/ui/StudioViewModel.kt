@@ -797,6 +797,40 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
         return "https://api.whatsapp.com/send?phone=$phoneFiltered&text=$encodedText"
     }
 
+    /**
+     * Recordatorio corto de cobro, al chat del cliente. Se manda desde la
+     * pestaña "Dinero": no repite el contrato entero, solo lo que hace falta
+     * para que la persona sepa cuánto debe y por qué.
+     */
+    fun generateCobroWhatsAppUri(appointment: AppointmentEntity): String {
+        val phoneFiltered = destinoWhatsApp(appointment.telefono)
+
+        val sb = StringBuilder()
+        sb.append("Hola ${appointment.nombreCliente} 👋\n")
+        sb.append("Le escribimos de *FXestudio* (Bayamo).\n\n")
+        sb.append("📸 *Su sesión:* ${appointment.detalleSeleccion}\n")
+        sb.append("📆 *Fecha:* ${appointment.fecha} — ${appointment.hora}\n")
+        sb.append("🔧 *Estado del trabajo:* ${appointment.estado}\n")
+        sb.append("-------------------------------------------\n")
+        sb.append("💰 *Total acordado:* $${String.format("%.2f", appointment.montoAcordado)} USD\n")
+        sb.append("✅ *Ya pagado:* $${String.format("%.2f", appointment.anticipoPagado)} USD\n")
+        sb.append("🔸 *Le queda por pagar:* $${String.format("%.2f", appointment.saldoPendiente)} USD")
+        equivalenciasLinea(appointment.saldoPendiente)?.let { sb.append("  ($it)") }
+        sb.append("\n-------------------------------------------\n")
+        sb.append("Puede pagar en CUP al cambio del día, por Zelle o transferencia.\n")
+        sb.append("📌 Edificio 29, Apt 7, Jesús Menéndez, frente a la Calesa, Bayamo.\n")
+        sb.append("🕒 Lun - Sáb, 9:00 AM – 5:00 PM\n")
+        sb.append("¡Gracias por confiar en nosotros! 💙")
+
+        val encodedText = try {
+            URLEncoder.encode(sb.toString(), "UTF-8")
+        } catch (e: Exception) {
+            sb.toString()
+        }
+
+        return "https://api.whatsapp.com/send?phone=$phoneFiltered&text=$encodedText"
+    }
+
     // Build WhatsApp message for Appointments
     fun generateAppointmentWhatsAppUri(
         appointment: AppointmentEntity,
