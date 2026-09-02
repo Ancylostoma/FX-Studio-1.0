@@ -116,6 +116,14 @@ fun CategoriaChips(
     }
 }
 
+/** Precio de la variante más barata: es el "desde" que se enseña. */
+internal fun precioDesde(item: CatalogItem): Double =
+    item.getVariants().minByOrNull { it.price }?.price ?: 0.0
+
+/** La Gran Oferta FX, que va siempre la primera de su categoría. */
+internal fun esOfertaInsignia(item: CatalogItem): Boolean =
+    item.code.contains("FX", ignoreCase = true)
+
 /**
  * Ofertas de una categoría en forma de lista sencilla: código, nombre y precio.
  * Sin detalles, para que el cliente compare de un vistazo y entre en la que
@@ -131,10 +139,20 @@ fun OffersListScreen(
     modifier: Modifier = Modifier
 ) {
     var busqueda by remember { mutableStateOf("") }
-    val visibles = remember(items, busqueda) {
+
+    // De la más barata a la más cara, para que el cliente entre por el precio
+    // que le cuadra y vaya subiendo. La Gran Oferta FX es la excepción: es el
+    // paquete insignia del estudio y va delante de todo, no escondida al
+    // final por ser la más cara.
+    val ordenadas = remember(items) {
+        val (insignia, resto) = items.partition { esOfertaInsignia(it) }
+        insignia.sortedBy { precioDesde(it) } + resto.sortedBy { precioDesde(it) }
+    }
+
+    val visibles = remember(ordenadas, busqueda) {
         val q = busqueda.trim()
-        if (q.isBlank()) items
-        else items.filter {
+        if (q.isBlank()) ordenadas
+        else ordenadas.filter {
             it.code.contains(q, ignoreCase = true) ||
                 it.name.contains(q, ignoreCase = true) ||
                 it.description.contains(q, ignoreCase = true)
@@ -183,7 +201,7 @@ fun OffersListScreen(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 items(visibles) { item ->
-                    val precio = item.getVariants().minByOrNull { it.price }?.price ?: 0.0
+                    val precio = precioDesde(item)
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
