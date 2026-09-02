@@ -67,6 +67,12 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
     private val _reserva = MutableStateFlow(ReservaBorrador())
     val reserva: StateFlow<ReservaBorrador> = _reserva.asStateFlow()
 
+    // Contrato ya firmado al confirmar el pedido, con su firma y sus dos
+    // fotos. Se guarda aquí para que el calendario no vuelva a pedir lo mismo:
+    // el cliente firma una sola vez y allí solo elige el día.
+    private val _contratoPendiente = MutableStateFlow<ContratoFirmado?>(null)
+    val contratoPendiente: StateFlow<ContratoFirmado?> = _contratoPendiente.asStateFlow()
+
     private val _ultimoRespaldo = MutableStateFlow(0L)
     val ultimoRespaldo: StateFlow<Long> = _ultimoRespaldo.asStateFlow()
 
@@ -158,9 +164,15 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
         _reserva.value = cambio(_reserva.value)
     }
 
+    /** Guarda el contrato firmado en el pedido, a la espera de la fecha. */
+    fun guardarContratoPendiente(contrato: ContratoFirmado?) {
+        _contratoPendiente.value = contrato
+    }
+
     /** Se llama al terminar de reservar, para que la próxima empiece limpia. */
     fun limpiarReserva() {
         _reserva.value = ReservaBorrador()
+        _contratoPendiente.value = null
     }
 
     fun updateContractText(text: String) {

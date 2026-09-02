@@ -497,6 +497,20 @@ fun ClientScreen(
             onConfirm = { firmado ->
                 showContractForOrder = false
                 pedidoConfirmado = firmado
+
+                // Firmar el contrato no era el final del recorrido: faltaba lo
+                // más importante, que es el día de la sesión. El contrato
+                // firmado y sus dos fotos quedan guardados, se pasan a la
+                // reserva los datos que el cliente ya escribió, y se sigue al
+                // calendario, que es donde termina de verdad.
+                viewModel.guardarContratoPendiente(firmado)
+                viewModel.actualizarReserva {
+                    it.copy(
+                        nombre = it.nombre.ifBlank { firmado.nombreCliente },
+                        telefono = it.telefono.ifBlank { firmado.telefonoCliente }
+                    )
+                }
+
                 val uriString = viewModel.generateWhatsAppUri(
                     clientName = firmado.nombreCliente,
                     clientPhone = firmado.telefonoCliente
@@ -509,6 +523,8 @@ fun ClientScreen(
                 } catch (e: Exception) {
                     Toast.makeText(context, "No se pudo abrir WhatsApp: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
                 }
+
+                vista = ClientView.CALENDARIO
             }
         )
     }
@@ -525,12 +541,13 @@ fun ClientScreen(
                     tint = MaterialTheme.colorScheme.primary
                 )
             },
-            title = { Text("Pedido enviado al estudio") },
+            title = { Text("Contrato firmado") },
             text = {
                 Text(
                     "El pedido de ${firmado.nombreCliente} ya salió hacia el WhatsApp de " +
-                        "FXestudio.\n\n¿Desea enviarle también su copia al " +
-                        "${firmado.telefonoCliente}?"
+                        "FXestudio.\n\nAl cerrar este aviso queda el calendario abierto: " +
+                        "solo falta elegir el día y la hora para terminar la reservación.\n\n" +
+                        "¿Desea enviarle también su copia al ${firmado.telefonoCliente}?"
                 )
             },
             confirmButton = {
