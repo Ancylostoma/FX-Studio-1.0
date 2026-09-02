@@ -24,9 +24,11 @@ data class AppointmentEntity(
     val detalleSeleccion: String,
     val notas: String = "",
     val firmaBytes: ByteArray? = null,
-    // Foto tomada al cliente al firmar, como respaldo de que la reservación
-    // se hizo con esa persona delante.
+    // Fotos tomadas al firmar, como respaldo de que la reservación se hizo
+    // con esa persona delante. El contrato pide dos: normalmente el rostro
+    // del cliente y su documento de identidad.
     val fotoClienteBytes: ByteArray? = null,
+    val fotoCliente2Bytes: ByteArray? = null,
     val terminosAceptados: Boolean = true,
     val createdAt: Long = System.currentTimeMillis(),
     // El contrato exige un anticipo al reservar: se registra aquí junto al

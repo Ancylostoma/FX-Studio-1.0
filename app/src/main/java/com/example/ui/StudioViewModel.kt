@@ -60,6 +60,13 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
     val studioConfig: StateFlow<StudioConfig> = _studioConfig.asStateFlow()
 
     // Cuándo se exportó la última copia de seguridad. 0 = nunca.
+    // Reserva a medio hacer. Vive aquí y no dentro de la pantalla del
+    // calendario porque el cliente puede salir a escoger un paquete y volver:
+    // si el estado se guardara en la pantalla, al salir se perdería el día y
+    // la hora ya elegidos y habría que empezar de nuevo.
+    private val _reserva = MutableStateFlow(ReservaBorrador())
+    val reserva: StateFlow<ReservaBorrador> = _reserva.asStateFlow()
+
     private val _ultimoRespaldo = MutableStateFlow(0L)
     val ultimoRespaldo: StateFlow<Long> = _ultimoRespaldo.asStateFlow()
 
@@ -144,6 +151,16 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
             repository.resetStudioTexts()
             _studioConfig.value = repository.getStudioConfig()
         }
+    }
+
+    /** Cambia un campo de la reserva en curso. */
+    fun actualizarReserva(cambio: (ReservaBorrador) -> ReservaBorrador) {
+        _reserva.value = cambio(_reserva.value)
+    }
+
+    /** Se llama al terminar de reservar, para que la próxima empiece limpia. */
+    fun limpiarReserva() {
+        _reserva.value = ReservaBorrador()
     }
 
     fun updateContractText(text: String) {
@@ -346,6 +363,7 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
         notas: String,
         firmaBytes: ByteArray?,
         fotoClienteBytes: ByteArray? = null,
+        fotoCliente2Bytes: ByteArray? = null,
         terminosAceptados: Boolean = true,
         montoAcordado: Double = 0.0,
         anticipoPagado: Double = 0.0,
@@ -361,6 +379,7 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
                 notas = notas,
                 firmaBytes = firmaBytes,
                 fotoClienteBytes = fotoClienteBytes,
+                fotoCliente2Bytes = fotoCliente2Bytes,
                 terminosAceptados = terminosAceptados,
                 montoAcordado = montoAcordado,
                 anticipoPagado = anticipoPagado
@@ -423,7 +442,7 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
             encabezados = listOf(
                 "N.º", "Fecha", "Hora", "Cliente", "Teléfono", "Selección", "Notas",
                 "Estado", "Acordado USD", "Anticipo USD", "Saldo USD",
-                "Firmada", "Con foto", "Registrada el"
+                "Firmada", "Fotos", "Registrada el"
             ),
             filas = citas.map { c ->
                 listOf(
@@ -439,7 +458,9 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
                     ExcelExport.numero(c.anticipoPagado),
                     ExcelExport.numero(c.saldoPendiente),
                     ExcelExport.siNo(c.firmaBytes != null),
-                    ExcelExport.siNo(c.fotoClienteBytes != null),
+                    ExcelExport.numero(
+                        listOfNotNull(c.fotoClienteBytes, c.fotoCliente2Bytes).size.toDouble()
+                    ),
                     ExcelExport.texto(formatoFechaHora.format(Date(c.createdAt)))
                 )
             }
@@ -567,6 +588,8 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
             obj.put("firmaBytes", firma)
             val fotoCliente = appt.fotoClienteBytes?.let { Base64.encodeToString(it, Base64.NO_WRAP) } ?: ""
             obj.put("fotoClienteBytes", fotoCliente)
+            val fotoCliente2 = appt.fotoCliente2Bytes?.let { Base64.encodeToString(it, Base64.NO_WRAP) } ?: ""
+            obj.put("fotoCliente2Bytes", fotoCliente2)
             appointmentsArray.put(obj)
         }
         root.put("appointments", appointmentsArray)
@@ -634,14 +657,18 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
                                 null
                             }
                         } else null
-                        val fotoB64 = obj.optString("fotoClienteBytes", "")
-                        val fotoCliente = if (fotoB64.isNotEmpty()) {
-                            try {
-                                Base64.decode(fotoB64, Base64.NO_WRAP)
+                        fun foto(clave: String): ByteArray? {
+                            val b64 = obj.optString(clave, "")
+                            return if (b64.isEmpty()) null else try {
+                                Base64.decode(b64, Base64.NO_WRAP)
                             } catch (e: Exception) {
                                 null
                             }
-                        } else null
+                        }
+                        // Un respaldo anterior a esta versión no trae la
+                        // segunda foto: queda vacía, no rompe la importación.
+                        val fotoCliente = foto("fotoClienteBytes")
+                        val fotoCliente2 = foto("fotoCliente2Bytes")
                         importedAppointments.add(
                             AppointmentEntity(
                                 fecha = obj.getString("fecha"),
@@ -652,6 +679,7 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
                                 notas = obj.optString("notas", ""),
                                 firmaBytes = firma,
                                 fotoClienteBytes = fotoCliente,
+                                fotoCliente2Bytes = fotoCliente2,
                                 terminosAceptados = obj.optBoolean("terminosAceptados", true),
                                 createdAt = obj.optLong("createdAt", System.currentTimeMillis()),
                                 montoAcordado = obj.optDouble("montoAcordado", 0.0),

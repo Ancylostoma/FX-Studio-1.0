@@ -199,6 +199,7 @@ fun ClientScreen(
     val cartCount by viewModel.cartCount.collectAsState()
     val contractText by viewModel.contractText.collectAsState()
     val studioConfig by viewModel.studioConfig.collectAsState()
+    val reserva by viewModel.reserva.collectAsState()
 
     // Vista activa dentro de los dos tercios inferiores. La banda de marca de
     // arriba no cambia nunca.
@@ -226,7 +227,17 @@ fun ClientScreen(
     fun volverAInicio() {
         vista = ClientView.INICIO
         itemDetalleId = -1
+        // Volver a la portada abandona el recorrido del calendario. Lo elegido
+        // se conserva, pero la marca de "vengo del calendario" se apaga para
+        // que el botón del paquete no prometa una vuelta que ya no toca.
+        if (reserva.vinoDelCalendario) {
+            viewModel.actualizarReserva { it.copy(vinoDelCalendario = false) }
+        }
     }
+
+    // En la portada no hace falta ofrecer "ir a la portada".
+    val irAInicio: (() -> Unit)? =
+        if (vista == ClientView.INICIO) null else { { volverAInicio() } }
 
     Column(modifier = Modifier.fillMaxSize()) {
         // ---- TERCIO SUPERIOR: fijo, siempre visible ----
@@ -235,7 +246,11 @@ fun ClientScreen(
             config = studioConfig,
             // En la portada se muestra grande; dentro de una sección se
             // compacta para dejar sitio al contenido.
-            compacto = vista != ClientView.INICIO
+            compacto = vista != ClientView.INICIO,
+            // Antes vivía abajo a la izquierda y desaparecía en el detalle del
+            // paquete. Ahora está siempre en el mismo sitio, arriba a la
+            // izquierda, en todas las secciones.
+            onInicio = irAInicio
         )
 
         // ---- DOS TERCIOS INFERIORES: cambian según la vista ----
@@ -307,7 +322,13 @@ fun ClientScreen(
                                 viewModel.addToCart(it0, variant, qty)
                             },
                             onOpenExtras = { itemForExtrasDialog = detalle },
-                            onVolver = { vista = ClientView.OFERTAS }
+                            onVolver = { vista = ClientView.OFERTAS },
+                            // Los dos caminos acaban en el mismo sitio: quien
+                            // empieza por el paquete pasa ahora a poner la
+                            // fecha, y quien empezó por el calendario vuelve
+                            // allí con su día ya elegido.
+                            onFinalizar = { vista = ClientView.CALENDARIO },
+                            vinoDelCalendario = reserva.vinoDelCalendario
                         )
                     }
                 }
@@ -322,26 +343,15 @@ fun ClientScreen(
                 ClientView.CALENDARIO -> {
                     CalendarScreen(
                         viewModel = viewModel,
+                        onElegirDelCatalogo = { vista = ClientView.OFERTAS },
                         modifier = Modifier.fillMaxSize()
                     )
                 }
             }
             }
 
-            // Botón para regresar a la portada desde cualquier sección.
-            if (vista != ClientView.INICIO && vista != ClientView.DETALLE) {
-                FilledTonalButton(
-                    onClick = { volverAInicio() },
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(start = 12.dp, bottom = 12.dp)
-                        .testTag("btn_inicio")
-                ) {
-                    Icon(Icons.Default.Home, contentDescription = null)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Inicio", fontWeight = FontWeight.Bold)
-                }
-            }
+            // El regreso a la portada vive ahora en la banda de marca, arriba
+            // a la izquierda, para que esté siempre en el mismo sitio.
         }
 
         // ---- BARRA DEL PEDIDO: solo aparece si hay algo en el carrito ----
@@ -394,6 +404,15 @@ fun ClientScreen(
                                 ),
                                 color = MaterialTheme.colorScheme.onPrimary
                             )
+                            // El mismo total en la moneda del día, con la tasa
+                            // que tenga puesta el estudio.
+                            cupLabelFor(cartTotal)?.let {
+                                Text(
+                                    text = it,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f)
+                                )
+                            }
                         }
                     }
 

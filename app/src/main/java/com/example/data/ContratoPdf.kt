@@ -285,7 +285,14 @@ object ContratoPdf {
         dibujarImagen(
             lienzo,
             cita.fotoClienteBytes,
-            "Foto tomada al cliente en el momento de firmar:",
+            "Foto 1 — el cliente en el momento de firmar:",
+            260f,
+            fondoBlanco = false
+        )
+        dibujarImagen(
+            lienzo,
+            cita.fotoCliente2Bytes,
+            "Foto 2 — documento de identidad del firmante:",
             260f,
             fondoBlanco = false
         )

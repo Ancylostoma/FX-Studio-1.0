@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.room.migration.Migration
 
-@Database(entities = [CatalogItem::class, AppConfig::class, AppointmentEntity::class], version = 4, exportSchema = false)
+@Database(entities = [CatalogItem::class, AppConfig::class, AppointmentEntity::class], version = 5, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun studioDao(): StudioDao
 
@@ -58,6 +58,14 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // El contrato pasa a llevar dos fotos de confirmación. La primera ya
+        // existe; se agrega la segunda sin tocar las citas guardadas.
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `appointments` ADD COLUMN `fotoCliente2Bytes` BLOB")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -65,7 +73,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "studio_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .build()
                 INSTANCE = instance
                 instance

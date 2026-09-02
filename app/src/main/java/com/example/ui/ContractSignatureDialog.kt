@@ -92,7 +92,10 @@ Gracias por elegirnos y feliz sesión fotográfica."""
 /** Lo que devuelve el diálogo cuando el cliente firma y confirma. */
 data class ContratoFirmado(
     val firmaBytes: ByteArray?,
+    /** Foto 1: el cliente. */
     val fotoClienteBytes: ByteArray?,
+    /** Foto 2: normalmente el carné de identidad. */
+    val fotoCliente2Bytes: ByteArray?,
     val nombreCliente: String,
     val telefonoCliente: String
 )
@@ -113,6 +116,7 @@ fun ContractSignatureDialog(
     var hasSignature by remember { mutableStateOf(false) }
     var exportSignatureFn by remember { mutableStateOf<(() -> ByteArray?)?>(null) }
     var fotoCliente by remember { mutableStateOf<ByteArray?>(null) }
+    var fotoCliente2 by remember { mutableStateOf<ByteArray?>(null) }
     var nombreCliente by remember { mutableStateOf("") }
     var telefonoCliente by remember { mutableStateOf("") }
     val datosCompletos = !pedirDatosCliente ||
@@ -300,10 +304,25 @@ fun ContractSignatureDialog(
                         }
                     )
 
-                    // Foto del cliente como respaldo de la confirmación.
+                    // Dos fotos como respaldo de la confirmación: quién firmó
+                    // y con qué documento se identificó.
                     ClientPhotoCapture(
                         fotoBytes = fotoCliente,
                         onFotoTomada = { fotoCliente = it },
+                        titulo = "Foto 1: el cliente (opcional)",
+                        explicacion = "Tómale una foto al cliente para dejar " +
+                            "constancia de quién firmó la reservación.",
+                        etiqueta = "cliente",
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    ClientPhotoCapture(
+                        fotoBytes = fotoCliente2,
+                        onFotoTomada = { fotoCliente2 = it },
+                        titulo = "Foto 2: carné de identidad (opcional)",
+                        explicacion = "Una segunda foto, normalmente del carné, " +
+                            "para respaldar la identidad de quien firma.",
+                        etiqueta = "carne",
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -334,6 +353,7 @@ fun ContractSignatureDialog(
                                 ContratoFirmado(
                                     firmaBytes = signatureBytes,
                                     fotoClienteBytes = fotoCliente,
+                                    fotoCliente2Bytes = fotoCliente2,
                                     nombreCliente = nombreCliente.trim(),
                                     telefonoCliente = telefonoCliente.trim()
                                 )

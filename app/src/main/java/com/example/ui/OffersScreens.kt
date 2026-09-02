@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.data.CatalogItem
 import com.example.data.CatalogVariant
+import com.example.data.Medidas
 
 /** Foto de muestra por categoría, o la del propio paquete si tiene una. */
 @Composable
@@ -270,6 +271,11 @@ fun OfferDetailScreen(
     onAddToCart: (CatalogItem, CatalogVariant, Int) -> Unit,
     onOpenExtras: () -> Unit,
     onVolver: () -> Unit,
+    // Se llama al pulsar "Finalizar": lleva al calendario a poner la fecha.
+    onFinalizar: () -> Unit,
+    // true cuando se llegó aquí desde el calendario, con la fecha ya puesta.
+    // Solo cambia el texto del botón, para que se entienda a dónde lleva.
+    vinoDelCalendario: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -278,6 +284,12 @@ fun OfferDetailScreen(
     var variantIndex by remember(item.id) { mutableStateOf(0) }
     var cantidad by remember(item.id) { mutableStateOf(1) }
     val variante = variants.getOrNull(variantIndex)
+    // Mientras no se haya añadido, el botón dice "Agregar". Una vez la oferta
+    // está completa pasa a decir "Finalizar" y lleva a agendar la cita.
+    var yaAgregado by remember(item.id) { mutableStateOf(false) }
+    // Medidas del paquete traducidas a pulgadas, para el cliente que las pide
+    // en esa unidad. Salen del propio texto, no hay que teclearlas aparte.
+    val medidas = remember(item) { Medidas.enPulgadas(item.name + " " + item.description) }
 
     Column(
         modifier = modifier
@@ -335,6 +347,23 @@ fun OfferDetailScreen(
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+
+            if (medidas.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "📏 Medidas de las fotos:",
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                medidas.forEach { m ->
+                    Text(
+                        text = m,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
 
             if (extras.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(16.dp))
@@ -463,28 +492,82 @@ fun OfferDetailScreen(
 
                 Spacer(modifier = Modifier.height(22.dp))
 
+                val totalOferta = variante.price * cantidad
+
                 Button(
                     onClick = {
-                        onAddToCart(item, variante, cantidad)
-                        Toast.makeText(
-                            context,
-                            "Agregado: ${item.name}",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        onVolver()
+                        if (yaAgregado) {
+                            onFinalizar()
+                        } else {
+                            onAddToCart(item, variante, cantidad)
+                            yaAgregado = true
+                            Toast.makeText(
+                                context,
+                                "Agregado: ${item.name}",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(64.dp)
+                        .height(72.dp)
                         .testTag("btn_agregar_detalle"),
                     shape = RoundedCornerShape(14.dp)
                 ) {
-                    Icon(Icons.Default.AddShoppingCart, contentDescription = null)
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = "Agregar  •  $${String.format("%.2f", variante.price * cantidad)}",
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                    Icon(
+                        imageVector = if (yaAgregado) Icons.Default.CalendarMonth
+                        else Icons.Default.AddShoppingCart,
+                        contentDescription = null
                     )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = if (yaAgregado) {
+                                if (vinoDelCalendario) "Finalizar y volver a la fecha"
+                                else "Finalizar y agendar la cita"
+                            } else {
+                                "Agregar  •  $${String.format("%.2f", totalOferta)} USD"
+                            },
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.Bold
+                            )
+                        )
+                        // El precio también en la moneda del día, con la tasa
+                        // que tenga puesta el estudio.
+                        if (!yaAgregado) {
+                            cupLabelFor(totalOferta)?.let {
+                                Text(
+                                    text = it,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                if (yaAgregado) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    OutlinedButton(
+                        onClick = onVolver,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                            .testTag("btn_seguir_viendo"),
+                        shape = RoundedCornerShape(14.dp)
+                    ) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = null)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Seguir viendo paquetes",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold
+                            )
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))

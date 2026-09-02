@@ -29,6 +29,11 @@ interface StudioDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertConfig(config: AppConfig)
 
+    // Borrar la fila es distinto de guardarla vacía: una clave ausente
+    // significa "nunca lo tocó el admin" y ahí sí vale el texto de fábrica.
+    @Query("DELETE FROM app_config WHERE `key` = :key")
+    suspend fun deleteConfig(key: String)
+
     @Query("DELETE FROM catalog_items")
     suspend fun clearCatalog()
 
