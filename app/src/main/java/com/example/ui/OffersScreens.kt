@@ -1,7 +1,6 @@
 package com.example.ui
 
 import android.graphics.BitmapFactory
-import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -24,10 +23,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -296,7 +295,6 @@ fun OfferDetailScreen(
     vinoDelCalendario: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
     val variants = remember(item) { item.getVariants() }
     val extras = remember(item) { item.getExtrasList() }
     var variantIndex by remember(item.id) { mutableStateOf(0) }
@@ -465,7 +463,36 @@ fun OfferDetailScreen(
 
                 Spacer(modifier = Modifier.height(22.dp))
 
-                // Cantidad
+                // Cantidad. Una vez el paquete entra en el pedido se deja de
+                // poder cambiar aquí: si no, el número de la pantalla y el del
+                // pedido acabarían diciendo cosas distintas. Se cambia desde
+                // el resumen del pedido.
+                if (yaAgregado) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.tertiaryContainer)
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.tertiary
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Ya está en tu pedido" +
+                                if (cantidad > 1) "  ×$cantidad" else "",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = MaterialTheme.colorScheme.onTertiaryContainer,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                } else {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -507,91 +534,30 @@ fun OfferDetailScreen(
                         }
                     }
                 }
+                } // fin del selector de cantidad
 
                 Spacer(modifier = Modifier.height(22.dp))
 
                 val totalOferta = variante.price * cantidad
 
-                Button(
-                    onClick = {
-                        if (yaAgregado) {
-                            onFinalizar()
-                        } else {
-                            onAddToCart(item, variante, cantidad)
-                            yaAgregado = true
-                            Toast.makeText(
-                                context,
-                                "Agregado: ${item.name}",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(72.dp)
-                        .testTag("btn_agregar_detalle"),
-                    shape = RoundedCornerShape(14.dp)
-                ) {
-                    Icon(
-                        imageVector = if (yaAgregado) Icons.Default.CalendarMonth
-                        else Icons.Default.AddShoppingCart,
-                        contentDescription = null
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = if (yaAgregado) {
-                                if (vinoDelCalendario) "Finalizar y volver a la fecha"
-                                else "Finalizar y agendar la cita"
-                            } else {
-                                "Agregar  •  $${String.format("%.2f", totalOferta)} USD"
-                            },
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.Bold
-                            )
-                        )
-                        // El precio también en la moneda del día, con la tasa
-                        // que tenga puesta el estudio.
-                        if (!yaAgregado) {
-                            cupLabelFor(totalOferta)?.let {
-                                Text(
-                                    text = it,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f)
-                                )
-                            }
-                        }
+                // El paquete entra en el pedido en cuanto se pulsa cualquiera
+                // de los dos botones, y una sola vez. Así, al abrir los extras
+                // el total de arriba ya cuenta el paquete, que si no saldría
+                // sumando solo los añadidos.
+                fun ponerEnElPedido() {
+                    if (!yaAgregado) {
+                        onAddToCart(item, variante, cantidad)
+                        yaAgregado = true
                     }
                 }
 
-                if (yaAgregado) {
-                    Spacer(modifier = Modifier.height(10.dp))
-                    OutlinedButton(
-                        onClick = onVolver,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp)
-                            .testTag("btn_seguir_viendo"),
-                        shape = RoundedCornerShape(14.dp)
-                    ) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = null)
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = "Seguir viendo paquetes",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold
-                            )
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
+                // Primero lo de añadir, que es lo que se hace mientras todavía
+                // se está armando el paquete; finalizar va al final.
                 OutlinedButton(
-                    onClick = onOpenExtras,
+                    onClick = {
+                        ponerEnElPedido()
+                        onOpenExtras()
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(58.dp)
@@ -603,6 +569,57 @@ fun OfferDetailScreen(
                     Text(
                         text = "Agregar algo más",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Finalizar: mete el paquete en el pedido si aún no está y
+                // pasa al calendario, que es donde se cierra la reservación.
+                Button(
+                    onClick = {
+                        ponerEnElPedido()
+                        onFinalizar()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(72.dp)
+                        .testTag("btn_agregar_detalle"),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Icon(Icons.Default.CalendarMonth, contentDescription = null)
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Finalizar  •  $${String.format("%.2f", totalOferta)} USD",
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.Bold
+                            ),
+                            maxLines = 1
+                        )
+                        Text(
+                            text = if (vinoDelCalendario) "volver a la fecha elegida"
+                            else "elegir el día de la sesión",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f),
+                            maxLines = 1
+                        )
+                    }
+                }
+
+                // El precio también en la moneda del día, con la tasa que
+                // tenga puesta el estudio.
+                cupLabelFor(totalOferta)?.let {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Center
                     )
                 }
             } else {
