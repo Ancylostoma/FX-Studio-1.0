@@ -256,6 +256,18 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
         addToCart(customItem, CatalogVariant(variantName, price), quantity)
     }
 
+    /**
+     * Quita una unidad de un extra del pedido. Se usa desde "Agregar algo
+     * más", donde un toque añade y el signo menos deshace: si baja de uno, la
+     * línea desaparece del pedido.
+     */
+    fun quitarUnoDelCarrito(title: String, category: String, variantName: String) {
+        val actual = _cart.value.firstOrNull {
+            it.item.name == title && it.variant.name == variantName && it.item.category == category
+        } ?: return
+        updateCartQuantity(actual, actual.quantity - 1)
+    }
+
     fun removeFromCart(cartItem: CartItem) {
         val currentList = _cart.value.filterNot {
             it.item.name == cartItem.item.name && it.variant.name == cartItem.variant.name && it.item.category == cartItem.item.category

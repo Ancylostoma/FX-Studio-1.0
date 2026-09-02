@@ -440,11 +440,32 @@ fun ClientScreen(
     itemForExtrasDialog?.let { item ->
         OfferExtrasDialog(
             item = item,
-            onDismiss = { itemForExtrasDialog = null },
-            onAddExtra = { title, cat, variant, price, qty ->
-                viewModel.addCustomToCart(title, cat, variant, price, qty, "Extra añadido a ${item.name}")
-                Toast.makeText(context, "Extra añadido al pedido", Toast.LENGTH_SHORT).show()
-            }
+            totalPedido = cartTotal,
+            cupLabelFor = cupLabelFor,
+            // La cuenta sale del carrito, no de un estado aparte del diálogo:
+            // así lo que marca la ficha y lo que hay en el pedido no se
+            // pueden desfasar.
+            cantidadEnPedido = { extra ->
+                cart.firstOrNull {
+                    it.item.name == extra.title &&
+                        it.variant.name == extra.variantName &&
+                        it.item.category == extra.category
+                }?.quantity ?: 0
+            },
+            onAgregar = { extra ->
+                viewModel.addCustomToCart(
+                    extra.title,
+                    extra.category,
+                    extra.variantName,
+                    extra.price,
+                    1,
+                    "Extra añadido a ${item.name}"
+                )
+            },
+            onQuitar = { extra ->
+                viewModel.quitarUnoDelCarrito(extra.title, extra.category, extra.variantName)
+            },
+            onDismiss = { itemForExtrasDialog = null }
         )
     }
 
