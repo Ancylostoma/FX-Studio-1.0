@@ -87,6 +87,14 @@ class StudioRepository(private val studioDao: StudioDao) {
         fun txt(clave: String, porDefecto: String) =
             guardado[clave]?.takeIf { it.isNotBlank() } ?: porDefecto
 
+        // La frase de la portada es la excepción: si el administrador la
+        // borra a propósito, la portada se queda sin frase. Por eso aquí
+        // manda que la clave exista, aunque su valor esté vacío; cuando no
+        // existe (nunca se tocó, o se restauraron los textos) vale la de
+        // fábrica. Restaurar borra la fila, no la guarda vacía.
+        fun txtOpcional(clave: String, porDefecto: String) =
+            guardado[clave] ?: porDefecto
+
         // La tasa de CUP se hereda de la clave antigua para no perder lo que
         // el estudio ya hubiera configurado.
         val cupHeredada = guardado[KEY_CUP_RATE]?.toDoubleOrNull() ?: 0.0
@@ -102,7 +110,7 @@ class StudioRepository(private val studioDao: StudioDao) {
         return StudioConfig(
             titulo = txt(KEY_TITULO, d.titulo),
             lema = txt(KEY_LEMA, d.lema),
-            frasePortada = txt(KEY_FRASE, d.frasePortada),
+            frasePortada = txtOpcional(KEY_FRASE, d.frasePortada),
             btnBodas = txt(KEY_BTN_BODAS, d.btnBodas),
             btnQuince = txt(KEY_BTN_QUINCE, d.btnQuince),
             btnPrimerAno = txt(KEY_BTN_PRIMER, d.btnPrimerAno),
@@ -160,7 +168,7 @@ class StudioRepository(private val studioDao: StudioDao) {
             KEY_BTN_PRIMER, KEY_BTN_PROPIA, KEY_BTN_CALENDARIO, KEY_UBICACION,
             KEY_DIRECCION, KEY_TELEFONOS, KEY_HOR_SEMANA, KEY_HOR_SABADO,
             KEY_HOR_DOMINGO, KEY_CATALOGO, KEY_FACEBOOK
-        ).forEach { studioDao.insertConfig(AppConfig(it, "")) }
+        ).forEach { studioDao.deleteConfig(it) }
     }
 
     /** Cuándo se exportó el último respaldo. 0 = nunca. */

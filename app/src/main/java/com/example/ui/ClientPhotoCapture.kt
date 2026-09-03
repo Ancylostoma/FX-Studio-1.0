@@ -89,6 +89,13 @@ private fun comprimirFoto(context: Context, uri: Uri, maxLado: Int = 900): ByteA
 fun ClientPhotoCapture(
     fotoBytes: ByteArray?,
     onFotoTomada: (ByteArray?) -> Unit,
+    // El contrato lleva dos fotos, así que el mismo componente se usa dos
+    // veces con textos distintos. La etiqueta separa los identificadores de
+    // prueba para que no se repitan en la misma pantalla.
+    titulo: String = "Foto de confirmación (opcional)",
+    explicacion: String = "Tómale una foto al cliente para dejar constancia " +
+        "de quién firmó la reservación.",
+    etiqueta: String = "cliente",
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -163,7 +170,7 @@ fun ClientPhotoCapture(
                     modifier = Modifier.size(22.dp)
                 )
                 Text(
-                    text = "Foto de confirmación (opcional)",
+                    text = titulo,
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -172,7 +179,7 @@ fun ClientPhotoCapture(
             if (bitmap != null) {
                 TextButton(
                     onClick = { onFotoTomada(null) },
-                    modifier = Modifier.testTag("borrar_foto_cliente")
+                    modifier = Modifier.testTag("borrar_foto_$etiqueta")
                 ) {
                     Icon(
                         Icons.Default.Delete,
@@ -211,7 +218,7 @@ fun ClientPhotoCapture(
             }
         } else {
             Text(
-                text = "Tómale una foto al cliente para dejar constancia de quién firmó la reservación.",
+                text = explicacion,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -221,7 +228,7 @@ fun ClientPhotoCapture(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(54.dp)
-                    .testTag("tomar_foto_cliente"),
+                    .testTag("tomar_foto_$etiqueta"),
                 shape = RoundedCornerShape(10.dp)
             ) {
                 Icon(Icons.Default.AddAPhoto, contentDescription = null)

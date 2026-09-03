@@ -38,6 +38,10 @@ import java.util.*
 @Composable
 fun CalendarScreen(
     viewModel: StudioViewModel,
+    // Si se pasa, el calendario ofrece salir al catálogo a escoger el paquete
+    // y volver aquí con la fecha ya puesta. Es el mismo recorrido que el de
+    // empezar por la oferta, pero al revés.
+    onElegirDelCatalogo: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -52,33 +56,64 @@ fun CalendarScreen(
     var displayedMonth by remember { mutableStateOf(calendar.get(Calendar.MONTH)) }
     var displayedYear by remember { mutableStateOf(calendar.get(Calendar.YEAR)) }
 
-    var selectedDateString by remember { mutableStateOf("") }
-    var selectedDayOfWeek by remember { mutableStateOf(-1) }
-    var selectedTimeSlot by remember { mutableStateOf("10:00 AM") }
-
-    // Form inputs
-    var clientName by remember { mutableStateOf("") }
-    var clientPhone by remember { mutableStateOf("") }
-    var packageSelection by remember { mutableStateOf("") }
-    var notes by remember { mutableStateOf("") }
-    var montoInput by remember { mutableStateOf("") }
-    var anticipoInput by remember { mutableStateOf("") }
+    // Lo que el cliente lleva elegido. No se guarda en esta pantalla sino en
+    // el ViewModel, porque puede salir al catálogo a escoger un paquete y
+    // volver: si viviera aquí, al salir se perdería el día y la hora.
+    val reserva by viewModel.reserva.collectAsState()
+    fun editar(cambio: (ReservaBorrador) -> ReservaBorrador) =
+        viewModel.actualizarReserva(cambio)
 
     var showContractDialog by remember { mutableStateOf(false) }
     var bookingSuccessAppointment by remember { mutableStateOf<AppointmentEntity?>(null) }
 
+    // Quien viene de confirmar un pedido ya firmó el contrato y ya se hizo las
+    // dos fotos. Aquí solo le falta el día: no se le vuelve a pedir la firma.
+    val contratoDelPedido by viewModel.contratoPendiente.collectAsState()
+
+    fun guardarReserva(firmado: ContratoFirmado) {
+        viewModel.saveAppointment(
+            fecha = reserva.fecha,
+            hora = reserva.hora,
+            nombreCliente = reserva.nombre,
+            telefono = reserva.telefono,
+            detalleSeleccion = reserva.paquete,
+            notas = reserva.notas,
+            firmaBytes = firmado.firmaBytes,
+            fotoClienteBytes = firmado.fotoClienteBytes,
+            fotoCliente2Bytes = firmado.fotoCliente2Bytes,
+            terminosAceptados = true,
+            montoAcordado = reserva.monto.toDoubleOrNull() ?: 0.0,
+            anticipoPagado = reserva.anticipo.toDoubleOrNull() ?: 0.0,
+            onSuccess = { savedEntity ->
+                bookingSuccessAppointment = savedEntity
+                // La reserva ya está guardada: el borrador y el contrato en
+                // mano se vacían para que la siguiente empiece de cero.
+                viewModel.limpiarReserva()
+                Toast.makeText(context, "Reservación registrada con éxito", Toast.LENGTH_LONG).show()
+
+                val uriStr = viewModel.generateAppointmentWhatsAppUri(savedEntity)
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uriStr))
+                try {
+                    context.startActivity(intent)
+                } catch (e: Exception) {
+                    // Sin WhatsApp instalado no pasa nada: la cita ya está guardada.
+                }
+            }
+        )
+    }
+
     // Prefill package selection from cart if empty
     LaunchedEffect(cartItems) {
-        if (packageSelection.isBlank() && cartItems.isNotEmpty()) {
+        if (reserva.paquete.isBlank() && cartItems.isNotEmpty()) {
             val summary = cartItems.joinToString(", ") {
                 "${it.item.name} (${it.variant.name}) x${it.quantity}"
             } + " [Total: \$${String.format("%.2f", cartTotal)} USD]"
-            packageSelection = summary
+            editar { it.copy(paquete = summary) }
         }
         // El monto acordado se propone desde el carrito; sigue siendo editable
         // porque el contrato admite negociar el precio.
-        if (montoInput.isBlank() && cartTotal > 0.0) {
-            montoInput = String.format("%.2f", cartTotal)
+        if (reserva.monto.isBlank() && cartTotal > 0.0) {
+            editar { it.copy(monto = String.format("%.2f", cartTotal)) }
         }
     }
 
@@ -98,16 +133,16 @@ fun CalendarScreen(
     val startingOffset = if (firstDayOfWeek == Calendar.SUNDAY) 6 else firstDayOfWeek - 2
 
     // Los turnos dependen del día: el sábado el estudio cierra al mediodía.
-    val availableHours = remember(selectedDayOfWeek) {
-        if (selectedDayOfWeek in 0..6) StudioInfo.turnosPara(selectedDayOfWeek)
+    val availableHours = remember(reserva.diaSemana) {
+        if (reserva.diaSemana in 0..6) StudioInfo.turnosPara(reserva.diaSemana)
         else StudioInfo.TURNOS_SEMANA
     }
 
     // Si el turno elegido no existe el día seleccionado, se pasa al primero
     // disponible para no enviar una reserva a una hora cerrada.
     LaunchedEffect(availableHours) {
-        if (availableHours.isNotEmpty() && selectedTimeSlot !in availableHours) {
-            selectedTimeSlot = availableHours.first()
+        if (availableHours.isNotEmpty() && reserva.hora !in availableHours) {
+            editar { it.copy(hora = availableHours.first()) }
         }
     }
 
@@ -120,8 +155,8 @@ fun CalendarScreen(
 
     // Horas ya reservadas para el día elegido: evita agendar dos clientes
     // en el mismo turno.
-    val horariosOcupados = remember(appointments, selectedDateString) {
-        appointments.filter { it.fecha == selectedDateString }
+    val horariosOcupados = remember(appointments, reserva.fecha) {
+        appointments.filter { it.fecha == reserva.fecha }
             .map { it.hora }
             .toSet()
     }
@@ -133,6 +168,12 @@ fun CalendarScreen(
         verticalArrangement = Arrangement.spacedBy(18.dp),
         contentPadding = PaddingValues(top = 12.dp, bottom = 90.dp)
     ) {
+        // Mientras no haya reserva hecha se ve el calendario y el formulario.
+        // En cuanto se reserva, todo eso se recoge y solo queda la
+        // confirmación: dejar el formulario debajo invita a reservar otra vez
+        // sin querer, y obliga a bajar toda la pantalla para ver que salió.
+        if (bookingSuccessAppointment == null) {
+
         // Hero / Studio Schedule Header
         item {
             Card(
@@ -262,7 +303,7 @@ fun CalendarScreen(
                                 } else {
                                     val isSunday = col == 6
                                     val dateStr = String.format("%02d/%02d/%04d", dayNumber, displayedMonth + 1, displayedYear)
-                                    val isSelected = selectedDateString == dateStr
+                                    val isSelected = reserva.fecha == dateStr
                                     // No se puede reservar para un día que ya pasó.
                                     val esPasado = (displayedYear * 10000 + (displayedMonth + 1) * 100 + dayNumber) < hoyComparable
                                     val habilitado = !isSunday && !esPasado
@@ -281,8 +322,9 @@ fun CalendarScreen(
                                                 }
                                             )
                                             .clickable(enabled = habilitado) {
-                                                selectedDateString = dateStr
-                                                selectedDayOfWeek = col
+                                                editar {
+                                                    it.copy(fecha = dateStr, diaSemana = col)
+                                                }
                                             },
                                         contentAlignment = Alignment.Center
                                     ) {
@@ -304,7 +346,7 @@ fun CalendarScreen(
                         }
                     }
 
-                    if (selectedDayOfWeek == 6) {
+                    if (reserva.diaSemana == 6) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "❌ Los domingos el estudio está cerrado. Elija de lunes a sábado.",
@@ -312,13 +354,13 @@ fun CalendarScreen(
                         )
                     }
 
-                    if (selectedDateString.isNotBlank()) {
+                    if (reserva.fecha.isNotBlank()) {
                         Spacer(modifier = Modifier.height(14.dp))
                         Divider()
                         Spacer(modifier = Modifier.height(12.dp))
 
                         Text(
-                            text = "Fecha seleccionada: $selectedDateString",
+                            text = "Fecha seleccionada: ${reserva.fecha}",
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
@@ -327,7 +369,7 @@ fun CalendarScreen(
 
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
-                            text = if (selectedDayOfWeek == 5) "Seleccione la Hora (sábado: 9:00 AM – 12:00 PM):" else "Seleccione la Hora (9:00 AM – 5:00 PM):",
+                            text = if (reserva.diaSemana == 5) "Seleccione la Hora (sábado: 9:00 AM – 12:00 PM):" else "Seleccione la Hora (9:00 AM – 5:00 PM):",
                             style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
                         )
                         Spacer(modifier = Modifier.height(6.dp))
@@ -343,9 +385,9 @@ fun CalendarScreen(
                                     hourRow.forEach { hour ->
                                         val ocupado = hour in horariosOcupados
                                         FilterChip(
-                                            selected = selectedTimeSlot == hour && !ocupado,
+                                            selected = reserva.hora == hour && !ocupado,
                                             enabled = !ocupado,
-                                            onClick = { selectedTimeSlot = hour },
+                                            onClick = { editar { r -> r.copy(hora = hour) } },
                                             label = {
                                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                                     Text(
@@ -370,10 +412,10 @@ fun CalendarScreen(
                             }
                         }
 
-                        if (selectedTimeSlot in horariosOcupados) {
+                        if (reserva.hora in horariosOcupados) {
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "⚠️ Las $selectedTimeSlot ya está reservada ese día. Elija otra hora.",
+                                text = "⚠️ Las ${reserva.hora} ya está reservada ese día. Elija otra hora.",
                                 style = MaterialTheme.typography.bodyMedium.copy(
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.error
@@ -407,9 +449,36 @@ fun CalendarScreen(
                         color = MaterialTheme.colorScheme.onSurface
                     )
 
+                    // Quien acaba de confirmar un pedido ya firmó: se le dice,
+                    // para que no se quede esperando el contrato otra vez.
+                    if (contratoDelPedido != null) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.tertiaryContainer)
+                                .padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.tertiary
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = "Contrato firmado y fotos tomadas. Solo falta " +
+                                    "elegir el día y la hora, y confirmar.",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+
                     OutlinedTextField(
-                        value = clientName,
-                        onValueChange = { clientName = it },
+                        value = reserva.nombre,
+                        onValueChange = { v -> editar { it.copy(nombre = v) } },
                         label = { Text("Nombre completo del cliente o tutor *", style = MaterialTheme.typography.bodyLarge) },
                         leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
                         modifier = Modifier
@@ -420,8 +489,8 @@ fun CalendarScreen(
                     )
 
                     OutlinedTextField(
-                        value = clientPhone,
-                        onValueChange = { clientPhone = it },
+                        value = reserva.telefono,
+                        onValueChange = { v -> editar { it.copy(telefono = v) } },
                         label = { Text("Teléfono de contacto (WhatsApp) *", style = MaterialTheme.typography.bodyLarge) },
                         leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
@@ -432,9 +501,35 @@ fun CalendarScreen(
                         shape = RoundedCornerShape(10.dp)
                     )
 
+                    // Quien llega aquí sin haber pasado por el catálogo puede
+                    // salir a escoger y volver: la fecha y la hora quedan
+                    // guardadas, así que no hay que elegirlas otra vez.
+                    if (onElegirDelCatalogo != null && reserva.paquete.isBlank()) {
+                        OutlinedButton(
+                            onClick = {
+                                editar { it.copy(vinoDelCalendario = true) }
+                                onElegirDelCatalogo()
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp)
+                                .testTag("btn_elegir_del_catalogo"),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(Icons.Default.PhotoLibrary, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Escoger un paquete del catálogo",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold
+                                )
+                            )
+                        }
+                    }
+
                     OutlinedTextField(
-                        value = packageSelection,
-                        onValueChange = { packageSelection = it },
+                        value = reserva.paquete,
+                        onValueChange = { v -> editar { it.copy(paquete = v) } },
                         label = { Text("Opción, paquete o servicio seleccionado *", style = MaterialTheme.typography.bodyLarge) },
                         leadingIcon = { Icon(Icons.Default.Collections, contentDescription = null) },
                         modifier = Modifier
@@ -446,8 +541,8 @@ fun CalendarScreen(
                     )
 
                     OutlinedTextField(
-                        value = notes,
-                        onValueChange = { notes = it },
+                        value = reserva.notas,
+                        onValueChange = { v -> editar { it.copy(notas = v) } },
                         label = { Text("Notas adicionales (ej: temática, vestuario, acompañantes)", style = MaterialTheme.typography.bodyLarge) },
                         leadingIcon = { Icon(Icons.Default.NoteAlt, contentDescription = null) },
                         modifier = Modifier.fillMaxWidth(),
@@ -463,8 +558,10 @@ fun CalendarScreen(
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         OutlinedTextField(
-                            value = montoInput,
-                            onValueChange = { montoInput = it.filter { c -> c.isDigit() || c == '.' } },
+                            value = reserva.monto,
+                            onValueChange = { v ->
+                                editar { it.copy(monto = v.filter { c -> c.isDigit() || c == '.' }) }
+                            },
                             label = { Text("Monto acordado (USD)") },
                             leadingIcon = { Icon(Icons.Default.Payments, contentDescription = null) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -476,8 +573,10 @@ fun CalendarScreen(
                         )
 
                         OutlinedTextField(
-                            value = anticipoInput,
-                            onValueChange = { anticipoInput = it.filter { c -> c.isDigit() || c == '.' } },
+                            value = reserva.anticipo,
+                            onValueChange = { v ->
+                                editar { it.copy(anticipo = v.filter { c -> c.isDigit() || c == '.' }) }
+                            },
                             label = { Text("Anticipo pagado (USD)") },
                             leadingIcon = { Icon(Icons.Default.Savings, contentDescription = null) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -489,8 +588,8 @@ fun CalendarScreen(
                         )
                     }
 
-                    val montoNum = montoInput.toDoubleOrNull() ?: 0.0
-                    val anticipoNum = anticipoInput.toDoubleOrNull() ?: 0.0
+                    val montoNum = reserva.monto.toDoubleOrNull() ?: 0.0
+                    val anticipoNum = reserva.anticipo.toDoubleOrNull() ?: 0.0
                     if (montoNum > 0.0) {
                         val saldo = (montoNum - anticipoNum).coerceAtLeast(0.0)
                         Text(
@@ -507,25 +606,25 @@ fun CalendarScreen(
 
                     Button(
                         onClick = {
-                            if (selectedDateString.isBlank()) {
+                            if (reserva.fecha.isBlank()) {
                                 Toast.makeText(context, "Por favor seleccione un día en el calendario", Toast.LENGTH_SHORT).show()
                                 return@Button
                             }
-                            if (clientName.isBlank()) {
+                            if (reserva.nombre.isBlank()) {
                                 Toast.makeText(context, "Por favor ingrese el nombre del cliente", Toast.LENGTH_SHORT).show()
                                 return@Button
                             }
-                            if (clientPhone.isBlank()) {
+                            if (reserva.telefono.isBlank()) {
                                 Toast.makeText(context, "Por favor ingrese el teléfono de contacto", Toast.LENGTH_SHORT).show()
                                 return@Button
                             }
-                            if (packageSelection.isBlank()) {
+                            if (reserva.paquete.isBlank()) {
                                 Toast.makeText(context, "Por favor especifique la opción o paquete", Toast.LENGTH_SHORT).show()
                                 return@Button
                             }
                             // Última barrera contra la doble reserva: alguien pudo
                             // agendar ese turno mientras se llenaba el formulario.
-                            if (selectedTimeSlot in horariosOcupados) {
+                            if (reserva.hora in horariosOcupados) {
                                 Toast.makeText(
                                     context,
                                     "Ese horario ya está reservado. Por favor elija otra hora.",
@@ -534,7 +633,12 @@ fun CalendarScreen(
                                 return@Button
                             }
 
-                            showContractDialog = true
+                            // Si viene de confirmar un pedido, el contrato ya
+                            // está firmado con sus dos fotos: se reserva sin
+                            // hacerle firmar dos veces lo mismo.
+                            val yaFirmado = contratoDelPedido
+                            if (yaFirmado != null) guardarReserva(yaFirmado)
+                            else showContractDialog = true
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -545,7 +649,8 @@ fun CalendarScreen(
                         Icon(Icons.Default.AssignmentTurnedIn, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Continuar a Contrato y Reservación",
+                            text = if (contratoDelPedido != null) "Confirmar la reservación"
+                            else "Continuar a Contrato y Reservación",
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp
@@ -555,6 +660,8 @@ fun CalendarScreen(
                 }
             }
         }
+
+        } // fin del bloque que se oculta al reservar
 
         // Success Confirmation Card (if booked)
         bookingSuccessAppointment?.let { appt ->
@@ -671,6 +778,24 @@ fun CalendarScreen(
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                             )
                         }
+
+                        // Vuelve a enseñar el calendario y el formulario, ya
+                        // en blanco, para agendar a otra persona.
+                        TextButton(
+                            onClick = { bookingSuccessAppointment = null },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("btn_otra_reserva")
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Hacer otra reservación",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold
+                                )
+                            )
+                        }
                     }
                 }
             }
@@ -685,32 +810,7 @@ fun CalendarScreen(
             onDismiss = { showContractDialog = false },
             onConfirm = { firmado ->
                 showContractDialog = false
-                viewModel.saveAppointment(
-                    fecha = selectedDateString,
-                    hora = selectedTimeSlot,
-                    nombreCliente = clientName,
-                    telefono = clientPhone,
-                    detalleSeleccion = packageSelection,
-                    notas = notes,
-                    firmaBytes = firmado.firmaBytes,
-                    fotoClienteBytes = firmado.fotoClienteBytes,
-                    terminosAceptados = true,
-                    montoAcordado = montoInput.toDoubleOrNull() ?: 0.0,
-                    anticipoPagado = anticipoInput.toDoubleOrNull() ?: 0.0,
-                    onSuccess = { savedEntity ->
-                        bookingSuccessAppointment = savedEntity
-                        Toast.makeText(context, "Reservación registrada con éxito", Toast.LENGTH_LONG).show()
-
-                        // Automatically launch WhatsApp with the pre-formatted appointment
-                        val uriStr = viewModel.generateAppointmentWhatsAppUri(savedEntity)
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uriStr))
-                        try {
-                            context.startActivity(intent)
-                        } catch (e: Exception) {
-                            // Ignored if WhatsApp not available
-                        }
-                    }
-                )
+                guardarReserva(firmado)
             }
         )
     }

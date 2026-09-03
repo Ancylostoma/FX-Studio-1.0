@@ -1,7 +1,6 @@
 package com.example.ui
 
 import android.graphics.BitmapFactory
-import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -24,16 +23,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.data.CatalogItem
 import com.example.data.CatalogVariant
+import com.example.data.Medidas
 
 /** Foto de muestra por categoría, o la del propio paquete si tiene una. */
 @Composable
@@ -115,6 +115,14 @@ fun CategoriaChips(
     }
 }
 
+/** Precio de la variante más barata: es el "desde" que se enseña. */
+internal fun precioDesde(item: CatalogItem): Double =
+    item.getVariants().minByOrNull { it.price }?.price ?: 0.0
+
+/** La Gran Oferta FX, que va siempre la primera de su categoría. */
+internal fun esOfertaInsignia(item: CatalogItem): Boolean =
+    item.code.contains("FX", ignoreCase = true)
+
 /**
  * Ofertas de una categoría en forma de lista sencilla: código, nombre y precio.
  * Sin detalles, para que el cliente compare de un vistazo y entre en la que
@@ -130,10 +138,20 @@ fun OffersListScreen(
     modifier: Modifier = Modifier
 ) {
     var busqueda by remember { mutableStateOf("") }
-    val visibles = remember(items, busqueda) {
+
+    // De la más barata a la más cara, para que el cliente entre por el precio
+    // que le cuadra y vaya subiendo. La Gran Oferta FX es la excepción: es el
+    // paquete insignia del estudio y va delante de todo, no escondida al
+    // final por ser la más cara.
+    val ordenadas = remember(items) {
+        val (insignia, resto) = items.partition { esOfertaInsignia(it) }
+        insignia.sortedBy { precioDesde(it) } + resto.sortedBy { precioDesde(it) }
+    }
+
+    val visibles = remember(ordenadas, busqueda) {
         val q = busqueda.trim()
-        if (q.isBlank()) items
-        else items.filter {
+        if (q.isBlank()) ordenadas
+        else ordenadas.filter {
             it.code.contains(q, ignoreCase = true) ||
                 it.name.contains(q, ignoreCase = true) ||
                 it.description.contains(q, ignoreCase = true)
@@ -182,7 +200,7 @@ fun OffersListScreen(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 items(visibles) { item ->
-                    val precio = item.getVariants().minByOrNull { it.price }?.price ?: 0.0
+                    val precio = precioDesde(item)
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -270,14 +288,24 @@ fun OfferDetailScreen(
     onAddToCart: (CatalogItem, CatalogVariant, Int) -> Unit,
     onOpenExtras: () -> Unit,
     onVolver: () -> Unit,
+    // Se llama al pulsar "Finalizar": lleva al calendario a poner la fecha.
+    onFinalizar: () -> Unit,
+    // true cuando se llegó aquí desde el calendario, con la fecha ya puesta.
+    // Solo cambia el texto del botón, para que se entienda a dónde lleva.
+    vinoDelCalendario: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
     val variants = remember(item) { item.getVariants() }
     val extras = remember(item) { item.getExtrasList() }
     var variantIndex by remember(item.id) { mutableStateOf(0) }
     var cantidad by remember(item.id) { mutableStateOf(1) }
     val variante = variants.getOrNull(variantIndex)
+    // Mientras no se haya añadido, el botón dice "Agregar". Una vez la oferta
+    // está completa pasa a decir "Finalizar" y lleva a agendar la cita.
+    var yaAgregado by remember(item.id) { mutableStateOf(false) }
+    // Medidas del paquete traducidas a pulgadas, para el cliente que las pide
+    // en esa unidad. Salen del propio texto, no hay que teclearlas aparte.
+    val medidas = remember(item) { Medidas.enPulgadas(item.name + " " + item.description) }
 
     Column(
         modifier = modifier
@@ -335,6 +363,23 @@ fun OfferDetailScreen(
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+
+            if (medidas.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "📏 Medidas de las fotos:",
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                medidas.forEach { m ->
+                    Text(
+                        text = m,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
 
             if (extras.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(16.dp))
@@ -418,7 +463,36 @@ fun OfferDetailScreen(
 
                 Spacer(modifier = Modifier.height(22.dp))
 
-                // Cantidad
+                // Cantidad. Una vez el paquete entra en el pedido se deja de
+                // poder cambiar aquí: si no, el número de la pantalla y el del
+                // pedido acabarían diciendo cosas distintas. Se cambia desde
+                // el resumen del pedido.
+                if (yaAgregado) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.tertiaryContainer)
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.tertiary
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Ya está en tu pedido" +
+                                if (cantidad > 1) "  ×$cantidad" else "",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = MaterialTheme.colorScheme.onTertiaryContainer,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                } else {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -460,37 +534,30 @@ fun OfferDetailScreen(
                         }
                     }
                 }
+                } // fin del selector de cantidad
 
                 Spacer(modifier = Modifier.height(22.dp))
 
-                Button(
-                    onClick = {
+                val totalOferta = variante.price * cantidad
+
+                // El paquete entra en el pedido en cuanto se pulsa cualquiera
+                // de los dos botones, y una sola vez. Así, al abrir los extras
+                // el total de arriba ya cuenta el paquete, que si no saldría
+                // sumando solo los añadidos.
+                fun ponerEnElPedido() {
+                    if (!yaAgregado) {
                         onAddToCart(item, variante, cantidad)
-                        Toast.makeText(
-                            context,
-                            "Agregado: ${item.name}",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        onVolver()
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(64.dp)
-                        .testTag("btn_agregar_detalle"),
-                    shape = RoundedCornerShape(14.dp)
-                ) {
-                    Icon(Icons.Default.AddShoppingCart, contentDescription = null)
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = "Agregar  •  $${String.format("%.2f", variante.price * cantidad)}",
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
-                    )
+                        yaAgregado = true
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
-
+                // Primero lo de añadir, que es lo que se hace mientras todavía
+                // se está armando el paquete; finalizar va al final.
                 OutlinedButton(
-                    onClick = onOpenExtras,
+                    onClick = {
+                        ponerEnElPedido()
+                        onOpenExtras()
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(58.dp)
@@ -502,6 +569,57 @@ fun OfferDetailScreen(
                     Text(
                         text = "Agregar algo más",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Finalizar: mete el paquete en el pedido si aún no está y
+                // pasa al calendario, que es donde se cierra la reservación.
+                Button(
+                    onClick = {
+                        ponerEnElPedido()
+                        onFinalizar()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(72.dp)
+                        .testTag("btn_agregar_detalle"),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Icon(Icons.Default.CalendarMonth, contentDescription = null)
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Finalizar  •  $${String.format("%.2f", totalOferta)} USD",
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.Bold
+                            ),
+                            maxLines = 1
+                        )
+                        Text(
+                            text = if (vinoDelCalendario) "volver a la fecha elegida"
+                            else "elegir el día de la sesión",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f),
+                            maxLines = 1
+                        )
+                    }
+                }
+
+                // El precio también en la moneda del día, con la tasa que
+                // tenga puesta el estudio.
+                cupLabelFor(totalOferta)?.let {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Center
                     )
                 }
             } else {

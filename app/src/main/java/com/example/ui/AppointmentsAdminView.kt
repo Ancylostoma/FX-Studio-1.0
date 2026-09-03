@@ -894,7 +894,9 @@ fun AppointmentsAdminView(
                     Divider()
 
                     // Firma y foto
-                    if (appt.firmaBytes != null || appt.fotoClienteBytes != null) {
+                    val cuantasFotos =
+                        listOfNotNull(appt.fotoClienteBytes, appt.fotoCliente2Bytes).size
+                    if (appt.firmaBytes != null || cuantasFotos > 0) {
                         OutlinedButton(
                             onClick = { selectedAppointmentForSignature = appt },
                             modifier = Modifier.fillMaxWidth(),
@@ -903,8 +905,11 @@ fun AppointmentsAdminView(
                             Icon(Icons.Default.Draw, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                if (appt.fotoClienteBytes != null) "Ver firma y foto"
-                                else "Ver firma digital"
+                                when (cuantasFotos) {
+                                    0 -> "Ver firma digital"
+                                    1 -> "Ver firma y foto"
+                                    else -> "Ver firma y fotos"
+                                }
                             )
                         }
                     } else {
@@ -1178,8 +1183,9 @@ fun AppointmentsAdminView(
                 }
             }
         }
-        val foto = remember(appt) {
-            appt.fotoClienteBytes?.let {
+        // Las dos fotos del contrato: el cliente y su documento.
+        val fotos = remember(appt) {
+            listOfNotNull(appt.fotoClienteBytes, appt.fotoCliente2Bytes).mapNotNull {
                 try {
                     BitmapFactory.decodeByteArray(it, 0, it.size)?.asImageBitmap()
                 } catch (e: Exception) {
@@ -1248,27 +1254,30 @@ fun AppointmentsAdminView(
                     }
 
                     Text(
-                        text = "Foto de confirmación",
+                        text = if (fotos.size > 1) "Fotos de confirmación"
+                        else "Foto de confirmación",
                         style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    if (foto != null) {
-                        Image(
-                            bitmap = foto,
-                            contentDescription = "Foto del cliente al firmar",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(240.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(Color.Black)
-                        )
-                    } else {
+                    if (fotos.isEmpty()) {
                         Text(
                             text = "Esta cita no tiene foto de confirmación",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    } else {
+                        fotos.forEachIndexed { i, imagen ->
+                            Image(
+                                bitmap = imagen,
+                                contentDescription = "Foto ${i + 1} tomada al firmar",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(240.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(Color.Black)
+                            )
+                        }
                     }
 
                     Button(

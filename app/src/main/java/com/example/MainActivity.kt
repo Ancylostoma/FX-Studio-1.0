@@ -199,6 +199,7 @@ fun ClientScreen(
     val cartCount by viewModel.cartCount.collectAsState()
     val contractText by viewModel.contractText.collectAsState()
     val studioConfig by viewModel.studioConfig.collectAsState()
+    val reserva by viewModel.reserva.collectAsState()
 
     // Vista activa dentro de los dos tercios inferiores. La banda de marca de
     // arriba no cambia nunca.
@@ -226,7 +227,17 @@ fun ClientScreen(
     fun volverAInicio() {
         vista = ClientView.INICIO
         itemDetalleId = -1
+        // Volver a la portada abandona el recorrido del calendario. Lo elegido
+        // se conserva, pero la marca de "vengo del calendario" se apaga para
+        // que el botón del paquete no prometa una vuelta que ya no toca.
+        if (reserva.vinoDelCalendario) {
+            viewModel.actualizarReserva { it.copy(vinoDelCalendario = false) }
+        }
     }
+
+    // En la portada no hace falta ofrecer "ir a la portada".
+    val irAInicio: (() -> Unit)? =
+        if (vista == ClientView.INICIO) null else { { volverAInicio() } }
 
     Column(modifier = Modifier.fillMaxSize()) {
         // ---- TERCIO SUPERIOR: fijo, siempre visible ----
@@ -235,7 +246,11 @@ fun ClientScreen(
             config = studioConfig,
             // En la portada se muestra grande; dentro de una sección se
             // compacta para dejar sitio al contenido.
-            compacto = vista != ClientView.INICIO
+            compacto = vista != ClientView.INICIO,
+            // Antes vivía abajo a la izquierda y desaparecía en el detalle del
+            // paquete. Ahora está siempre en el mismo sitio, arriba a la
+            // izquierda, en todas las secciones.
+            onInicio = irAInicio
         )
 
         // ---- DOS TERCIOS INFERIORES: cambian según la vista ----
@@ -307,7 +322,13 @@ fun ClientScreen(
                                 viewModel.addToCart(it0, variant, qty)
                             },
                             onOpenExtras = { itemForExtrasDialog = detalle },
-                            onVolver = { vista = ClientView.OFERTAS }
+                            onVolver = { vista = ClientView.OFERTAS },
+                            // Los dos caminos acaban en el mismo sitio: quien
+                            // empieza por el paquete pasa ahora a poner la
+                            // fecha, y quien empezó por el calendario vuelve
+                            // allí con su día ya elegido.
+                            onFinalizar = { vista = ClientView.CALENDARIO },
+                            vinoDelCalendario = reserva.vinoDelCalendario
                         )
                     }
                 }
@@ -322,26 +343,15 @@ fun ClientScreen(
                 ClientView.CALENDARIO -> {
                     CalendarScreen(
                         viewModel = viewModel,
+                        onElegirDelCatalogo = { vista = ClientView.OFERTAS },
                         modifier = Modifier.fillMaxSize()
                     )
                 }
             }
             }
 
-            // Botón para regresar a la portada desde cualquier sección.
-            if (vista != ClientView.INICIO && vista != ClientView.DETALLE) {
-                FilledTonalButton(
-                    onClick = { volverAInicio() },
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(start = 12.dp, bottom = 12.dp)
-                        .testTag("btn_inicio")
-                ) {
-                    Icon(Icons.Default.Home, contentDescription = null)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Inicio", fontWeight = FontWeight.Bold)
-                }
-            }
+            // El regreso a la portada vive ahora en la banda de marca, arriba
+            // a la izquierda, para que esté siempre en el mismo sitio.
         }
 
         // ---- BARRA DEL PEDIDO: solo aparece si hay algo en el carrito ----
@@ -394,6 +404,15 @@ fun ClientScreen(
                                 ),
                                 color = MaterialTheme.colorScheme.onPrimary
                             )
+                            // El mismo total en la moneda del día, con la tasa
+                            // que tenga puesta el estudio.
+                            cupLabelFor(cartTotal)?.let {
+                                Text(
+                                    text = it,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f)
+                                )
+                            }
                         }
                     }
 
@@ -421,11 +440,32 @@ fun ClientScreen(
     itemForExtrasDialog?.let { item ->
         OfferExtrasDialog(
             item = item,
-            onDismiss = { itemForExtrasDialog = null },
-            onAddExtra = { title, cat, variant, price, qty ->
-                viewModel.addCustomToCart(title, cat, variant, price, qty, "Extra añadido a ${item.name}")
-                Toast.makeText(context, "Extra añadido al pedido", Toast.LENGTH_SHORT).show()
-            }
+            totalPedido = cartTotal,
+            cupLabelFor = cupLabelFor,
+            // La cuenta sale del carrito, no de un estado aparte del diálogo:
+            // así lo que marca la ficha y lo que hay en el pedido no se
+            // pueden desfasar.
+            cantidadEnPedido = { extra ->
+                cart.firstOrNull {
+                    it.item.name == extra.title &&
+                        it.variant.name == extra.variantName &&
+                        it.item.category == extra.category
+                }?.quantity ?: 0
+            },
+            onAgregar = { extra ->
+                viewModel.addCustomToCart(
+                    extra.title,
+                    extra.category,
+                    extra.variantName,
+                    extra.price,
+                    1,
+                    "Extra añadido a ${item.name}"
+                )
+            },
+            onQuitar = { extra ->
+                viewModel.quitarUnoDelCarrito(extra.title, extra.category, extra.variantName)
+            },
+            onDismiss = { itemForExtrasDialog = null }
         )
     }
 
@@ -457,6 +497,20 @@ fun ClientScreen(
             onConfirm = { firmado ->
                 showContractForOrder = false
                 pedidoConfirmado = firmado
+
+                // Firmar el contrato no era el final del recorrido: faltaba lo
+                // más importante, que es el día de la sesión. El contrato
+                // firmado y sus dos fotos quedan guardados, se pasan a la
+                // reserva los datos que el cliente ya escribió, y se sigue al
+                // calendario, que es donde termina de verdad.
+                viewModel.guardarContratoPendiente(firmado)
+                viewModel.actualizarReserva {
+                    it.copy(
+                        nombre = it.nombre.ifBlank { firmado.nombreCliente },
+                        telefono = it.telefono.ifBlank { firmado.telefonoCliente }
+                    )
+                }
+
                 val uriString = viewModel.generateWhatsAppUri(
                     clientName = firmado.nombreCliente,
                     clientPhone = firmado.telefonoCliente
@@ -469,6 +523,8 @@ fun ClientScreen(
                 } catch (e: Exception) {
                     Toast.makeText(context, "No se pudo abrir WhatsApp: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
                 }
+
+                vista = ClientView.CALENDARIO
             }
         )
     }
@@ -485,12 +541,13 @@ fun ClientScreen(
                     tint = MaterialTheme.colorScheme.primary
                 )
             },
-            title = { Text("Pedido enviado al estudio") },
+            title = { Text("Contrato firmado") },
             text = {
                 Text(
                     "El pedido de ${firmado.nombreCliente} ya salió hacia el WhatsApp de " +
-                        "FXestudio.\n\n¿Desea enviarle también su copia al " +
-                        "${firmado.telefonoCliente}?"
+                        "FXestudio.\n\nAl cerrar este aviso queda el calendario abierto: " +
+                        "solo falta elegir el día y la hora para terminar la reservación.\n\n" +
+                        "¿Desea enviarle también su copia al ${firmado.telefonoCliente}?"
                 )
             },
             confirmButton = {
@@ -668,7 +725,7 @@ fun AdminScreen(
     var itemToEdit by remember { mutableStateOf<CatalogItem?>(null) }
     var itemPendingDelete by remember { mutableStateOf<CatalogItem?>(null) }
 
-    // 0 = Catálogo, 1 = Citas, 2 = Portada, 3 = Ajustes, 4 = Respaldo
+    // 0 = Catálogo, 1 = Citas, 2 = Dinero, 3 = Portada, 4 = Ajustes, 5 = Respaldo
     var adminTabSelected by remember { mutableStateOf(0) }
 
     Column(
@@ -735,7 +792,7 @@ fun AdminScreen(
         // contratos firmados solo están en este teléfono.
         BackupReminderBanner(
             ultimoRespaldo = ultimoRespaldo,
-            onIrARespaldo = { adminTabSelected = 4 }
+            onIrARespaldo = { adminTabSelected = 5 }
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -764,18 +821,24 @@ fun AdminScreen(
             Tab(
                 selected = adminTabSelected == 2,
                 onClick = { adminTabSelected = 2 },
-                text = { Text("Portada", fontWeight = FontWeight.Bold) },
-                icon = { Icon(Icons.Default.Edit, contentDescription = null) }
+                text = { Text("Dinero", fontWeight = FontWeight.Bold) },
+                icon = { Icon(Icons.Default.AttachMoney, contentDescription = null) }
             )
             Tab(
                 selected = adminTabSelected == 3,
                 onClick = { adminTabSelected = 3 },
-                text = { Text("Ajustes", fontWeight = FontWeight.Bold) },
-                icon = { Icon(Icons.Default.Settings, contentDescription = null) }
+                text = { Text("Portada", fontWeight = FontWeight.Bold) },
+                icon = { Icon(Icons.Default.Edit, contentDescription = null) }
             )
             Tab(
                 selected = adminTabSelected == 4,
                 onClick = { adminTabSelected = 4 },
+                text = { Text("Ajustes", fontWeight = FontWeight.Bold) },
+                icon = { Icon(Icons.Default.Settings, contentDescription = null) }
+            )
+            Tab(
+                selected = adminTabSelected == 5,
+                onClick = { adminTabSelected = 5 },
                 text = { Text("Respaldo", fontWeight = FontWeight.Bold) },
                 icon = { Icon(Icons.Default.Backup, contentDescription = null) }
             )
@@ -821,10 +884,14 @@ fun AdminScreen(
                     AppointmentsAdminView(viewModel = viewModel)
                 }
                 2 -> {
+                    // Resumen de dinero: cobrado, por cobrar y quién debe
+                    MoneyAdminView(viewModel = viewModel)
+                }
+                3 -> {
                     // Editor de la portada y de la ficha de contacto
                     AdminCoverView(viewModel = viewModel)
                 }
-                3 -> {
+                4 -> {
                     // Configuration Form
                     AdminSettingsView(
                         viewModel = viewModel,
@@ -844,7 +911,7 @@ fun AdminScreen(
                         }
                     )
                 }
-                4 -> {
+                5 -> {
                     // Backup & Import
                     AdminBackupView(
                         viewModel = viewModel

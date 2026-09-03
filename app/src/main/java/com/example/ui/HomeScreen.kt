@@ -57,6 +57,10 @@ fun StudioHeaderBand(
     // Textos editables desde el panel del admin (pestaña Portada).
     config: StudioConfig = StudioConfig(),
     compacto: Boolean = false,
+    // Vuelta a la portada. Se pasa en todas las secciones y queda fijo en la
+    // esquina de arriba a la izquierda; en la portada misma se pasa null,
+    // porque ya se está ahí.
+    onInicio: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -73,15 +77,25 @@ fun StudioHeaderBand(
             .padding(horizontal = 20.dp, vertical = if (compacto) 12.dp else 22.dp)
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth(),
+            // Los dos botones de las esquinas van encima de esta columna: se
+            // le reserva su ancho para que un título largo no pase por debajo.
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = if (onInicio != null) 44.dp else 40.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            // En mayúsculas, de trazo fino y con las letras separadas: son
+            // las mismas formas que el FX del logotipo, para que la banda y
+            // el icono se reconozcan como lo mismo. El tamaño baja un punto
+            // respecto al anterior porque, con esta separación, el nombre
+            // completo ya no cabría en una línea en los teléfonos estrechos.
             Text(
-                text = config.titulo,
-                style = if (compacto) MaterialTheme.typography.headlineMedium
-                else MaterialTheme.typography.displayMedium,
-                fontWeight = FontWeight.ExtraBold,
+                text = config.titulo.uppercase(),
+                style = if (compacto) MaterialTheme.typography.titleLarge
+                else MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.Light,
+                letterSpacing = if (compacto) 2.sp else 5.sp,
                 color = MaterialTheme.colorScheme.onPrimary,
                 textAlign = TextAlign.Center
             )
@@ -109,6 +123,23 @@ fun StudioHeaderBand(
             )
         }
 
+        // Vuelta a la portada, siempre en la misma esquina.
+        if (onInicio != null) {
+            IconButton(
+                onClick = onInicio,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .size(44.dp)
+                    .testTag("btn_inicio")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Home,
+                    contentDescription = "Volver al inicio",
+                    tint = MaterialTheme.colorScheme.onPrimary
+                )
+            }
+        }
+
         // Acceso al panel de administración, discreto en la esquina.
         IconButton(
             onClick = onOpenAdminRequest,
@@ -130,7 +161,9 @@ fun StudioHeaderBand(
 @Composable
 fun MenuPrincipalBoton(
     titulo: String,
-    icono: ImageVector,
+    // null = sin icono. La portada los quita; las pestañas de categoría
+    // dentro del catálogo sí los mantienen, que ahí ayudan a orientarse.
+    icono: ImageVector?,
     atenuado: Boolean,
     resaltado: Boolean,
     onClick: () -> Unit,
@@ -176,14 +209,16 @@ fun MenuPrincipalBoton(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Icon(
-                imageVector = icono,
-                contentDescription = null,
-                tint = if (resaltado) MaterialTheme.colorScheme.onPrimary
-                else MaterialTheme.colorScheme.primary.copy(alpha = alpha),
-                modifier = Modifier.size(34.dp)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
+            if (icono != null) {
+                Icon(
+                    imageVector = icono,
+                    contentDescription = null,
+                    tint = if (resaltado) MaterialTheme.colorScheme.onPrimary
+                    else MaterialTheme.colorScheme.primary.copy(alpha = alpha),
+                    modifier = Modifier.size(34.dp)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
             Text(
                 text = titulo,
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
@@ -266,15 +301,19 @@ fun HomeContent(
                         )
                     )
             )
-            Text(
-                text = config.frasePortada,
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = Color.White,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 14.dp, start = 16.dp, end = 16.dp)
-            )
+            // Si el administrador borra la frase, la portada se queda sin
+            // frase: no vuelve el texto de fábrica.
+            if (config.frasePortada.isNotBlank()) {
+                Text(
+                    text = config.frasePortada,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = Color.White,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 14.dp, start = 16.dp, end = 16.dp)
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(18.dp))
@@ -287,7 +326,7 @@ fun HomeContent(
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 MenuPrincipalBoton(
                     titulo = config.btnBodas,
-                    icono = Icons.Default.Favorite,
+                    icono = null,
                     atenuado = false,
                     resaltado = false,
                     onClick = { onCategoria("Bodas") },
@@ -297,7 +336,7 @@ fun HomeContent(
                 )
                 MenuPrincipalBoton(
                     titulo = config.btnQuince,
-                    icono = Icons.Default.Stars,
+                    icono = null,
                     atenuado = false,
                     resaltado = false,
                     onClick = { onCategoria("15 años") },
@@ -307,7 +346,7 @@ fun HomeContent(
                 )
                 MenuPrincipalBoton(
                     titulo = config.btnPrimerAno,
-                    icono = Icons.Default.ChildCare,
+                    icono = null,
                     atenuado = false,
                     resaltado = false,
                     onClick = { onCategoria("Primer Año") },
@@ -320,7 +359,7 @@ fun HomeContent(
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 MenuPrincipalBoton(
                     titulo = config.btnOfertaPropia,
-                    icono = Icons.Default.AutoFixHigh,
+                    icono = null,
                     atenuado = false,
                     resaltado = false,
                     onClick = onOfertaPropia,
@@ -330,7 +369,7 @@ fun HomeContent(
                 )
                 MenuPrincipalBoton(
                     titulo = config.btnCalendario,
-                    icono = Icons.Default.CalendarMonth,
+                    icono = null,
                     atenuado = false,
                     resaltado = false,
                     onClick = onCalendario,
