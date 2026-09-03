@@ -85,11 +85,17 @@ fun StudioHeaderBand(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            // En mayúsculas, de trazo fino y con las letras separadas: son
+            // las mismas formas que el FX del logotipo, para que la banda y
+            // el icono se reconozcan como lo mismo. El tamaño baja un punto
+            // respecto al anterior porque, con esta separación, el nombre
+            // completo ya no cabría en una línea en los teléfonos estrechos.
             Text(
-                text = config.titulo,
-                style = if (compacto) MaterialTheme.typography.headlineMedium
-                else MaterialTheme.typography.displayMedium,
-                fontWeight = FontWeight.ExtraBold,
+                text = config.titulo.uppercase(),
+                style = if (compacto) MaterialTheme.typography.titleLarge
+                else MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.Light,
+                letterSpacing = if (compacto) 2.sp else 5.sp,
                 color = MaterialTheme.colorScheme.onPrimary,
                 textAlign = TextAlign.Center
             )
