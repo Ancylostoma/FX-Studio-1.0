@@ -76,7 +76,7 @@ internal fun hoja(nombre: String?, vararg opciones: ExtraOption) =
 
 /** El importe grande de la cabecera, que entra desde abajo cuando cambia. */
 @Composable
-fun ImporteAnimado(
+internal fun ImporteAnimado(
     valor: Double,
     color: Color,
     estilo: androidx.compose.ui.text.TextStyle
@@ -109,7 +109,7 @@ fun ImporteAnimado(
 
 /** Una carpeta: su nombre queda siempre visible, abierta o cerrada. */
 @Composable
-fun CarpetaRama(
+internal fun CarpetaRama(
     rama: Rama,
     abierta: Boolean,
     cantidadEnPedido: (ExtraOption) -> Int,
