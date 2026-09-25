@@ -241,6 +241,8 @@ fun HomeContent(
     onCalendario: () -> Unit,
     // Textos editables desde el panel del admin (pestaña Portada).
     config: StudioConfig = StudioConfig(),
+    // Resumen del día para quien atiende el estudio. null = no se enseña.
+    onResumenDelDia: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -377,6 +379,29 @@ fun HomeContent(
                         .weight(1f)
                         .testTag("btn_calendario")
                 )
+            }
+
+            // Aparte de los cinco accesos del cliente, y más discreto: es
+            // para quien atiende el estudio, no hace falta el PIN.
+            if (onResumenDelDia != null) {
+                OutlinedButton(
+                    onClick = onResumenDelDia,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("btn_resumen_dia"),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Assessment,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Resumen del día",
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                    )
+                }
             }
         }
 

@@ -20,145 +20,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.data.CatalogItem
+import com.example.data.Carpeta
 
-/**
- * Las ramas, en el mismo orden en que las secciones aparecen en el catálogo
- * impreso: primero las fotos, después lo que se imprime con ellas, luego lo
- * que hace falta el día de la sesión, y al final los recuerdos y el vídeo.
- *
- * Para cambiar el orden basta mover los bloques de esta lista.
- */
-private fun ramasPara(categoria: String): List<Rama> {
-    // --- Fotos sueltas: cambian de precio según la categoría del paquete ---
-    val fotosDigitales: List<ExtraOption>
-    val fotosImpresas: List<ExtraOption>
-    when (categoria) {
-        "Primer Año" -> {
-            fotosDigitales = listOf(
-                ExtraOption("Foto Extra Primer Año (Digital)", "Foto digital editada adicional", "Primer Año", "Digital editada", 4.30)
-            )
-            fotosImpresas = listOf(
-                ExtraOption("Foto Extra Primer Año (5x7 / 6x8)", "Foto impresa 5x7 o 6x8", "Primer Año", "5x7 / 6x8", 4.70),
-                ExtraOption("Foto Extra Primer Año (8x10 / 8x12)", "Foto impresa 8x10 o 8x12", "Primer Año", "8x10 / 8x12", 5.60)
-            )
-        }
-        "Bodas" -> {
-            fotosDigitales = listOf(
-                ExtraOption("Foto Extra Bodas (Digital)", "Foto digital editada adicional", "Bodas", "Digital editada", 5.40)
-            )
-            fotosImpresas = listOf(
-                ExtraOption("Foto Extra Bodas (5x7 / 6x8)", "Foto impresa 5x7 o 6x8", "Bodas", "5x7 / 6x8", 5.80),
-                ExtraOption("Foto Extra Bodas (8x10 / 8x12)", "Foto impresa 8x10 o 8x12", "Bodas", "8x10 / 8x12", 6.30)
-            )
-        }
-        "15 años" -> {
-            fotosDigitales = listOf(
-                ExtraOption("Foto Extra 15 años (Digital)", "Foto digital editada adicional", "15 años", "Digital editada", 5.70)
-            )
-            fotosImpresas = listOf(
-                ExtraOption("Foto Extra 15 años (5x7 / 6x8)", "Foto impresa 5x7 o 6x8", "15 años", "5x7 / 6x8", 6.16),
-                ExtraOption("Foto Extra 15 años (8x10 / 8x12)", "Foto impresa 8x10 o 8x12", "15 años", "8x10 / 8x12", 6.70)
-            )
-        }
-        else -> {
-            fotosDigitales = listOf(
-                ExtraOption("Foto Digital Editada", "Foto digital adicional en alta resolución", categoria, "Digital editada", 5.00)
-            )
-            fotosImpresas = listOf(
-                ExtraOption("Foto Impresa 5x7 / 6x8", "Impresión fotográfica", "Impresiones", "5x7 / 6x8", 4.70),
-                ExtraOption("Foto Impresa 8x10 / 8x12", "Impresión fotográfica", "Impresiones", "8x10 / 8x12", 5.80)
-            )
-        }
-    }
-
-    // --- Lo que cambia según el tipo de sesión ---
-    val vestuario = when (categoria) {
-        "Primer Año" -> listOf(
-            ExtraOption("Cambio de ropa adicional", "Batas, disfraces o trajecitos para niños", "Vestuario", "Niños (alquiler)", 2.00)
-        )
-        "Bodas" -> listOf(
-            ExtraOption("Alquiler Vestido de Novia Adicional", "Cambio de vestido de novia", "Vestuario", "Vestido novia", 10.00),
-            ExtraOption("Alquiler Traje para Hombre", "Traje formal de novio o caballero", "Vestuario", "Trajes hombre", 5.00)
-        )
-        "15 años" -> listOf(
-            ExtraOption("Vestido de 15 con Aro Adicional", "Alquiler de vestido de gala con aro", "Vestuario", "Vestido de 15 con aro", 5.00),
-            ExtraOption("Vestido Sencillo Adicional", "Alquiler vestido casual", "Vestuario", "Vestido sencillo", 2.00)
-        )
-        else -> emptyList()
-    }
-
-    val maquillaje = when (categoria) {
-        "Primer Año" -> listOf(
-            ExtraOption("Maquillaje Mamá Extra", "Maquillaje para sesión primer año", "Maquillaje", "Mamá", 5.00),
-            ExtraOption("Maquillaje Acompañante", "Maquillaje y peinado adicional", "Maquillaje", "Acompañante", 5.00)
-        )
-        "Bodas" -> listOf(
-            ExtraOption("Maquillaje Bodas Extra (con pestañas)", "Maquillaje profesional con pestañas", "Maquillaje", "Bodas", 10.00),
-            ExtraOption("Maquillaje Acompañantes / Damas", "Maquillaje y peinado para damas", "Maquillaje", "Acompañantes", 5.00)
-        )
-        "15 años" -> listOf(
-            ExtraOption("Maquillaje Quinces Extra (con pestañas)", "Maquillaje y peinado Jezabelleza", "Maquillaje", "Quinces", 15.00)
-        )
-        else -> emptyList()
-    }
-
-    val souvenirs = if (categoria == "Primer Año") listOf(
-        ExtraOption("Taza Personalizada Extra", "Souvenir fotográfico", "Souvenirs", "Taza sublimada", 6.00),
-        ExtraOption("Pullover Personalizado Extra", "Pullover con foto impresa", "Souvenirs", "Pullover", 8.00),
-        ExtraOption("Llavero Personalizado Extra", "Llavero acrílico con foto", "Souvenirs", "Llavero", 2.50)
-    ) else emptyList()
-
-    val video = if (categoria == "Bodas" || categoria == "15 años") listOf(
-        ExtraOption("Videografía Makin Off (hasta 10 min 4K)", "Edición completa en 4K 60fps", "Videografía", "Makin Off editado", 40.00),
-        ExtraOption("Video Continuo 1 hora 4K", "Cobertura continua editada", "Videografía", "Video continuo 1h", 120.00)
-    ) else emptyList()
-
-    val revistas = if (categoria == "15 años") listOf(
-        ExtraOption("Revista 20 páginas Extra", "Diseño e impresión de revista", "Impresión", "Revista 20 pág", 140.00)
-    ) else emptyList()
-
-    // --- El orden del catálogo ---
-    val ramas = listOf(
-        Rama(
-            "Fotos extra", "📸",
-            listOf(
-                Subrama("Digitales", fotosDigitales),
-                Subrama("Impresas", fotosImpresas)
-            )
-        ),
-        Rama(
-            "Álbumes y FotoBooks", "📖",
-            listOf(
-                hoja(
-                    null,
-                    ExtraOption("Álbum 8x12 personalizado", "Álbum impreso en papel foto", "Álbum", "8x12", 10.00),
-                    ExtraOption("FotoBook 8x12 (20 fotos)", "FotoBook personalizado para 20 fotos", "FotoBook", "8x12 (20 fotos)", 16.40)
-                )
-            )
-        ),
-        Rama(
-            "Ampliaciones con marco", "🖼️",
-            listOf(
-                hoja(
-                    null,
-                    ExtraOption("Ampliación 16x24 con marco", "Ampliación impresa montada en marco", "Ampliaciones", "16x24 con marco", 51.50),
-                    ExtraOption("Ampliación 24x32 con marco", "Ampliación impresa montada en marco", "Ampliaciones", "24x32 con marco", 67.50),
-                    ExtraOption("Ampliación 24x39 con marco", "Ampliación impresa montada en marco", "Ampliaciones", "24x39 con marco", 74.50),
-                    ExtraOption("Super Ampliación 39x82.67 con marco", "Super formato impreso con marco", "Ampliaciones", "39x82.67 con marco", 175.00)
-                )
-            )
-        ),
-        Rama("Vestuario", "👗", listOf(Subrama(null, vestuario))),
-        Rama("Maquillaje y peinado", "💄", listOf(Subrama(null, maquillaje))),
-        Rama("Souvenirs", "🎁", listOf(Subrama(null, souvenirs))),
-        Rama("Video", "🎬", listOf(Subrama(null, video))),
-        Rama("Revistas", "📰", listOf(Subrama(null, revistas)))
-    )
-
-    // Una rama sin nada dentro no se enseña: en primer año no hay vídeo, y en
-    // bodas no hay souvenirs.
-    return ramas.filter { it.opciones.isNotEmpty() }
-}
+// Qué se ofrece aquí, en qué carpeta y a qué precio lo decide el
+// administrador desde el panel (pestaña Servicios → "Agregar algo más").
+// Cada servicio dice en qué tipos de paquete aparece; una carpeta que se
+// queda sin nada para este paquete no se enseña.
 
 // ------------------------------------------------------------------
 // Pantalla
@@ -167,6 +34,9 @@ private fun ramasPara(categoria: String): List<Rama> {
 @Composable
 fun OfferExtrasDialog(
     item: CatalogItem,
+    // La lista de "Agregar algo más" que mantiene el administrador.
+    carpetas: List<Carpeta>,
+    enPulgadas: Boolean,
     // Total del pedido completo, para que se vea crecer con cada toque.
     totalPedido: Double,
     cupLabelFor: (Double) -> String?,
@@ -177,18 +47,26 @@ fun OfferExtrasDialog(
     onQuitar: (ExtraOption) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val ramas = remember(item.category) { ramasPara(item.category) }
+    val ramas = remember(item.category, carpetas, enPulgadas) {
+        ramasDe(carpetas, paquete = item.category, enPulgadas = enPulgadas)
+    }
     // Solo una carpeta abierta a la vez: al abrir otra, la anterior se cierra
     // y la lista se recoloca sola. Es lo que da la sensación de que las
     // carpetas se apilan y se desplazan.
-    var abierta by rememberSaveable { mutableStateOf<String?>(ramas.firstOrNull()?.nombre) }
+    var abierta by rememberSaveable { mutableStateOf<String?>(ramas.firstOrNull()?.clave) }
 
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        // Como en el contrato: el margen de las barras del sistema se pone a
+        // mano para que el botón "Listo" no quede bajo la barra de la tableta.
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
     ) {
         Surface(
             modifier = Modifier
+                .windowInsetsPadding(WindowInsets.safeDrawing)
                 .fillMaxWidth(0.96f)
                 .fillMaxHeight(0.9f),
             shape = RoundedCornerShape(20.dp),
@@ -213,13 +91,13 @@ fun OfferExtrasDialog(
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    itemsIndexed(ramas, key = { _, r -> r.nombre }) { _, rama ->
+                    itemsIndexed(ramas, key = { _, r -> r.clave }) { _, rama ->
                         CarpetaRama(
                             rama = rama,
-                            abierta = abierta == rama.nombre,
+                            abierta = abierta == rama.clave,
                             cantidadEnPedido = cantidadEnPedido,
                             onAbrir = {
-                                abierta = if (abierta == rama.nombre) null else rama.nombre
+                                abierta = if (abierta == rama.clave) null else rama.clave
                             },
                             onAgregar = onAgregar,
                             onQuitar = onQuitar

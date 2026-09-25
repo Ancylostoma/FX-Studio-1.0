@@ -54,12 +54,22 @@ data class StudioConfig(
     val facebookUrl: String = StudioInfo.FACEBOOK_URL,
     // Paleta de colores elegida en el panel
     val temaId: String = TEMA_POR_DEFECTO,
+    // Lo que va incluido en TODAS las ofertas, además de lo propio de cada
+    // una. Separado por comas. En blanco = nada.
+    val incluyeEnOfertas: String = "Transporte",
+    // En qué unidad están escritas las medidas del catálogo. La app enseña
+    // al lado la equivalencia en la otra.
+    val medidasEnPulgadas: Boolean = true,
     // Formas de pago
     val tasas: List<TasaPago> = TASAS_POR_DEFECTO
 ) {
     /** Solo las formas de pago que el administrador dejó visibles y con tasa. */
     val tasasVisibles: List<TasaPago>
         get() = tasas.filter { it.visible && it.tasa > 0.0 }
+
+    /** Lo incluido en todas las ofertas, ya separado. */
+    val incluidoSiempre: List<String>
+        get() = incluyeEnOfertas.split(",").map { it.trim() }.filter { it.isNotEmpty() }
 
     /** Equivalencias de un importe, para mostrarlas bajo el precio en USD. */
     fun equivalencias(usd: Double): List<String> =

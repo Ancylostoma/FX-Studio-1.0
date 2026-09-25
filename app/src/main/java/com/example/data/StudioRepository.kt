@@ -125,6 +125,9 @@ class StudioRepository(private val studioDao: StudioDao) {
             catalogoUrl = txt(KEY_CATALOGO, d.catalogoUrl),
             facebookUrl = txt(KEY_FACEBOOK, d.facebookUrl),
             temaId = txt(KEY_TEMA, d.temaId),
+            incluyeEnOfertas = txtOpcional(KEY_INCLUYE_OFERTAS, d.incluyeEnOfertas),
+            medidasEnPulgadas = guardado[KEY_MEDIDAS_PULGADAS]?.toBooleanStrictOrNull()
+                ?: d.medidasEnPulgadas,
             tasas = tasas
         )
     }
@@ -147,7 +150,9 @@ class StudioRepository(private val studioDao: StudioDao) {
             KEY_HOR_DOMINGO to c.horarioDomingo,
             KEY_CATALOGO to c.catalogoUrl,
             KEY_FACEBOOK to c.facebookUrl,
-            KEY_TEMA to c.temaId
+            KEY_TEMA to c.temaId,
+            KEY_INCLUYE_OFERTAS to c.incluyeEnOfertas,
+            KEY_MEDIDAS_PULGADAS to c.medidasEnPulgadas.toString()
         )
         pares.forEach { (k, v) -> studioDao.insertConfig(AppConfig(k, v)) }
 
@@ -169,6 +174,20 @@ class StudioRepository(private val studioDao: StudioDao) {
             KEY_DIRECCION, KEY_TELEFONOS, KEY_HOR_SEMANA, KEY_HOR_SABADO,
             KEY_HOR_DOMINGO, KEY_CATALOGO, KEY_FACEBOOK
         ).forEach { studioDao.deleteConfig(it) }
+    }
+
+    /** Los servicios de una lista: los del administrador, o los de fábrica. */
+    suspend fun getServicios(menu: MenuServicios): List<Carpeta> =
+        ServiciosJson.leer(studioDao.getConfig(menu.clave)?.value)
+            ?: ServiciosDeFabrica.para(menu)
+
+    suspend fun saveServicios(menu: MenuServicios, carpetas: List<Carpeta>) {
+        studioDao.insertConfig(AppConfig(menu.clave, ServiciosJson.escribir(carpetas)))
+    }
+
+    /** Borra la lista guardada: vuelve la de fábrica. */
+    suspend fun resetServicios(menu: MenuServicios) {
+        studioDao.deleteConfig(menu.clave)
     }
 
     /** Cuándo se exportó el último respaldo. 0 = nunca. */
@@ -210,6 +229,9 @@ class StudioRepository(private val studioDao: StudioDao) {
         const val KEY_CATALOGO = "info_catalogo_url"
         const val KEY_FACEBOOK = "info_facebook_url"
         const val KEY_TEMA = "app_tema"
+        const val KEY_INCLUYE_OFERTAS = "ofertas_incluyen"
+        const val KEY_ACTUALIZACION = "catalogo_actualizacion"
+        const val KEY_MEDIDAS_PULGADAS = "medidas_en_pulgadas"
         const val KEY_ULTIMO_RESPALDO = "ultimo_respaldo"
     }
 
@@ -229,9 +251,48 @@ class StudioRepository(private val studioDao: StudioDao) {
         configs.forEach { studioDao.insertConfig(it) }
     }
 
+    /**
+     * Aplica una sola vez la actualización de precios del 12-9-26 (ver
+     * [ActualizacionCatalogo]) sobre lo que ya hay guardado en el teléfono.
+     */
+    suspend fun aplicarActualizacionCatalogo() {
+        if (studioDao.getConfig(KEY_ACTUALIZACION)?.value == ActualizacionCatalogo.VERSION) return
+
+        val items = studioDao.getAllItems().firstOrNull().orEmpty()
+        for (item in items) {
+            val precio = ActualizacionCatalogo.PRECIOS[item.code] ?: continue
+            var nuevo = ActualizacionCatalogo.conPrecio(item, precio)
+            if (item.category == "Bodas") {
+                nuevo = nuevo.copy(
+                    description = ActualizacionCatalogo.descripcionBodas(item.description),
+                    includedExtras = ActualizacionCatalogo.BODAS_INCLUYE
+                )
+            }
+            studioDao.insertItem(nuevo)
+        }
+        // Los collages se añaden solo si no existen ya con ese código.
+        ActualizacionCatalogo.COLLAGES.forEach { collage ->
+            if (items.none { it.code == collage.code }) studioDao.insertItem(collage)
+        }
+
+        // Las listas de servicios guardadas por el admin. Si no hay ninguna
+        // guardada no se toca nada: la de fábrica ya trae los precios nuevos.
+        MenuServicios.values().forEach { menu ->
+            val guardada = ServiciosJson.leer(studioDao.getConfig(menu.clave)?.value)
+            if (guardada != null) {
+                saveServicios(menu, ActualizacionCatalogo.aplicarAServicios(menu, guardada))
+            }
+        }
+
+        studioDao.insertConfig(AppConfig(KEY_ACTUALIZACION, ActualizacionCatalogo.VERSION))
+    }
+
     suspend fun prepopulateIfNeeded() {
         val items = studioDao.getAllItems().firstOrNull()
         if (items.isNullOrEmpty()) {
+            // Estos son los precios con los que nació la app. Justo después
+            // de crearlos se aplica aplicarActualizacionCatalogo(), que los
+            // pone al día (cartel del 12-9-26) y añade los collages.
             val defaultItems = listOf(
                 // -------------------------------------------------------------
                 // Categoría: Primer Año (A1 - A16)
