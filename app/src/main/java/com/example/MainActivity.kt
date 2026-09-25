@@ -212,6 +212,7 @@ fun ClientScreen(
     var showContractForOrder by remember { mutableStateOf(false) }
     var pedidoConfirmado by remember { mutableStateOf<ContratoFirmado?>(null) }
     var itemForExtrasDialog by remember { mutableStateOf<CatalogItem?>(null) }
+    var mostrarResumenDelDia by remember { mutableStateOf(false) }
 
     val itemDetalle = remember(items, itemDetalleId) {
         items.firstOrNull { it.id == itemDetalleId }
@@ -292,7 +293,8 @@ fun ClientScreen(
                             },
                             onOfertaPropia = { vista = ClientView.PROPIA },
                             onCalendario = { vista = ClientView.CALENDARIO },
-                            config = studioConfig
+                            config = studioConfig,
+                            onResumenDelDia = { mostrarResumenDelDia = true }
                         )
                     }
                 }
@@ -471,6 +473,14 @@ fun ClientScreen(
                 viewModel.quitarUnoDelCarrito(extra.title, extra.category, extra.variantName)
             },
             onDismiss = { itemForExtrasDialog = null }
+        )
+    }
+
+    // Resumen del día, para quien atiende el estudio (sin PIN, solo lectura)
+    if (mostrarResumenDelDia) {
+        ResumenDelDiaDialog(
+            viewModel = viewModel,
+            onCerrar = { mostrarResumenDelDia = false }
         )
     }
 

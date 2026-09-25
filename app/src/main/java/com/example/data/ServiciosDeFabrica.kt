@@ -122,16 +122,17 @@ object ServiciosDeFabrica {
 
     /** Ampliaciones: primero el acabado, después el tamaño. */
     private fun ampliaciones(): Carpeta {
-        // tamaño to (digital, impresa con marco)
+        // tamaño to (digital, impresa con marco). Impresa con marco al día
+        // del cartel del 12-9-26; los de solo el archivo no cambiaron.
         val tamanos = listOf(
             "12x16" to (27.50 to 34.50),
             "12x18" to (29.50 to 37.50),
             "16x20" to (36.50 to 47.50),
-            "16x24" to (38.50 to 51.50),
-            "20x24" to (42.50 to 57.50),
-            "24x32" to (49.50 to 67.50),
-            "24x39" to (54.50 to 74.50),
-            "39x58.5" to (73.50 to 120.00),
+            "16x24" to (38.50 to 55.60),
+            "20x24" to (42.50 to 63.40),
+            "24x32" to (49.50 to 78.70),
+            "24x39" to (54.50 to 84.50),
+            "39x58.5" to (73.50 to 150.00),
             "39x82.67" to (100.50 to 175.00)
         )
         fun grupo(nombre: String, etiqueta: String, conMarco: Boolean) = sub(
@@ -190,17 +191,18 @@ object ServiciosDeFabrica {
 
     /** Videografía: editado, o solo la filmación a mitad de precio. */
     private fun video(): Carpeta {
+        // Cartel del 12-9-26. Cada uno trae su descripción de lo que incluye.
         val servicios = listOf(
-            "Makin Off (hasta 10 min, 4K 60fps)" to 40.00,
-            "Video continuo de 1 hora (4K 60fps)" to 120.00
+            Triple("Video Resumen (hasta 10 min, 4K 60fps)", 65.00, ActualizacionCatalogo.VIDEO_RESUMEN_DESC),
+            Triple("Video continuo de 1 hora (4K 60fps)", 145.00, ActualizacionCatalogo.VIDEO_CONTINUO_DESC)
         )
         fun grupo(nombre: String, etiqueta: String, mitad: Boolean) = sub(
             nombre,
-            servicios.map { (servicio, precio) ->
+            servicios.map { (servicio, precio, incluye) ->
                 s(
                     "Videografía - $servicio", etiqueta,
                     if (mitad) "Se entrega el material en bruto, sin editar"
-                    else "Edición completa en 4K 60fps",
+                    else incluye,
                     if (mitad) precio / 2.0 else precio,
                     "Videografía"
                 )
@@ -248,9 +250,9 @@ object ServiciosDeFabrica {
         carpeta(
             "Ampliaciones con marco", "🖼️",
             sub("", listOf(
-                s("Ampliación 16x24 con marco", "16x24 con marco", "Ampliación impresa montada en marco", 51.50, "Ampliaciones"),
-                s("Ampliación 24x32 con marco", "24x32 con marco", "Ampliación impresa montada en marco", 67.50, "Ampliaciones"),
-                s("Ampliación 24x39 con marco", "24x39 con marco", "Ampliación impresa montada en marco", 74.50, "Ampliaciones"),
+                s("Ampliación 16x24 con marco", "16x24 con marco", "Ampliación impresa montada en marco", 55.60, "Ampliaciones"),
+                s("Ampliación 24x32 con marco", "24x32 con marco", "Ampliación impresa montada en marco", 78.70, "Ampliaciones"),
+                s("Ampliación 24x39 con marco", "24x39 con marco", "Ampliación impresa montada en marco", 84.50, "Ampliaciones"),
                 s("Super Ampliación 39x82.67 con marco", "39x82.67 con marco", "Super formato impreso con marco", 175.00, "Ampliaciones")
             ))
         ),
@@ -285,8 +287,8 @@ object ServiciosDeFabrica {
         carpeta(
             "Video", "🎬",
             sub("", listOf(
-                s("Videografía Makin Off (hasta 10 min 4K)", "Makin Off editado", "Edición completa en 4K 60fps", 40.00, "Videografía", BO + QU),
-                s("Video Continuo 1 hora 4K", "Video continuo 1h", "Cobertura continua editada", 120.00, "Videografía", BO + QU)
+                s("Video Resumen (editado hasta 10 min, 4K 60fps)", "Video resumen", ActualizacionCatalogo.VIDEO_RESUMEN_DESC, 65.00, "Videografía", BO + QU),
+                s("Video Continuo de 1 hora (editado 4K 60fps)", "Video continuo 1h", ActualizacionCatalogo.VIDEO_CONTINUO_DESC, 145.00, "Videografía", BO + QU)
             ))
         ),
         carpeta(

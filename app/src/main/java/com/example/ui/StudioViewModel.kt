@@ -136,6 +136,7 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
     init {
         viewModelScope.launch {
             repository.prepopulateIfNeeded()
+            repository.aplicarActualizacionCatalogo()
             loadConfigs()
             checkLicense()
         }
@@ -711,6 +712,9 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
                 }
 
                 repository.importBackup(importedItems, importedConfigs)
+                // Un respaldo anterior al 12-9-26 trae los precios viejos: se
+                // ponen al día igual que al arrancar la app.
+                repository.aplicarActualizacionCatalogo()
 
                 // Solo se toca la agenda si el respaldo la trae. Así, restaurar
                 // un respaldo antiguo (anterior a esta versión) no borra las
