@@ -32,6 +32,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.data.Carpeta
+import com.example.data.Medidas
 
 /**
  * El árbol de carpetas con el que se eligen cosas sueltas.
@@ -48,7 +50,9 @@ data class ExtraOption(
     val description: String,
     val category: String,
     val variantName: String,
-    val price: Double
+    val price: Double,
+    // Las medidas de la fila traducidas a la otra unidad, ya en una línea.
+    val medidas: String? = null
 )
 
 // ------------------------------------------------------------------
@@ -65,13 +69,40 @@ internal data class Subrama(
 internal data class Rama(
     val nombre: String,
     val simbolo: String,
-    val subramas: List<Subrama>
+    val subramas: List<Subrama>,
+    // Identifica la carpeta en la lista aunque dos se llamen igual.
+    val clave: String = nombre
 ) {
     val opciones: List<ExtraOption> get() = subramas.flatMap { it.opciones }
 }
 
-internal fun hoja(nombre: String?, vararg opciones: ExtraOption) =
-    Subrama(nombre, opciones.toList())
+/**
+ * Convierte la lista que edita el administrador en las carpetas que ve el
+ * cliente: solo lo visible, solo lo que corresponde al tipo de paquete (en
+ * "Agregar algo más") y sin carpetas ni grupos vacíos.
+ */
+internal fun ramasDe(
+    carpetas: List<Carpeta>,
+    paquete: String?,
+    enPulgadas: Boolean
+): List<Rama> = carpetas.mapNotNull { c ->
+    val subramas = c.subcarpetas.mapNotNull { sub ->
+        val opciones = sub.servicios
+            .filter { it.visible && it.apareceEn(paquete) }
+            .map { v ->
+                ExtraOption(
+                    title = v.titulo,
+                    description = v.descripcion,
+                    category = v.grupoPedido,
+                    variantName = v.formato.ifBlank { "Único" },
+                    price = v.precio,
+                    medidas = Medidas.resumen(v.titulo + " " + v.formato, enPulgadas)
+                )
+            }
+        if (opciones.isEmpty()) null else Subrama(sub.nombre.ifBlank { null }, opciones)
+    }
+    if (subramas.isEmpty()) null else Rama(c.nombre, c.simbolo, subramas, clave = c.id)
+}
 
 
 /** El importe grande de la cabecera, que entra desde abajo cuando cambia. */
@@ -144,7 +175,7 @@ internal fun CarpetaRama(
                 .fillMaxWidth()
                 .clickable { onAbrir() }
                 .padding(horizontal = 14.dp, vertical = 14.dp)
-                .testTag("rama_${rama.nombre}"),
+                .testTag("rama_${rama.clave}"),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(text = rama.simbolo, style = MaterialTheme.typography.headlineSmall)
@@ -268,14 +299,40 @@ private fun FilaExtra(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
-            Text(
-                text = opcion.description,
-                style = MaterialTheme.typography.bodySmall,
-                color = if (elegida) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f)
-                else MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
+            // El formato solo se repite si el nombre no lo dice ya: en "Fotos
+            // al momento" las tres filas de un tema se llaman igual y es lo
+            // único que las distingue.
+            if (opcion.variantName.isNotBlank() && opcion.variantName != "Único" &&
+                !opcion.title.contains(opcion.variantName, ignoreCase = true)
+            ) {
+                Text(
+                    text = opcion.variantName,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    color = textoColor,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            if (opcion.description.isNotBlank()) {
+                Text(
+                    text = opcion.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (elegida) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f)
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            opcion.medidas?.let { m ->
+                Text(
+                    text = "📏 $m",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (elegida) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f)
+                    else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             Text(
                 text = "$${String.format("%.2f", opcion.price)} USD",
                 style = MaterialTheme.typography.titleSmall.copy(

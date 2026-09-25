@@ -200,6 +200,7 @@ fun ClientScreen(
     val contractText by viewModel.contractText.collectAsState()
     val studioConfig by viewModel.studioConfig.collectAsState()
     val reserva by viewModel.reserva.collectAsState()
+    val serviciosExtras by viewModel.serviciosExtras.collectAsState()
 
     // Vista activa dentro de los dos tercios inferiores. La banda de marca de
     // arriba no cambia nunca.
@@ -328,7 +329,9 @@ fun ClientScreen(
                             // fecha, y quien empezó por el calendario vuelve
                             // allí con su día ya elegido.
                             onFinalizar = { vista = ClientView.CALENDARIO },
-                            vinoDelCalendario = reserva.vinoDelCalendario
+                            vinoDelCalendario = reserva.vinoDelCalendario,
+                            incluidoSiempre = studioConfig.incluidoSiempre,
+                            medidasEnPulgadas = studioConfig.medidasEnPulgadas
                         )
                     }
                 }
@@ -440,6 +443,8 @@ fun ClientScreen(
     itemForExtrasDialog?.let { item ->
         OfferExtrasDialog(
             item = item,
+            carpetas = serviciosExtras,
+            enPulgadas = studioConfig.medidasEnPulgadas,
             totalPedido = cartTotal,
             cupLabelFor = cupLabelFor,
             // La cuenta sale del carrito, no de un estado aparte del diálogo:
@@ -483,6 +488,11 @@ fun ClientScreen(
             onProceedToContract = {
                 showSummaryDialog = false
                 showContractForOrder = true
+            },
+            onBorrarPedido = {
+                viewModel.cancelarPedido()
+                showSummaryDialog = false
+                Toast.makeText(context, "Pedido borrado", Toast.LENGTH_SHORT).show()
             }
         )
     }
@@ -725,7 +735,8 @@ fun AdminScreen(
     var itemToEdit by remember { mutableStateOf<CatalogItem?>(null) }
     var itemPendingDelete by remember { mutableStateOf<CatalogItem?>(null) }
 
-    // 0 = Catálogo, 1 = Citas, 2 = Dinero, 3 = Portada, 4 = Ajustes, 5 = Respaldo
+    // 0 = Ofertas, 1 = Servicios, 2 = Citas, 3 = Dinero, 4 = Portada,
+    // 5 = Ajustes, 6 = Respaldo
     var adminTabSelected by remember { mutableStateOf(0) }
 
     Column(
@@ -792,7 +803,7 @@ fun AdminScreen(
         // contratos firmados solo están en este teléfono.
         BackupReminderBanner(
             ultimoRespaldo = ultimoRespaldo,
-            onIrARespaldo = { adminTabSelected = 5 }
+            onIrARespaldo = { adminTabSelected = 6 }
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -809,36 +820,42 @@ fun AdminScreen(
             Tab(
                 selected = adminTabSelected == 0,
                 onClick = { adminTabSelected = 0 },
-                text = { Text("Catálogo", fontWeight = FontWeight.Bold) },
+                text = { Text("Ofertas", fontWeight = FontWeight.Bold) },
                 icon = { Icon(Icons.Default.PhotoLibrary, contentDescription = null) }
             )
             Tab(
                 selected = adminTabSelected == 1,
                 onClick = { adminTabSelected = 1 },
-                text = { Text("Citas", fontWeight = FontWeight.Bold) },
-                icon = { Icon(Icons.Default.CalendarMonth, contentDescription = null) }
+                text = { Text("Servicios", fontWeight = FontWeight.Bold) },
+                icon = { Icon(Icons.Default.Category, contentDescription = null) }
             )
             Tab(
                 selected = adminTabSelected == 2,
                 onClick = { adminTabSelected = 2 },
-                text = { Text("Dinero", fontWeight = FontWeight.Bold) },
-                icon = { Icon(Icons.Default.AttachMoney, contentDescription = null) }
+                text = { Text("Citas", fontWeight = FontWeight.Bold) },
+                icon = { Icon(Icons.Default.CalendarMonth, contentDescription = null) }
             )
             Tab(
                 selected = adminTabSelected == 3,
                 onClick = { adminTabSelected = 3 },
-                text = { Text("Portada", fontWeight = FontWeight.Bold) },
-                icon = { Icon(Icons.Default.Edit, contentDescription = null) }
+                text = { Text("Dinero", fontWeight = FontWeight.Bold) },
+                icon = { Icon(Icons.Default.AttachMoney, contentDescription = null) }
             )
             Tab(
                 selected = adminTabSelected == 4,
                 onClick = { adminTabSelected = 4 },
-                text = { Text("Ajustes", fontWeight = FontWeight.Bold) },
-                icon = { Icon(Icons.Default.Settings, contentDescription = null) }
+                text = { Text("Portada", fontWeight = FontWeight.Bold) },
+                icon = { Icon(Icons.Default.Edit, contentDescription = null) }
             )
             Tab(
                 selected = adminTabSelected == 5,
                 onClick = { adminTabSelected = 5 },
+                text = { Text("Ajustes", fontWeight = FontWeight.Bold) },
+                icon = { Icon(Icons.Default.Settings, contentDescription = null) }
+            )
+            Tab(
+                selected = adminTabSelected == 6,
+                onClick = { adminTabSelected = 6 },
                 text = { Text("Respaldo", fontWeight = FontWeight.Bold) },
                 icon = { Icon(Icons.Default.Backup, contentDescription = null) }
             )
@@ -855,13 +872,17 @@ fun AdminScreen(
             ) { pestana ->
             when (pestana) {
                 0 -> {
-                    // Catalog CRUD List
-                    if (items.isEmpty()) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("El catálogo está vacío. Agrega tu primer paquete!")
-                        }
-                    } else {
-                        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    // Las ofertas (paquetes) y, arriba, lo que vale para todas
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        item { AdminAjustesOfertasCard(viewModel = viewModel) }
+                        if (items.isEmpty()) {
+                            item {
+                                Text(
+                                    "El catálogo está vacío. Agrega tu primer paquete con \"Nuevo\".",
+                                    modifier = Modifier.padding(16.dp)
+                                )
+                            }
+                        } else {
                             items(items) { item ->
                                 AdminCatalogItemCard(
                                     item = item,
@@ -880,18 +901,22 @@ fun AdminScreen(
                     }
                 }
                 1 -> {
+                    // Servicios sueltos: "Diseña tu propia oferta" y los extras
+                    AdminServiciosView(viewModel = viewModel)
+                }
+                2 -> {
                     // Appointments View
                     AppointmentsAdminView(viewModel = viewModel)
                 }
-                2 -> {
+                3 -> {
                     // Resumen de dinero: cobrado, por cobrar y quién debe
                     MoneyAdminView(viewModel = viewModel)
                 }
-                3 -> {
+                4 -> {
                     // Editor de la portada y de la ficha de contacto
                     AdminCoverView(viewModel = viewModel)
                 }
-                4 -> {
+                5 -> {
                     // Configuration Form
                     AdminSettingsView(
                         viewModel = viewModel,
@@ -911,7 +936,7 @@ fun AdminScreen(
                         }
                     )
                 }
-                5 -> {
+                6 -> {
                     // Backup & Import
                     AdminBackupView(
                         viewModel = viewModel
@@ -1810,8 +1835,11 @@ fun SummaryDialog(
     onDiscountChange: (Double) -> Unit,
     cupLabelFor: (Double) -> String? = { null },
     onDismiss: () -> Unit,
-    onProceedToContract: () -> Unit
+    onProceedToContract: () -> Unit,
+    // El cliente se arrepiente: se vacía el pedido entero.
+    onBorrarPedido: () -> Unit = {}
 ) {
+    var confirmarBorrado by remember { mutableStateOf(false) }
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier
@@ -1821,9 +1849,12 @@ fun SummaryDialog(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             shape = RoundedCornerShape(16.dp)
         ) {
+            // Con desplazamiento: en una tableta tumbada, o con el teclado
+            // abierto para el descuento, el botón de firmar se salía por abajo.
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
                     .padding(20.dp)
             ) {
                 Text(
@@ -2004,14 +2035,47 @@ fun SummaryDialog(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                TextButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.fillMaxWidth()
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("Cerrar", color = MaterialTheme.colorScheme.error)
+                    OutlinedButton(
+                        onClick = { confirmarBorrado = true },
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("btn_borrar_pedido"),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DeleteOutline,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Borrar pedido")
+                    }
+                    TextButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Seguir eligiendo")
+                    }
                 }
             }
         }
+    }
+
+    if (confirmarBorrado) {
+        ConfirmarBorrarPedido(
+            onConfirmar = {
+                confirmarBorrado = false
+                onBorrarPedido()
+            },
+            onCancelar = { confirmarBorrado = false }
+        )
     }
 }
 

@@ -293,19 +293,30 @@ fun OfferDetailScreen(
     // true cuando se llegó aquí desde el calendario, con la fecha ya puesta.
     // Solo cambia el texto del botón, para que se entienda a dónde lleva.
     vinoDelCalendario: Boolean = false,
+    // Lo que llevan todas las ofertas (el transporte), puesto por el admin.
+    incluidoSiempre: List<String> = emptyList(),
+    // Unidad en que están escritas las medidas del catálogo.
+    medidasEnPulgadas: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val variants = remember(item) { item.getVariants() }
-    val extras = remember(item) { item.getExtrasList() }
+    // Lo propio del paquete y, detrás, lo que llevan todas las ofertas, sin
+    // repetir si el administrador ya lo había escrito en el paquete.
+    val extras = remember(item, incluidoSiempre) {
+        val propios = item.getExtrasList()
+        propios + incluidoSiempre.filter { s -> propios.none { it.equals(s, ignoreCase = true) } }
+    }
     var variantIndex by remember(item.id) { mutableStateOf(0) }
     var cantidad by remember(item.id) { mutableStateOf(1) }
     val variante = variants.getOrNull(variantIndex)
     // Mientras no se haya añadido, el botón dice "Agregar". Una vez la oferta
     // está completa pasa a decir "Finalizar" y lleva a agendar la cita.
     var yaAgregado by remember(item.id) { mutableStateOf(false) }
-    // Medidas del paquete traducidas a pulgadas, para el cliente que las pide
-    // en esa unidad. Salen del propio texto, no hay que teclearlas aparte.
-    val medidas = remember(item) { Medidas.enPulgadas(item.name + " " + item.description) }
+    // Medidas del paquete traducidas a la otra unidad (pulgadas ↔ cm). Salen
+    // del propio texto, no hay que teclearlas aparte.
+    val medidas = remember(item, medidasEnPulgadas) {
+        Medidas.equivalencias(item.name + " " + item.description, medidasEnPulgadas)
+    }
 
     Column(
         modifier = modifier

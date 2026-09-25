@@ -73,6 +73,22 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
     private val _contratoPendiente = MutableStateFlow<ContratoFirmado?>(null)
     val contratoPendiente: StateFlow<ContratoFirmado?> = _contratoPendiente.asStateFlow()
 
+    // Los servicios sueltos de "Diseña tu propia oferta" y "Agregar algo
+    // más". Arrancan con los de fábrica y se cambian por los guardados en
+    // cuanto se leen de la base de datos.
+    private val _serviciosPropia = MutableStateFlow(ServiciosDeFabrica.propia())
+    val serviciosPropia: StateFlow<List<Carpeta>> = _serviciosPropia.asStateFlow()
+
+    private val _serviciosExtras = MutableStateFlow(ServiciosDeFabrica.extras())
+    val serviciosExtras: StateFlow<List<Carpeta>> = _serviciosExtras.asStateFlow()
+
+    private fun flujoServicios(menu: MenuServicios) = when (menu) {
+        MenuServicios.PROPIA -> _serviciosPropia
+        MenuServicios.EXTRAS -> _serviciosExtras
+    }
+
+    fun servicios(menu: MenuServicios): StateFlow<List<Carpeta>> = flujoServicios(menu)
+
     private val _ultimoRespaldo = MutableStateFlow(0L)
     val ultimoRespaldo: StateFlow<Long> = _ultimoRespaldo.asStateFlow()
 
@@ -133,6 +149,25 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
         _contractText.value = repository.getContractText()
         _studioConfig.value = repository.getStudioConfig()
         _ultimoRespaldo.value = repository.getUltimoRespaldo()
+        _serviciosPropia.value = repository.getServicios(MenuServicios.PROPIA)
+        _serviciosExtras.value = repository.getServicios(MenuServicios.EXTRAS)
+    }
+
+    /**
+     * Aplica un cambio del administrador a una lista de servicios y la
+     * guarda. La pantalla del cliente lo ve al instante.
+     */
+    fun editarServicios(menu: MenuServicios, cambio: (List<Carpeta>) -> List<Carpeta>) {
+        val flujo = flujoServicios(menu)
+        val nueva = cambio(flujo.value)
+        flujo.value = nueva
+        viewModelScope.launch { repository.saveServicios(menu, nueva) }
+    }
+
+    /** Vuelve a la lista con la que viene la app. */
+    fun restaurarServicios(menu: MenuServicios) {
+        flujoServicios(menu).value = ServiciosDeFabrica.para(menu)
+        viewModelScope.launch { repository.resetServicios(menu) }
     }
 
     fun updateCupRate(rate: Double) {
@@ -305,6 +340,18 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
     fun clearCart() {
         _cart.value = emptyList()
         _discount.value = 0.0
+    }
+
+    /**
+     * El cliente se arrepiente: se borra el pedido entero, el contrato que
+     * hubiera firmado para él y el paquete y el importe que el pedido había
+     * dejado apuntados en la reserva. El día, la hora y el nombre se quedan,
+     * por si solo quiere cambiar lo que pidió.
+     */
+    fun cancelarPedido() {
+        clearCart()
+        _contratoPendiente.value = null
+        _reserva.value = _reserva.value.copy(paquete = "", monto = "", anticipo = "")
     }
 
     fun getCartSummaryText(): String {
@@ -819,8 +866,12 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
             sb.append("• *$codeStr${item.item.name}*\n")
             sb.append("  Categoría: ${item.item.category}\n")
             sb.append("  Variante/Formato: ${item.variant.name}\n")
-            if (item.item.includedExtras.isNotBlank()) {
-                sb.append("  Incluye: ${item.item.includedExtras}\n")
+            // Lo que llevan todas las ofertas (el transporte) va solo con los
+            // paquetes del catálogo, no con los servicios sueltos.
+            val incluye = item.item.getExtrasList() +
+                (if (item.item.id != 0) _studioConfig.value.incluidoSiempre else emptyList())
+            if (incluye.isNotEmpty()) {
+                sb.append("  Incluye: ${incluye.distinct().joinToString(", ")}\n")
             }
             sb.append("  Cantidad: ${item.quantity}  |  Precio unitario: $${String.format("%.2f", item.variant.price)}\n")
             sb.append("  *Subtotal:* $${String.format("%.2f", item.subtotal)}\n\n")

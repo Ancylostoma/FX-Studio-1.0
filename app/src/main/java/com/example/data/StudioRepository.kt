@@ -125,6 +125,9 @@ class StudioRepository(private val studioDao: StudioDao) {
             catalogoUrl = txt(KEY_CATALOGO, d.catalogoUrl),
             facebookUrl = txt(KEY_FACEBOOK, d.facebookUrl),
             temaId = txt(KEY_TEMA, d.temaId),
+            incluyeEnOfertas = txtOpcional(KEY_INCLUYE_OFERTAS, d.incluyeEnOfertas),
+            medidasEnPulgadas = guardado[KEY_MEDIDAS_PULGADAS]?.toBooleanStrictOrNull()
+                ?: d.medidasEnPulgadas,
             tasas = tasas
         )
     }
@@ -147,7 +150,9 @@ class StudioRepository(private val studioDao: StudioDao) {
             KEY_HOR_DOMINGO to c.horarioDomingo,
             KEY_CATALOGO to c.catalogoUrl,
             KEY_FACEBOOK to c.facebookUrl,
-            KEY_TEMA to c.temaId
+            KEY_TEMA to c.temaId,
+            KEY_INCLUYE_OFERTAS to c.incluyeEnOfertas,
+            KEY_MEDIDAS_PULGADAS to c.medidasEnPulgadas.toString()
         )
         pares.forEach { (k, v) -> studioDao.insertConfig(AppConfig(k, v)) }
 
@@ -169,6 +174,20 @@ class StudioRepository(private val studioDao: StudioDao) {
             KEY_DIRECCION, KEY_TELEFONOS, KEY_HOR_SEMANA, KEY_HOR_SABADO,
             KEY_HOR_DOMINGO, KEY_CATALOGO, KEY_FACEBOOK
         ).forEach { studioDao.deleteConfig(it) }
+    }
+
+    /** Los servicios de una lista: los del administrador, o los de fábrica. */
+    suspend fun getServicios(menu: MenuServicios): List<Carpeta> =
+        ServiciosJson.leer(studioDao.getConfig(menu.clave)?.value)
+            ?: ServiciosDeFabrica.para(menu)
+
+    suspend fun saveServicios(menu: MenuServicios, carpetas: List<Carpeta>) {
+        studioDao.insertConfig(AppConfig(menu.clave, ServiciosJson.escribir(carpetas)))
+    }
+
+    /** Borra la lista guardada: vuelve la de fábrica. */
+    suspend fun resetServicios(menu: MenuServicios) {
+        studioDao.deleteConfig(menu.clave)
     }
 
     /** Cuándo se exportó el último respaldo. 0 = nunca. */
@@ -210,6 +229,8 @@ class StudioRepository(private val studioDao: StudioDao) {
         const val KEY_CATALOGO = "info_catalogo_url"
         const val KEY_FACEBOOK = "info_facebook_url"
         const val KEY_TEMA = "app_tema"
+        const val KEY_INCLUYE_OFERTAS = "ofertas_incluyen"
+        const val KEY_MEDIDAS_PULGADAS = "medidas_en_pulgadas"
         const val KEY_ULTIMO_RESPALDO = "ultimo_respaldo"
     }
 
