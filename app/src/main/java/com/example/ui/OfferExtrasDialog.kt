@@ -59,14 +59,11 @@ fun OfferExtrasDialog(
         onDismissRequest = onDismiss,
         // Como en el contrato: el margen de las barras del sistema se pone a
         // mano para que el botón "Listo" no quede bajo la barra de la tableta.
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false
-        )
+        properties = VentanaCompleta
     ) {
         Surface(
             modifier = Modifier
-                .windowInsetsPadding(WindowInsets.safeDrawing)
+                .margenBarrasSistema()
                 .fillMaxWidth(0.96f)
                 .fillMaxHeight(0.9f),
             shape = RoundedCornerShape(20.dp),

@@ -86,9 +86,13 @@ fun CalendarScreen(
             anticipoPagado = reserva.anticipo.toDoubleOrNull() ?: 0.0,
             onSuccess = { savedEntity ->
                 bookingSuccessAppointment = savedEntity
-                // La reserva ya está guardada: el borrador y el contrato en
-                // mano se vacían para que la siguiente empiece de cero.
+                // La reserva ya está guardada: el borrador, el contrato en
+                // mano y el pedido se vacían para que la siguiente empiece
+                // de cero. Lo pedido ya quedó apuntado en la cita; si el
+                // pedido siguiera ahí, la barra de "Confirmar" seguiría
+                // abajo invitando a confirmar algo que ya está agendado.
                 viewModel.limpiarReserva()
+                viewModel.clearCart()
                 Toast.makeText(context, "Reservación registrada con éxito", Toast.LENGTH_LONG).show()
 
                 val uriStr = viewModel.generateAppointmentWhatsAppUri(savedEntity)

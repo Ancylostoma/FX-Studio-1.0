@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -137,7 +138,13 @@ fun MainApp() {
         label = "entrada_app"
     )
 
+    // El hueco de las barras del sistema se mide aquí, en la pantalla
+    // principal, y se reparte a las ventanas que se abren encima (ver
+    // MargenSistema.kt): en algunas tabletas a ellas no les llega.
+    val barrasSistema = WindowInsets.safeDrawing.asPaddingValues()
+
     // Edge-to-edge container handling status bars and navigation bars
+    CompositionLocalProvider(LocalBarrasSistema provides barrasSistema) {
     Scaffold(
         modifier = Modifier
             .fillMaxSize()
@@ -179,6 +186,12 @@ fun MainApp() {
                 )
             }
         }
+    }
+    }
+
+    // Atrás desde el panel vuelve a la app del cliente, no la cierra.
+    BackHandler(enabled = currentScreen == Screen.ADMIN) {
+        currentScreen = Screen.CLIENT
     }
 }
 
@@ -235,6 +248,32 @@ fun ClientScreen(
         if (reserva.vinoDelCalendario) {
             viewModel.actualizarReserva { it.copy(vinoDelCalendario = false) }
         }
+    }
+
+    // Botón Atrás de Android: vuelve a la sección de antes, no cierra la app.
+    // Se apunta cada sección por la que se pasa; al volver a la portada el
+    // camino se olvida, y solo desde la portada Atrás sale de la app.
+    val historial = remember { mutableStateListOf<ClientView>() }
+    var vistaAnterior by remember { mutableStateOf(vista) }
+    var volviendoAtras by remember { mutableStateOf(false) }
+    LaunchedEffect(vista) {
+        if (vista != vistaAnterior) {
+            if (!volviendoAtras) historial.add(vistaAnterior)
+            volviendoAtras = false
+            vistaAnterior = vista
+        }
+        if (vista == ClientView.INICIO) historial.clear()
+    }
+    BackHandler(enabled = vista != ClientView.INICIO) {
+        // Un paquete que se borró desde el panel ya no tiene ficha a la que
+        // volver: se salta, para no quedar rebotando entre dos pantallas.
+        while (historial.isNotEmpty() && historial.last() == ClientView.DETALLE && itemDetalle == null) {
+            historial.removeAt(historial.lastIndex)
+        }
+        val previa = if (historial.isEmpty()) ClientView.INICIO
+        else historial.removeAt(historial.lastIndex)
+        volviendoAtras = true
+        if (previa == ClientView.INICIO) volverAInicio() else vista = previa
     }
 
     // En la portada no hace falta ofrecer "ir a la portada".
@@ -1850,11 +1889,20 @@ fun SummaryDialog(
     onBorrarPedido: () -> Unit = {}
 ) {
     var confirmarBorrado by remember { mutableStateOf(false) }
-    Dialog(onDismissRequest = onDismiss) {
+    // Ventana completa con el hueco de las barras del sistema reservado a
+    // mano: en la tableta, los botones de abajo quedaban bajo los de Android.
+    Dialog(onDismissRequest = onDismiss, properties = VentanaCompleta) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .margenBarrasSistema()
+                .padding(16.dp),
+            contentAlignment = Alignment.Center
+        ) {
         Card(
             modifier = Modifier
+                .widthIn(max = 560.dp)
                 .fillMaxWidth()
-                .padding(16.dp)
                 .border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(16.dp)),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             shape = RoundedCornerShape(16.dp)
@@ -2075,6 +2123,7 @@ fun SummaryDialog(
                     }
                 }
             }
+        }
         }
     }
 
