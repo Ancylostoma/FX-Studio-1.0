@@ -175,15 +175,12 @@ fun ResumenDelDiaDialog(
 
     Dialog(
         onDismissRequest = onCerrar,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false
-        )
+        properties = VentanaCompleta
     ) {
         Surface(
             modifier = Modifier
                 .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.safeDrawing)
+                .margenBarrasSistema()
                 .padding(12.dp),
             shape = RoundedCornerShape(18.dp),
             color = MaterialTheme.colorScheme.background,

@@ -128,15 +128,12 @@ fun ContractSignatureDialog(
         // sistema se pone a mano (safeDrawing, abajo). Dejándoselo a Android,
         // en las tabletas con barra de aplicaciones fija el botón de firmar
         // quedaba tapado por ella y costaba pulsarlo.
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false
-        )
+        properties = VentanaCompleta
     ) {
         Surface(
             modifier = Modifier
                 .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.safeDrawing)
+                .margenBarrasSistema()
                 .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 20.dp),
             shape = RoundedCornerShape(16.dp),
             color = MaterialTheme.colorScheme.surface,
