@@ -3,6 +3,7 @@ package com.ancylostoma.quemepongo
 import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
@@ -47,8 +48,8 @@ class ArranqueTest {
 
     // El formulario de prenda nueva (cámara y galería) también debe abrir.
     app.onNodeWithText("Armario").performClick()
-    esperarTexto("Agregar prenda")
-    app.onAllNodesWithText("Agregar prenda", useUnmergedTree = true)[0].performClick()
+    esperarTexto("Mi armario")
+    app.onNodeWithContentDescription("Agregar prenda").performClick()
     esperarTexto("Nueva prenda")
   }
 }
