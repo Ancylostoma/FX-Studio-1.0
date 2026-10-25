@@ -5,6 +5,8 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.ancylostoma.quemepongo.data.Almacen
+import com.ancylostoma.quemepongo.data.AvisoDiario
+import com.ancylostoma.quemepongo.data.Vista
 import com.ancylostoma.quemepongo.data.CatalogoTendencias
 import com.ancylostoma.quemepongo.data.Categoria
 import com.ancylostoma.quemepongo.data.Clima
@@ -331,6 +333,14 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
     cambiarDatos { d -> d.copy(perfil = f(d.perfil)) }
     recalcular()
   }
+
+  fun cambiarAvisoDiario(activo: Boolean) {
+    cambiarPerfil { it.copy(avisoDiario = activo) }
+    runCatching { AvisoDiario.programar(app, activo) }
+    if (activo) avisar("Te aviso cada mañana a las 7:30")
+  }
+
+  fun cambiarVista(v: Vista) = cambiarPerfil { it.copy(vista = v) }
 
   fun reiniciarAprendizaje() {
     cambiarDatos { d -> d.copy(preferencias = Preferencias()) }

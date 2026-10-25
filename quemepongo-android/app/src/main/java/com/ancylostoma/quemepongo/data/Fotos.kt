@@ -21,8 +21,10 @@ object Fotos {
   /** Copia la foto elegida a la carpeta de la app, reducida y derecha. Devuelve el nombre del archivo. */
   fun importar(contexto: Context, uri: Uri, carpeta: File, id: String): String? {
     val resolver = contexto.contentResolver
+    // Solo mide la foto: con inJustDecodeBounds, decodeStream siempre devuelve null a propósito.
     val opciones = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, opciones) } ?: return null
+    val medir = resolver.openInputStream(uri) ?: return null
+    medir.use { BitmapFactory.decodeStream(it, null, opciones) }
     if (opciones.outWidth <= 0) return null
 
     var muestreo = 1
@@ -70,7 +72,8 @@ object Fotos {
     val opciones = SubjectSegmenterOptions.Builder().enableForegroundBitmap().build()
     val segmentador = SubjectSegmentation.getClient(opciones)
     try {
-      val resultado = Tasks.await(segmentador.process(InputImage.fromBitmap(bmp, 0)), 20, TimeUnit.SECONDS)
+      // Si el modelo aún se está bajando, no hacer esperar: se guarda la foto con fondo.
+      val resultado = Tasks.await(segmentador.process(InputImage.fromBitmap(bmp, 0)), 10, TimeUnit.SECONDS)
       resultado.foregroundBitmap?.let { recortarTransparencia(it) }
     } finally {
       segmentador.close()

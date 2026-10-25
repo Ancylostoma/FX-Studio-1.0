@@ -24,6 +24,10 @@ falte para completar un look aparece con borde punteado y botón para buscarlo e
 | Descubrir | Tendencias con su look dibujado + "Para ti": ideas de compra parecidas a lo que te gusta. |
 | Yo | Looks guardados y diario de lo que te pusiste. Ajustes en el engranaje. |
 
+Bienvenida en 6 pasos cortos (maniquí, estilos con looks de ejemplo, ciudad, aviso de las
+7:30 y primera prenda). Cada look se puede **compartir como imagen** y verse como
+**collage de tus fotos** o en el maniquí.
+
 "Editar" (desde Hoy, un look guardado o una tendencia) abre el maniquí para cambiar prendas
 y te dice si vas abrigado, si combinan los colores y si encaja con la ocasión.
 

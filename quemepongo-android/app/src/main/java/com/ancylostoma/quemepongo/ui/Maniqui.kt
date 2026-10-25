@@ -58,6 +58,8 @@ fun Maniqui(
   modifier: Modifier = Modifier,
   claveAnimacion: Any? = null,
   animarSolo: String? = null,
+  /** false en vistas de ejemplo: las prendas que no tienes no llevan borde punteado. */
+  marcarIdeas: Boolean = true,
 ) {
   val capas = prendas.sortedBy { it.subtipo.forma.capa }
   val cargadas = remember { mutableIntStateOf(0) }
@@ -95,10 +97,21 @@ fun Maniqui(
       if (alfa <= 0f) return@forEachIndexed
       val imagen = p.foto?.let { CacheImagenes.mapa.get(it) }
       translate(top = (1f - alfa) * -10f * k) {
-        dibujarPrenda(g, p, imagen, alfa)
+        dibujarPrenda(g, p, imagen, alfa, marcarIdeas)
       }
     }
   }
+}
+
+/**
+ * Dibuja el maniquí ya vestido de una vez, sin animación. Sirve para pintarlo
+ * fuera de la pantalla, por ejemplo en la imagen para compartir.
+ */
+fun DrawScope.dibujarManiqui(prendas: List<Prenda>, cuerpo: Cuerpo, imagenes: Map<String, ImageBitmap>) {
+  val k = min(size.width / 100f, size.height / 200f)
+  val g = Geometria(cuerpo, (size.width - 100f * k) / 2f, (size.height - 200f * k) / 2f, k)
+  dibujarCuerpo(g)
+  prendas.sortedBy { it.subtipo.forma.capa }.forEach { p -> dibujarPrenda(g, p, p.foto?.let { imagenes[it] }, 1f, marcarIdeas = false) }
 }
 
 /** Coordenadas del maniquí en una caja de 100 x 200 unidades. */
@@ -313,7 +326,7 @@ private fun formaDe(g: Geometria, f: Forma): List<Path> {
   }
 }
 
-private fun DrawScope.dibujarPrenda(g: Geometria, p: Prenda, imagen: ImageBitmap?, alfa: Float) {
+private fun DrawScope.dibujarPrenda(g: Geometria, p: Prenda, imagen: ImageBitmap?, alfa: Float, marcarIdeas: Boolean = true) {
   val color = Color(Colores.de(p.color).argb)
   if (p.subtipo.forma == Forma.BOLSO) {
     // Correa cruzada.
@@ -361,7 +374,7 @@ private fun DrawScope.dibujarPrenda(g: Geometria, p: Prenda, imagen: ImageBitmap
       ),
       alpha = alfa,
     )
-    if (p.virtual) {
+    if (p.virtual && marcarIdeas) {
       // Las ideas de compra se ven con borde punteado para distinguirlas de lo que ya tienes.
       drawPath(
         camino,

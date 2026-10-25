@@ -12,6 +12,7 @@ las tendencias y tu estilo.
 | Fotos de tu ropa | Mostrar tus prendas y vestir el maniquí | Solo en tu teléfono. No se suben a ningún servidor. |
 | Tu armario, perfil de estilo, looks guardados y "me gusta" | Armar y mejorar las sugerencias | Solo en tu teléfono. |
 | Ubicación aproximada (opcional) | Pedir el pronóstico del tiempo de tu zona | Las coordenadas (redondeadas) se envían al Instituto Meteorológico de Noruega (api.met.no) para obtener el pronóstico. La app guarda en el teléfono el nombre de tu ciudad. |
+| Aviso de cada mañana (opcional) | Recordarte tu look del día | Se prepara en el teléfono; para el tiempo se consulta MET Norway igual que al abrir la app. |
 | Ciudad escrita a mano (opcional) | Lo mismo que la ubicación | Se convierte en coordenadas con el servicio de geocodificación del propio Android. |
 
 La app descarga cada día un archivo público de tendencias desde GitHub

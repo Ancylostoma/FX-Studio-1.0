@@ -3,7 +3,6 @@ package com.ancylostoma.quemepongo
 import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -42,8 +41,13 @@ class ArranqueTest {
 
   @Test
   fun recorreLaAppComoUnUsuario() {
-    esperarTexto("Empezar")
-    app.onNodeWithText("Empezar").performScrollTo().performClick()
+    // Bienvenida en pasos.
+    tocar("Empezar")
+    tocar("Siguiente") // maniquí
+    tocar("Saltar") // estilos
+    tocar("Ahora no") // ciudad
+    tocar("No, gracias") // aviso diario
+    tocar("Lo haré luego") // primera prenda
 
     // Hoy: un look listo y el editor.
     esperarTexto("Me lo pongo")

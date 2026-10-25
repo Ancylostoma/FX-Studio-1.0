@@ -72,6 +72,8 @@ object Json {
     .put("latitud", p.latitud ?: JSONObject.NULL)
     .put("longitud", p.longitud ?: JSONObject.NULL)
     .put("bienvenidaHecha", p.bienvenidaHecha)
+    .put("avisoDiario", p.avisoDiario)
+    .put("vista", p.vista.name)
 
   fun perfil(o: JSONObject): Perfil = Perfil(
     estilos = estilos(o.optJSONArray("estilos")),
@@ -83,6 +85,8 @@ object Json {
     latitud = if (o.isNull("latitud")) null else o.optDouble("latitud"),
     longitud = if (o.isNull("longitud")) null else o.optDouble("longitud"),
     bienvenidaHecha = o.optBoolean("bienvenidaHecha"),
+    avisoDiario = o.optBoolean("avisoDiario"),
+    vista = Vista.entries.firstOrNull { it.name == o.optString("vista") } ?: Vista.AUTO,
   )
 
   // ---- Preferencias ----

@@ -155,7 +155,13 @@ data class Perfil(
   val latitud: Double? = null,
   val longitud: Double? = null,
   val bienvenidaHecha: Boolean = false,
+  /** Notificación cada mañana con el look del día. */
+  val avisoDiario: Boolean = false,
+  val vista: Vista = Vista.AUTO,
 )
+
+/** Cómo se muestra un look: en el maniquí o como collage de las fotos de las prendas. */
+enum class Vista { AUTO, MANIQUI, COLLAGE }
 
 /** El tiempo que hará en el momento elegido. */
 data class CondicionClima(

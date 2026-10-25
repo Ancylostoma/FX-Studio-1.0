@@ -60,17 +60,12 @@ private sealed interface Encima {
 @Composable
 fun App(vm: AppViewModel = viewModel()) {
   val e by vm.estado.collectAsStateWithLifecycle()
+  var pestana by rememberSaveable { mutableStateOf(Pestana.HOY) }
+  var encima by remember { mutableStateOf<Encima?>(null) }
   if (!e.cargado) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
     return
   }
-  if (!e.datos.perfil.bienvenidaHecha) {
-    PantallaBienvenida(e, vm)
-    return
-  }
-
-  var pestana by rememberSaveable { mutableStateOf(Pestana.HOY) }
-  var encima by remember { mutableStateOf<Encima?>(null) }
   val avisos = remember { SnackbarHostState() }
   LaunchedEffect(e.mensaje) {
     val m = e.mensaje ?: return@LaunchedEffect
@@ -85,6 +80,14 @@ fun App(vm: AppViewModel = viewModel()) {
   val abrirEditor = { prendas: List<Prenda> ->
     vm.probarLook(prendas)
     encima = Encima.Editor
+  }
+
+  if (!e.datos.perfil.bienvenidaHecha) {
+    PantallaBienvenida(e, vm) { agregarPrenda ->
+      vm.cambiarPerfil { it.copy(bienvenidaHecha = true) }
+      if (agregarPrenda) agregar()
+    }
+    return
   }
 
   Box(Modifier.fillMaxSize()) {

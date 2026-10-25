@@ -5,6 +5,8 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Ubicación aproximada: solo para pedir el tiempo de tu ciudad. -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Aviso de cada mañana con el look del día (solo si el usuario lo activa). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:name=".AppQueMePongo"
@@ -27,8 +29,11 @@
 
         <activity
             android:name=".MainActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|density|uiMode"
             android:exported="true"
             android:windowSoftInputMode="adjustResize">
+            <!-- configChanges: la app de cámara suele girar a horizontal. Sin esto, al volver
+                 Android rehace la pantalla y se pierde la prenda que se estaba agregando. -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

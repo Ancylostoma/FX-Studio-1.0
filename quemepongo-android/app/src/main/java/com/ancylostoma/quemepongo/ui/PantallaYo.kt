@@ -1,13 +1,19 @@
-@file:OptIn(ExperimentalMaterial3Api::class)
+@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 
 package com.ancylostoma.quemepongo.ui
 
+import android.Manifest
 import android.app.Activity
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -39,7 +45,9 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -47,6 +55,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,11 +64,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import com.ancylostoma.quemepongo.BuildConfig
+import com.ancylostoma.quemepongo.data.AvisoDiario
 import com.ancylostoma.quemepongo.data.Forma
+import com.ancylostoma.quemepongo.data.Vista
 import com.ancylostoma.quemepongo.data.LookGuardado
 import com.ancylostoma.quemepongo.data.Prenda
 import java.text.DateFormat
 import java.util.Date
+import kotlinx.coroutines.launch
 
 private const val URL_PRIVACIDAD = "https://github.com/Ancylostoma/FX-Studio-1.0/blob/main/quemepongo-android/PRIVACIDAD.md"
 
@@ -67,6 +79,8 @@ private const val URL_PRIVACIDAD = "https://github.com/Ancylostoma/FX-Studio-1.0
 fun PantallaYo(e: Estado, vm: AppViewModel, abrirEditor: (List<Prenda>) -> Unit, abrirAjustes: () -> Unit, irAHoy: () -> Unit) {
   var vista by remember { mutableIntStateOf(0) }
   var elegido by remember { mutableStateOf<LookGuardado?>(null) }
+  val contexto = LocalContext.current
+  val alcance = rememberCoroutineScope()
   val lista = if (vista == 0) e.datos.looks else e.datos.historial
   // Si la prenda se editó después, se muestra como está ahora.
   fun actuales(l: LookGuardado) = l.prendas.map { p -> e.datos.prendas.firstOrNull { it.id == p.id } ?: p }
@@ -111,7 +125,7 @@ fun PantallaYo(e: Estado, vm: AppViewModel, abrirEditor: (List<Prenda>) -> Unit,
           .padding(10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
       ) {
-        Maniqui(actuales(l), e.datos.perfil.cuerpo, vm::archivoFoto, Modifier.fillMaxWidth().height(190.dp), claveAnimacion = l.id)
+        VistaLook(actuales(l), e.datos.perfil.cuerpo, e.datos.perfil.vista, vm::archivoFoto, Modifier.fillMaxWidth().height(190.dp), claveAnimacion = l.id)
         Text(l.ocasion.etiqueta, style = MaterialTheme.typography.labelLarge)
         Text(
           DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(l.fecha)),
@@ -132,6 +146,11 @@ fun PantallaYo(e: Estado, vm: AppViewModel, abrirEditor: (List<Prenda>) -> Unit,
           abrirEditor(actuales(l))
         }, modifier = Modifier.fillMaxWidth().height(50.dp)) { Text("Ponérmelo / editar") }
         OutlinedButton(onClick = {
+          val prendas = actuales(l)
+          elegido = null
+          alcance.launch { runCatching { Compartir.look(contexto, prendas, e.datos.perfil.cuerpo, vm::archivoFoto, "Mi look") } }
+        }, modifier = Modifier.fillMaxWidth()) { Text("Compartir") }
+        OutlinedButton(onClick = {
           elegido = null
           if (vista == 0) vm.borrarLook(l.id) else vm.borrarDelHistorial(l.id)
         }, modifier = Modifier.fillMaxWidth()) { Text("Borrar", color = MaterialTheme.colorScheme.error) }
@@ -147,9 +166,11 @@ fun PantallaAjustes(e: Estado, vm: AppViewModel, alCerrar: () -> Unit) {
   BackHandler(onBack = alCerrar)
   val perfil = e.datos.perfil
   val enlaces = LocalUriHandler.current
-  val actividad = LocalContext.current as? Activity
+  val contexto = LocalContext.current
+  val actividad = contexto as? Activity
   var pidiendoCiudad by remember { mutableStateOf(false) }
   var confirmarReinicio by remember { mutableStateOf(false) }
+  val permisoAviso = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok -> vm.cambiarAvisoDiario(ok) }
 
   Column(Modifier.fillMaxSize()) {
     Row(Modifier.fillMaxWidth().padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -187,6 +208,27 @@ fun PantallaAjustes(e: Estado, vm: AppViewModel, alCerrar: () -> Unit) {
           },
           style = MaterialTheme.typography.bodySmall,
         )
+      }
+      Seccion("Ver los looks como") {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+          listOf(Vista.AUTO to "Automático", Vista.COLLAGE to "Collage de fotos", Vista.MANIQUI to "Maniquí").forEach { (v, texto) ->
+            FilterChip(selected = perfil.vista == v, onClick = { vm.cambiarVista(v) }, label = { Text(texto) })
+          }
+        }
+        Text("Automático: collage cuando todas tus prendas del look tienen foto.", style = MaterialTheme.typography.bodySmall)
+      }
+      HorizontalDivider()
+      Seccion("Aviso cada mañana") {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+          Text("Tu look del día a las 7:30, con el tiempo que hará", modifier = Modifier.weight(1f))
+          Switch(checked = perfil.avisoDiario, onCheckedChange = { activar ->
+            if (activar && !AvisoDiario.puedeAvisar(contexto) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+              permisoAviso.launch(Manifest.permission.POST_NOTIFICATIONS)
+            } else {
+              vm.cambiarAvisoDiario(activar)
+            }
+          })
+        }
       }
       HorizontalDivider()
       Seccion("Ciudad para el tiempo") {
@@ -238,7 +280,7 @@ fun PantallaAjustes(e: Estado, vm: AppViewModel, alCerrar: () -> Unit) {
   }
 }
 
-private fun alternar(s: Set<String>, c: String) = if (c in s) s - c else s + c
+internal fun alternar(s: Set<String>, c: String) = if (c in s) s - c else s + c
 
 @Composable
 fun DialogoCiudad(alCerrar: () -> Unit, alBuscar: (String) -> Unit) {
@@ -254,42 +296,4 @@ fun DialogoCiudad(alCerrar: () -> Unit, alBuscar: (String) -> Unit) {
     },
     dismissButton = { TextButton(onClick = alCerrar) { Text("Cancelar") } },
   )
-}
-
-@Composable
-fun PantallaBienvenida(e: Estado, vm: AppViewModel) {
-  val perfil = e.datos.perfil
-  Column(
-    Modifier
-      .fillMaxSize()
-      .systemBarsPadding()
-      .verticalScroll(rememberScrollState())
-      .padding(horizontal = 20.dp, vertical = 24.dp),
-    verticalArrangement = Arrangement.spacedBy(14.dp),
-  ) {
-    Text("Qué Me Pongo", style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.primary)
-    Text(
-      "Cada día te armo looks según el tiempo, la ocasión, lo que está de moda y tu estilo. Cuéntame un poco de ti:",
-      style = MaterialTheme.typography.bodyLarge,
-    )
-    Maniqui(
-      prendas = e.sugerencias.firstOrNull()?.prendas.orEmpty(),
-      cuerpo = perfil.cuerpo,
-      foto = vm::archivoFoto,
-      claveAnimacion = perfil.cuerpo,
-      modifier = Modifier.fillMaxWidth().height(260.dp),
-    )
-    Seccion("Tu maniquí") { SelectorCuerpo(perfil.cuerpo) { c -> vm.cambiarPerfil { it.copy(cuerpo = c) } } }
-    Seccion("Estilos que te gustan") {
-      SelectorEstilos(perfil.estilos) { s -> vm.cambiarPerfil { it.copy(estilos = if (s in it.estilos) it.estilos - s else it.estilos + s) } }
-    }
-    Seccion("Colores favoritos") {
-      SelectorColores(perfil.coloresFavoritos, { c -> vm.cambiarPerfil { it.copy(coloresFavoritos = alternar(it.coloresFavoritos, c)) } })
-    }
-    Button(
-      onClick = { vm.cambiarPerfil { it.copy(bienvenidaHecha = true) } },
-      modifier = Modifier.fillMaxWidth().height(52.dp),
-    ) { Text("Empezar") }
-    Text("Puedes cambiar todo esto luego en Yo → Ajustes.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-  }
 }

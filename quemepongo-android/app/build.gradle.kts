@@ -85,6 +85,8 @@ dependencies {
   implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
   implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
   implementation("io.coil-kt:coil-compose:2.7.0")
+  // Aviso de cada mañana, aunque la app esté cerrada o el teléfono se reinicie.
+  implementation("androidx.work:work-runtime-ktx:2.9.1")
   implementation("com.google.android.gms:play-services-ads:23.6.0")
   implementation("com.google.android.ump:user-messaging-platform:3.1.0")
   // Quita el fondo de las fotos de ropa, en el teléfono.

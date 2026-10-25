@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ícono de la barra de estado: solo la silueta de la percha. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:pathData="M9.6,6.6C9.6,5.2 10.7,4.2 12,4.2C13.3,4.2 14.4,5.2 14.4,6.4C14.4,7.4 13.6,8.1 12,8.6L12,10.2L3.6,16.3C3,16.8 3.3,17.8 4.1,17.8L19.9,17.8C20.7,17.8 21,16.8 20.4,16.3L12,10.2"
+        android:strokeWidth="1.7"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>

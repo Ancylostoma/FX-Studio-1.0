@@ -34,6 +34,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AcUnit
+import androidx.compose.material.icons.filled.Accessibility
+import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Cloud
@@ -66,6 +69,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -83,10 +87,12 @@ import com.ancylostoma.quemepongo.data.Momento
 import com.ancylostoma.quemepongo.data.Ocasion
 import com.ancylostoma.quemepongo.data.Prenda
 import com.ancylostoma.quemepongo.data.ServicioClima
+import com.ancylostoma.quemepongo.data.Vista
 import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
 import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 
 /**
  * Una sola cosa importante: el look. Arriba, el contexto en una línea; en el
@@ -225,19 +231,28 @@ fun iconoClima(c: CondicionClima): ImageVector = when {
 @Composable
 private fun PaginaLook(e: Estado, vm: AppViewModel, look: Look) {
   val guardado = e.estaGuardado(look)
+  val contexto = LocalContext.current
+  val alcance = rememberCoroutineScope()
+  val collage = usarCollage(look.prendas, e.datos.perfil.vista)
   Box(
     Modifier
       .fillMaxSize()
       .clip(RoundedCornerShape(28.dp))
       .background(MaterialTheme.colorScheme.surfaceContainer),
   ) {
-    Maniqui(
+    VistaLook(
       prendas = look.prendas,
       cuerpo = e.datos.perfil.cuerpo,
+      vista = e.datos.perfil.vista,
       foto = vm::archivoFoto,
       claveAnimacion = look.id,
-      modifier = Modifier.fillMaxSize().padding(vertical = 16.dp, horizontal = 24.dp),
+      modifier = Modifier.fillMaxSize().padding(vertical = 16.dp, horizontal = if (collage) 12.dp else 24.dp),
     )
+    // Cambiar entre maniquí y collage de fotos.
+    FilledTonalIconButton(
+      onClick = { vm.cambiarVista(if (collage) Vista.MANIQUI else Vista.COLLAGE) },
+      modifier = Modifier.align(Alignment.BottomStart).padding(10.dp),
+    ) { Icon(if (collage) Icons.Filled.Accessibility else Icons.Filled.Dashboard, if (collage) "Ver en el maniquí" else "Ver como collage") }
     look.tendencia?.let { t ->
       Row(
         Modifier
@@ -263,6 +278,9 @@ private fun PaginaLook(e: Estado, vm: AppViewModel, look: Look) {
         onClick = { vm.descartar(look) },
         colors = IconButtonDefaults.filledTonalIconButtonColors(),
       ) { Icon(Icons.Filled.Close, "No me gusta") }
+      FilledTonalIconButton(onClick = {
+        alcance.launch { runCatching { Compartir.look(contexto, look.prendas, e.datos.perfil.cuerpo, vm::archivoFoto, "Mi look de hoy") } }
+      }) { Icon(Icons.Filled.Share, "Compartir") }
     }
     val faltan = look.prendas.count { it.virtual }
     if (faltan > 0) {
@@ -270,7 +288,7 @@ private fun PaginaLook(e: Estado, vm: AppViewModel, look: Look) {
         if (faltan == 1) "1 pieza es idea de compra" else "$faltan piezas son ideas de compra",
         style = MaterialTheme.typography.labelSmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.align(Alignment.BottomCenter).padding(10.dp),
+        modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 22.dp),
       )
     }
   }
