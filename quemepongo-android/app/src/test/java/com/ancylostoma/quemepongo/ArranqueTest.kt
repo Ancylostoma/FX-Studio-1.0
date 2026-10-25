@@ -77,12 +77,19 @@ class ArranqueTest {
   @Test
   @Config(qualifiers = "en")
   fun funcionaEnIngles() {
-    tocar("Start")
-    tocar("Next")
-    tocar("Skip")
-    tocar("Not now")
-    tocar("No, thanks")
-    tocar("I'll do it later")
+    // Las pruebas comparten los datos de la app: si la otra ya pasó la bienvenida, se salta.
+    app.waitUntil(15_000) {
+      app.onAllNodesWithText("Start").fetchSemanticsNodes().isNotEmpty() ||
+        app.onAllNodesWithText("Your look for today").fetchSemanticsNodes().isNotEmpty()
+    }
+    if (app.onAllNodesWithText("Start").fetchSemanticsNodes().isNotEmpty()) {
+      tocar("Start")
+      tocar("Next")
+      tocar("Skip")
+      tocar("Not now")
+      tocar("No, thanks")
+      tocar("I'll do it later")
+    }
     esperarTexto("Your look for today")
     esperarTexto("I'll wear it")
     tocar("Discover")
