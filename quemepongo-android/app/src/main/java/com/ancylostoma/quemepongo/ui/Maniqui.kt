@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import com.ancylostoma.quemepongo.data.Colores
@@ -327,6 +328,8 @@ private fun DrawScope.dibujarPrenda(g: Geometria, p: Prenda, imagen: ImageBitmap
   for (camino in formaDe(g, p.subtipo.forma)) {
     val b = camino.getBounds()
     if (imagen != null) {
+      // Debajo, el color: en las fotos sin fondo los huecos transparentes no dejan ver el cuerpo.
+      drawPath(camino, color, alpha = alfa)
       clipPath(camino) {
         val proporcion = (b.width / b.height).coerceAtLeast(0.05f)
         var sw = imagen.width
@@ -389,4 +392,41 @@ private fun DrawScope.dibujarEstampado(camino: Path, b: Rect, alfa: Float, k: Fl
       fila++
     }
   }
+}
+
+/**
+ * Dibujo de un tipo de prenda (la misma silueta que usa el maniquí), para
+ * botones, íconos y pantallas vacías.
+ */
+@Composable
+fun IconoForma(forma: Forma, color: Color, modifier: Modifier = Modifier, borde: Color = Color.Black.copy(alpha = 0.35f)) {
+  Canvas(modifier) {
+    val g = Geometria(Cuerpo.NEUTRO, 0f, 0f, 1f)
+    val caminos = formaDe(g, forma)
+    val limites = caminos.map { it.getBounds() }.reduce { a, b ->
+      Rect(min(a.left, b.left), min(a.top, b.top), maxOf(a.right, b.right), maxOf(a.bottom, b.bottom))
+    }
+    val escala = min(size.width / limites.width, size.height / limites.height) * 0.92f
+    val dx = (size.width - limites.width * escala) / 2f - limites.left * escala
+    val dy = (size.height - limites.height * escala) / 2f - limites.top * escala
+    withTransform({
+      translate(dx, dy)
+      scale(escala, escala, pivot = Offset.Zero)
+    }) {
+      caminos.forEach { c ->
+        drawPath(c, color)
+        drawPath(c, borde, style = Stroke(width = 1.4f * density / escala, join = StrokeJoin.Round))
+      }
+    }
+  }
+}
+
+/** Forma con la que se representa cada categoría. */
+fun formaDeCategoria(c: com.ancylostoma.quemepongo.data.Categoria): Forma = when (c) {
+  com.ancylostoma.quemepongo.data.Categoria.SUPERIOR -> Forma.TOP_MANGA_CORTA
+  com.ancylostoma.quemepongo.data.Categoria.INFERIOR -> Forma.PANTALON
+  com.ancylostoma.quemepongo.data.Categoria.VESTIDO -> Forma.VESTIDO_CORTO
+  com.ancylostoma.quemepongo.data.Categoria.ABRIGO -> Forma.CHAQUETA
+  com.ancylostoma.quemepongo.data.Categoria.CALZADO -> Forma.BOTA
+  com.ancylostoma.quemepongo.data.Categoria.ACCESORIO -> Forma.GORRA
 }

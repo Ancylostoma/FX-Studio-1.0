@@ -6,8 +6,13 @@ import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.media.ExifInterface
 import android.net.Uri
+import com.google.android.gms.tasks.Tasks
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.segmentation.subject.SubjectSegmentation
+import com.google.mlkit.vision.segmentation.subject.SubjectSegmenterOptions
 import java.io.File
 import java.io.FileOutputStream
+import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 
 object Fotos {
@@ -44,9 +49,65 @@ object Fotos {
     val escala = LADO_MAXIMO.toFloat() / maxOf(bmp.width, bmp.height)
     if (escala < 1f) bmp = Bitmap.createScaledBitmap(bmp, (bmp.width * escala).toInt(), (bmp.height * escala).toInt(), true)
 
-    val nombre = "$id-${System.currentTimeMillis()}.jpg"
-    FileOutputStream(File(carpeta, nombre)).use { bmp.compress(Bitmap.CompressFormat.JPEG, 85, it) }
+    // Con el fondo quitado se guarda en PNG (con transparencia); si no se pudo, la foto tal cual.
+    val recorte = quitarFondo(bmp)
+    val nombre = "$id-${System.currentTimeMillis()}" + if (recorte != null) ".png" else ".jpg"
+    FileOutputStream(File(carpeta, nombre)).use {
+      if (recorte != null) recorte.compress(Bitmap.CompressFormat.PNG, 100, it) else bmp.compress(Bitmap.CompressFormat.JPEG, 85, it)
+    }
     return nombre
+  }
+
+  /** Las fotos con el fondo quitado se guardan en PNG. */
+  fun esRecorte(nombre: String?) = nombre?.endsWith(".png") == true
+
+  /**
+   * Quita el fondo con ML Kit (en el teléfono, sin internet una vez bajado el
+   * modelo). Devuelve la prenda recortada al tamaño justo, o null si no se pudo:
+   * por ejemplo, la primera vez, mientras Google Play baja el modelo.
+   */
+  private fun quitarFondo(bmp: Bitmap): Bitmap? = try {
+    val opciones = SubjectSegmenterOptions.Builder().enableForegroundBitmap().build()
+    val segmentador = SubjectSegmentation.getClient(opciones)
+    try {
+      val resultado = Tasks.await(segmentador.process(InputImage.fromBitmap(bmp, 0)), 20, TimeUnit.SECONDS)
+      resultado.foregroundBitmap?.let { recortarTransparencia(it) }
+    } finally {
+      segmentador.close()
+    }
+  } catch (e: Exception) {
+    null
+  }
+
+  /** Quita los bordes transparentes, dejando un pequeño margen. */
+  private fun recortarTransparencia(b: Bitmap): Bitmap? {
+    val w = b.width
+    val h = b.height
+    val fila = IntArray(w)
+    var arriba = h
+    var abajo = -1
+    var izquierda = w
+    var derecha = -1
+    for (y in 0 until h) {
+      b.getPixels(fila, 0, w, 0, y, w, 1)
+      for (x in 0 until w) {
+        if ((fila[x] ushr 24) > 40) {
+          if (y < arriba) arriba = y
+          if (y > abajo) abajo = y
+          if (x < izquierda) izquierda = x
+          if (x > derecha) derecha = x
+        }
+      }
+    }
+    if (abajo < 0) return null
+    // Si la prenda ocupa muy poco, el recorte probablemente falló.
+    if ((derecha - izquierda) * (abajo - arriba) < w * h / 50) return null
+    val margen = (maxOf(w, h) * 0.02f).toInt()
+    val x0 = (izquierda - margen).coerceAtLeast(0)
+    val y0 = (arriba - margen).coerceAtLeast(0)
+    val x1 = (derecha + margen).coerceAtMost(w - 1)
+    val y1 = (abajo + margen).coerceAtMost(h - 1)
+    return Bitmap.createBitmap(b, x0, y0, x1 - x0 + 1, y1 - y0 + 1)
   }
 
   /** Abre una foto guardada, reducida para dibujarla en pantalla. */
@@ -70,6 +131,17 @@ object Fotos {
       val c = bmp.getPixel(x, y)
       return Triple((c shr 16) and 0xFF, (c shr 8) and 0xFF, c and 0xFF)
     }
+    if (esRecorte(archivo.name)) {
+      // Sin fondo: votan todos los píxeles de la prenda.
+      val votos = HashMap<String, Int>()
+      for (y in 0 until 48) for (x in 0 until 48) {
+        if ((bmp.getPixel(x, y) ushr 24) < 200) continue
+        val (r, g, b) = rgb(x, y)
+        val clave = Colores.masCercano(r, g, b).clave
+        votos[clave] = (votos[clave] ?: 0) + 1
+      }
+      if (votos.isNotEmpty()) return elegir(votos)
+    }
     val esquinas = listOf(rgb(1, 1), rgb(46, 1), rgb(1, 46), rgb(46, 46))
     val fondo = Triple(esquinas.map { it.first }.average(), esquinas.map { it.second }.average(), esquinas.map { it.third }.average())
 
@@ -85,6 +157,10 @@ object Fotos {
       val (r, g, b) = rgb(24, 24)
       return Colores.masCercano(r, g, b).clave
     }
+    return elegir(votos)
+  }
+
+  private fun elegir(votos: Map<String, Int>): String {
     val total = votos.values.sum()
     val vivos = votos.filterKeys { !Colores.de(it).neutro }
     // Muchos colores vivos repartidos = estampado.

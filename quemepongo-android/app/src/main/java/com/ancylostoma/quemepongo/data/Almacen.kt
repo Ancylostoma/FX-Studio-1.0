@@ -9,6 +9,8 @@ data class Datos(
   val perfil: Perfil = Perfil(),
   val preferencias: Preferencias = Preferencias(),
   val looks: List<LookGuardado> = emptyList(),
+  /** Lo que el usuario se puso cada día, del más reciente al más viejo. */
+  val historial: List<LookGuardado> = emptyList(),
 )
 
 /** Todo se guarda en el teléfono, en un solo archivo JSON. Las fotos van aparte en [carpetaFotos]. */
@@ -25,6 +27,7 @@ class Almacen(private val contexto: Context) {
         perfil = o.optJSONObject("perfil")?.let { Json.perfil(it) } ?: Perfil(),
         preferencias = o.optJSONObject("preferencias")?.let { Json.preferencias(it) } ?: Preferencias(),
         looks = Json.looks(o.optJSONArray("looks")),
+        historial = Json.looks(o.optJSONArray("historial")),
       )
     } catch (e: Exception) {
       // Un archivo dañado no debe impedir abrir la app; se aparta para no perderlo.
@@ -41,6 +44,7 @@ class Almacen(private val contexto: Context) {
       .put("perfil", Json.perfil(d.perfil))
       .put("preferencias", Json.preferencias(d.preferencias))
       .put("looks", Json.looks(d.looks))
+      .put("historial", Json.looks(d.historial))
     // Escribir en un temporal y renombrar: si el teléfono se apaga a mitad, el archivo bueno sigue ahí.
     val tmp = File(contexto.filesDir, "datos.json.tmp")
     tmp.writeText(o.toString())

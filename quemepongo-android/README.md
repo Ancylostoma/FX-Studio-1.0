@@ -18,11 +18,14 @@ falte para completar un look aparece con borde punteado y botón para buscarlo e
 
 | Pestaña | Qué hace |
 |---|---|
-| Hoy | Tiempo, ocasión y looks sugeridos sobre el maniquí. Me gusta / no / guardar / me lo pongo. |
-| Armario | Tus prendas con foto. El color se detecta solo al hacer la foto. |
-| Probador | Vistes al maniquí a mano y te dice si vas abrigado, si combinan los colores y si encaja con la ocasión. |
-| Tendencias | Lo que está de moda ahora + "Para ti": ideas de compra parecidas a lo que te gusta. |
-| Perfil | Looks guardados, estilo, colores, tipo de maniquí, ciudad, privacidad. |
+| Hoy | Una línea con tiempo, ciudad, ocasión y momento (se toca para cambiarla). Looks para deslizar, corazón para guardar, X para descartar, y un botón: "Me lo pongo". |
+| Armario | Tus prendas. Las fotos salen sin fondo (ML Kit) y el color se detecta solo. |
+| + (centro) | Agregar prenda en 3 toques: foto → qué es → guardar. "Guardar y otra" para cargar varias seguidas. |
+| Descubrir | Tendencias con su look dibujado + "Para ti": ideas de compra parecidas a lo que te gusta. |
+| Yo | Looks guardados y diario de lo que te pusiste. Ajustes en el engranaje. |
+
+"Editar" (desde Hoy, un look guardado o una tendencia) abre el maniquí para cambiar prendas
+y te dice si vas abrigado, si combinan los colores y si encaja con la ocasión.
 
 ## Compilar
 

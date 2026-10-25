@@ -46,11 +46,15 @@ data class Estado(
   val momento: Momento = Momento.deHora(LocalTime.now().hour),
   val sugerencias: List<Look> = emptyList(),
   val indice: Int = 0,
+  /** Sube cada vez que se arma una tanda nueva de looks (para volver al primero). */
+  val tanda: Int = 0,
   /** Lo que lleva puesto el maniquí del probador, en el orden en que se puso. */
   val probador: List<Prenda> = emptyList(),
   val mensaje: String? = null,
 ) {
   val lookActual: Look? get() = sugerencias.getOrNull(indice)
+
+  fun estaGuardado(look: Look) = datos.looks.any { it.id == look.id }
   val tendenciasActivas: List<Tendencia>
     get() = Tendencias.activas(tendencias.tendencias, LocalDate.now(), datos.perfil.latitud)
 }
@@ -105,7 +109,7 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
     val s = semilla
     viewModelScope.launch {
       val looks = withContext(Dispatchers.Default) { Motor.sugerir(e.datos.prendas, ctx, cantidad = 6, semilla = s) }
-      _estado.update { it.copy(sugerencias = looks, indice = 0) }
+      _estado.update { it.copy(sugerencias = looks, indice = 0, tanda = it.tanda + 1) }
     }
   }
 
@@ -181,48 +185,62 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
     recalcular()
   }
 
-  fun siguiente() {
-    val e = _estado.value
-    if (e.indice + 1 < e.sugerencias.size) _estado.update { it.copy(indice = it.indice + 1) } else recalcular(nuevaSemilla = true)
-  }
+  /** El look que se está viendo en el carrusel. */
+  fun verLook(i: Int) = _estado.update { it.copy(indice = i.coerceIn(0, (it.sugerencias.size - 1).coerceAtLeast(0))) }
 
-  fun anterior() = _estado.update { it.copy(indice = (it.indice - 1).coerceAtLeast(0)) }
+  fun masLooks() = recalcular(nuevaSemilla = true)
 
   private fun aprender(look: Look, senal: Double) =
     cambiarDatos { d -> d.copy(preferencias = Motor.aprender(d.preferencias, look.prendas, senal)) }
 
-  fun meGusta(look: Look) {
-    aprender(look, 1.0)
-    avisar("Anotado: te mostraré más looks así")
+  /** "No me gusta": se aprende y el look sale del carrusel. */
+  fun descartar(look: Look) {
+    aprender(look, -1.0)
+    val quedan = _estado.value.sugerencias.filterNot { it.id == look.id }
+    if (quedan.isEmpty()) {
+      recalcular(nuevaSemilla = true)
+    } else {
+      _estado.update { it.copy(sugerencias = quedan, indice = it.indice.coerceAtMost(quedan.size - 1)) }
+    }
   }
 
-  fun noMeGusta(look: Look) {
-    aprender(look, -1.0)
-    siguiente()
+  /** El corazón: guarda el look (y cuenta como "me gusta") o lo quita de guardados. */
+  fun alternarGuardado(look: Look) {
+    if (_estado.value.estaGuardado(look)) {
+      borrarLook(look.id)
+      return
+    }
+    guardarLook(look)
   }
 
   fun guardarLook(look: Look) {
-    if (_estado.value.datos.looks.any { it.id == look.id }) {
+    if (_estado.value.estaGuardado(look)) {
       avisar("Ese look ya está guardado")
       return
     }
     val guardado = LookGuardado(look.id, look.prendas, System.currentTimeMillis(), _estado.value.ocasion)
     cambiarDatos { d -> d.copy(looks = listOf(guardado) + d.looks) }
     aprender(look, 1.5)
-    avisar("Look guardado en tu perfil")
+    avisar("Guardado en Yo")
   }
 
   fun meLoPongo(look: Look) {
     val ahora = System.currentTimeMillis()
     val ids = look.prendas.filter { !it.virtual }.map { it.id }.toSet()
+    val usado = LookGuardado("$ahora", look.prendas, ahora, _estado.value.ocasion)
     cambiarDatos { d ->
-      d.copy(prendas = d.prendas.map { if (it.id in ids) it.copy(usos = it.usos + 1, ultimoUso = ahora) else it })
+      d.copy(
+        prendas = d.prendas.map { if (it.id in ids) it.copy(usos = it.usos + 1, ultimoUso = ahora) else it },
+        historial = (listOf(usado) + d.historial).take(365),
+      )
     }
     aprender(look, 1.0)
     avisar("¡Listo! Mañana te sugiero otras prendas")
   }
 
   fun borrarLook(id: String) = cambiarDatos { d -> d.copy(looks = d.looks.filterNot { it.id == id }) }
+
+  fun borrarDelHistorial(id: String) = cambiarDatos { d -> d.copy(historial = d.historial.filterNot { it.id == id }) }
 
   fun lookDeTendencia(t: Tendencia): Look = Motor.lookDeTendencia(t, _estado.value.datos.prendas, contexto())
 

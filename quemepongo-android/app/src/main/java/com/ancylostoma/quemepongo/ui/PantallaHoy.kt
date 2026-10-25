@@ -1,265 +1,392 @@
+@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
+
 package com.ancylostoma.quemepongo.ui
 
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.AcUnit
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material.icons.filled.ThumbDown
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Umbrella
+import androidx.compose.material.icons.filled.WbSunny
+import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.ancylostoma.quemepongo.data.CondicionClima
+import com.ancylostoma.quemepongo.data.Forma
 import com.ancylostoma.quemepongo.data.IdeaPrenda
 import com.ancylostoma.quemepongo.data.Look
 import com.ancylostoma.quemepongo.data.Momento
 import com.ancylostoma.quemepongo.data.Ocasion
+import com.ancylostoma.quemepongo.data.Prenda
 import com.ancylostoma.quemepongo.data.ServicioClima
 import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
 import kotlin.math.roundToInt
 
+/**
+ * Una sola cosa importante: el look. Arriba, el contexto en una línea; en el
+ * centro, los looks para deslizar; abajo, "Me lo pongo".
+ */
 @Composable
-fun PantallaHoy(e: Estado, vm: AppViewModel, irAProbador: () -> Unit, irAArmario: () -> Unit) {
-  LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-    item { Encabezado() }
-    item { TarjetaClima(e, vm) }
-    item {
-      LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        items(Ocasion.entries) { o ->
-          FilterChip(selected = o == e.ocasion, onClick = { vm.elegirOcasion(o) }, label = { Text(o.etiqueta) })
+fun PantallaHoy(e: Estado, vm: AppViewModel, abrirEditor: (List<Prenda>) -> Unit, alAgregar: () -> Unit) {
+  var verContexto by remember { mutableStateOf(false) }
+  var detalles by remember { mutableStateOf<Look?>(null) }
+  val looks = e.sugerencias
+  val paginas = rememberPagerState { looks.size + 1 }
+  // Tanda nueva de looks: volver al primero.
+  LaunchedEffect(e.tanda) { paginas.scrollToPage(0) }
+  LaunchedEffect(paginas.currentPage) { if (paginas.currentPage < looks.size) vm.verLook(paginas.currentPage) }
+
+  Column(Modifier.fillMaxSize().padding(horizontal = 16.dp).padding(top = 12.dp)) {
+    val hoy = LocalDate.now()
+    Text(
+      hoy.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault()).replaceFirstChar { it.uppercase() } +
+        " ${hoy.dayOfMonth} de " + hoy.month.getDisplayName(TextStyle.FULL, Locale.getDefault()),
+      style = MaterialTheme.typography.labelLarge,
+      color = MaterialTheme.colorScheme.primary,
+    )
+    Text("Tu look de hoy", style = MaterialTheme.typography.headlineMedium)
+    Spacer(Modifier.height(10.dp))
+    BarraContexto(e) { verContexto = true }
+    Spacer(Modifier.height(10.dp))
+
+    if (looks.isEmpty()) {
+      Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+    } else {
+      HorizontalPager(
+        state = paginas,
+        modifier = Modifier.weight(1f).fillMaxWidth(),
+        pageSpacing = 12.dp,
+        key = { i -> looks.getOrNull(i)?.id ?: "mas" },
+      ) { i ->
+        val look = looks.getOrNull(i)
+        if (look == null) {
+          PaginaMasLooks { vm.masLooks() }
+        } else {
+          PaginaLook(e, vm, look)
         }
       }
+      Puntos(total = looks.size + 1, actual = paginas.currentPage)
     }
-    item {
-      val look = e.lookActual
-      if (look == null) {
-        Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-      } else {
-        TarjetaLook(e, vm, look, irAProbador)
+
+    val look = e.sugerencias.getOrNull(paginas.currentPage)
+    if (look != null) {
+      Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) {
+        Text(
+          look.razones.firstOrNull().orEmpty(),
+          style = MaterialTheme.typography.bodyMedium,
+          maxLines = 2,
+          overflow = TextOverflow.Ellipsis,
+          modifier = Modifier.weight(1f),
+        )
+        TextButton(onClick = { detalles = look }) { Text("¿Por qué?") }
       }
+      Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+        OutlinedButton(onClick = { abrirEditor(look.prendas) }, modifier = Modifier.height(52.dp)) {
+          Icon(Icons.Filled.Tune, null, Modifier.size(18.dp))
+          Spacer(Modifier.width(6.dp))
+          Text("Editar")
+        }
+        Button(onClick = { vm.meLoPongo(look) }, modifier = Modifier.weight(1f).height(52.dp)) {
+          Icon(Icons.Filled.Check, null, Modifier.size(20.dp))
+          Spacer(Modifier.width(8.dp))
+          Text("Me lo pongo", style = MaterialTheme.typography.titleMedium)
+        }
+      }
+    } else {
+      Spacer(Modifier.height(64.dp))
     }
     if (e.datos.prendas.count { !it.virtual } < 4) {
-      item {
-        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
-          Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Titulo("Viste al maniquí con tu propia ropa")
-            Text("Fotografía lo que tienes en el armario y los looks se armarán con tus prendas. Lo que te falte aparece como idea de compra.")
-            Button(onClick = irAArmario) { Text("Agregar mis prendas") }
-          }
-        }
+      TextButton(onClick = alAgregar, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+        Text("Fotografía tu ropa para looks con tus prendas →")
       }
     }
-    item { BannerAnuncio() }
+  }
+
+  if (verContexto) HojaContexto(e, vm) { verContexto = false }
+  detalles?.let { l -> HojaDetalles(l, vm, alEditar = { detalles = null; abrirEditor(l.prendas) }) { detalles = null } }
+}
+
+/** El contexto en una línea: tiempo, lugar, ocasión y momento. Al tocarla se cambia. */
+@Composable
+private fun BarraContexto(e: Estado, alTocar: () -> Unit) {
+  val c = e.clima?.para(e.momento)
+  Row(
+    Modifier
+      .fillMaxWidth()
+      .clip(RoundedCornerShape(50))
+      .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+      .clickable(onClick = alTocar)
+      .padding(horizontal = 16.dp, vertical = 10.dp),
+    verticalAlignment = Alignment.CenterVertically,
+  ) {
+    when {
+      e.climaCargando -> CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+      c != null -> {
+        Icon(iconoClima(c), null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+        Spacer(Modifier.width(6.dp))
+        Text("${c.temperatura.roundToInt()}°", style = MaterialTheme.typography.titleMedium)
+      }
+      else -> Icon(Icons.Filled.LocationOn, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+    }
+    Spacer(Modifier.width(10.dp))
+    Text(
+      listOfNotNull(
+        if (c == null && !e.climaCargando) "Elige tu ciudad" else e.clima?.lugar?.takeIf { it.isNotBlank() },
+        e.ocasion.etiqueta,
+        e.momento.etiqueta,
+      ).joinToString(" · "),
+      style = MaterialTheme.typography.bodyMedium,
+      maxLines = 1,
+      overflow = TextOverflow.Ellipsis,
+      modifier = Modifier.weight(1f),
+    )
+    Icon(Icons.Filled.ExpandMore, "Cambiar", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+  }
+}
+
+fun iconoClima(c: CondicionClima): ImageVector = when {
+  c.nieve -> Icons.Filled.AcUnit
+  c.lluvia -> Icons.Filled.Umbrella
+  c.soleado -> Icons.Filled.WbSunny
+  else -> Icons.Filled.Cloud
+}
+
+@Composable
+private fun PaginaLook(e: Estado, vm: AppViewModel, look: Look) {
+  val guardado = e.estaGuardado(look)
+  Box(
+    Modifier
+      .fillMaxSize()
+      .clip(RoundedCornerShape(28.dp))
+      .background(MaterialTheme.colorScheme.surfaceContainer),
+  ) {
+    Maniqui(
+      prendas = look.prendas,
+      cuerpo = e.datos.perfil.cuerpo,
+      foto = vm::archivoFoto,
+      claveAnimacion = look.id,
+      modifier = Modifier.fillMaxSize().padding(vertical = 16.dp, horizontal = 24.dp),
+    )
+    look.tendencia?.let { t ->
+      Row(
+        Modifier
+          .align(Alignment.TopStart)
+          .padding(14.dp)
+          .clip(RoundedCornerShape(50))
+          .background(MaterialTheme.colorScheme.secondaryContainer)
+          .padding(horizontal = 10.dp, vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+      ) {
+        Icon(Icons.Filled.Whatshot, null, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.secondary)
+        Spacer(Modifier.width(4.dp))
+        Text(t, style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 170.dp))
+      }
+    }
+    Column(Modifier.align(Alignment.TopEnd).padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+      val rojo by animateColorAsState(if (guardado) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant, label = "corazon")
+      val tamano by animateDpAsState(if (guardado) 26.dp else 22.dp, label = "latido")
+      FilledTonalIconButton(onClick = { vm.alternarGuardado(look) }) {
+        Icon(if (guardado) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder, if (guardado) "Quitar de guardados" else "Guardar", tint = rojo, modifier = Modifier.size(tamano))
+      }
+      FilledTonalIconButton(
+        onClick = { vm.descartar(look) },
+        colors = IconButtonDefaults.filledTonalIconButtonColors(),
+      ) { Icon(Icons.Filled.Close, "No me gusta") }
+    }
+    val faltan = look.prendas.count { it.virtual }
+    if (faltan > 0) {
+      Text(
+        if (faltan == 1) "1 pieza es idea de compra" else "$faltan piezas son ideas de compra",
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.align(Alignment.BottomCenter).padding(10.dp),
+      )
+    }
   }
 }
 
 @Composable
-private fun Encabezado() {
-  val hoy = LocalDate.now()
-  val dia = hoy.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault()).replaceFirstChar { it.uppercase() }
-  val mes = hoy.month.getDisplayName(TextStyle.FULL, Locale.getDefault())
-  Column {
-    Text("$dia ${hoy.dayOfMonth} de $mes", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-    Text("¿Qué me pongo hoy?", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+private fun PaginaMasLooks(alPedir: () -> Unit) {
+  Box(
+    Modifier.fillMaxSize().clip(RoundedCornerShape(28.dp)).background(MaterialTheme.colorScheme.surfaceContainer),
+    contentAlignment = Alignment.Center,
+  ) {
+    EstadoVacio(Forma.TOP_MANGA_LARGA, "¿Ninguno te convence?", "Armo otra tanda con lo que aprendí de ti.", "Ver más looks", alPedir)
   }
 }
 
 @Composable
-private fun TarjetaClima(e: Estado, vm: AppViewModel) {
+private fun Puntos(total: Int, actual: Int) {
+  Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.Center) {
+    repeat(total) { i ->
+      val ancho by animateDpAsState(if (i == actual) 18.dp else 6.dp, label = "punto")
+      Box(
+        Modifier
+          .padding(horizontal = 3.dp)
+          .size(width = ancho, height = 6.dp)
+          .clip(CircleShape)
+          .background(if (i == actual) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
+      )
+    }
+  }
+}
+
+/** Cambiar dónde, cuándo y para qué. */
+@Composable
+private fun HojaContexto(e: Estado, vm: AppViewModel, alCerrar: () -> Unit) {
   val contexto = LocalContext.current
-  var pidiendoCiudad by remember { mutableStateOf(false) }
-  var avisoPermiso by remember { mutableStateOf(false) }
-  val permiso = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
-    if (ok) vm.usarUbicacion() else avisoPermiso = true
-  }
-  val pedirUbicacion = {
-    if (ServicioClima.tienePermiso(contexto)) vm.usarUbicacion() else permiso.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
-  }
+  var ciudad by remember { mutableStateOf("") }
+  val permiso = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok -> if (ok) vm.usarUbicacion() }
+  ModalBottomSheet(onDismissRequest = alCerrar, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+    Column(
+      Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).navigationBarsPadding(),
+      verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+      Text("¿Dónde?", style = MaterialTheme.typography.titleMedium)
+      val c = e.clima?.para(e.momento)
+      if (c != null) {
+        Text(
+          "${e.clima?.lugar.orEmpty()}: ${c.descripcion.ifBlank { "pronóstico" }}, ${c.temperatura.roundToInt()}° (sensación ${c.sensacion.roundToInt()}°)",
+          style = MaterialTheme.typography.bodyMedium,
+        )
+      }
+      e.climaError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+      FilledTonalButton(onClick = {
+        if (ServicioClima.tienePermiso(contexto)) vm.usarUbicacion() else permiso.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
+      }) {
+        Icon(Icons.Filled.LocationOn, null, Modifier.size(18.dp))
+        Spacer(Modifier.width(6.dp))
+        Text("Usar mi ubicación")
+      }
+      Row(verticalAlignment = Alignment.CenterVertically) {
+        OutlinedTextField(
+          value = ciudad,
+          onValueChange = { ciudad = it },
+          label = { Text("O escribe tu ciudad") },
+          singleLine = true,
+          modifier = Modifier.weight(1f),
+        )
+        TextButton(onClick = { vm.buscarCiudad(ciudad); ciudad = "" }, enabled = ciudad.isNotBlank()) { Text("Buscar") }
+      }
 
-  Card(Modifier.fillMaxWidth()) {
-    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-      val condicion = e.clima?.para(e.momento)
-      when {
-        e.climaCargando -> Row(verticalAlignment = Alignment.CenterVertically) {
-          CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-          Spacer(Modifier.width(12.dp))
-          Text("Consultando el tiempo…")
-        }
-        condicion != null -> Row(verticalAlignment = Alignment.CenterVertically) {
-          Text("${condicion.temperatura.roundToInt()}°", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold)
-          Spacer(Modifier.width(14.dp))
-          Column(Modifier.weight(1f)) {
-            Text(condicion.descripcion.ifBlank { "Pronóstico" }, fontWeight = FontWeight.SemiBold)
-            Text(
-              "Sensación ${condicion.sensacion.roundToInt()}° · ${e.clima?.lugar.orEmpty()}",
-              style = MaterialTheme.typography.bodySmall,
-              maxLines = 1,
-              overflow = TextOverflow.Ellipsis,
-            )
-          }
-          IconButton(onClick = { vm.cargarClima() }) { Icon(Icons.Filled.Refresh, "Actualizar el tiempo") }
-        }
-        else -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-          Text(
-            e.climaError ?: "Dime dónde estás y adapto la ropa al tiempo que hará.",
-            style = MaterialTheme.typography.bodyMedium,
-          )
-          Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilledTonalButton(onClick = pedirUbicacion) {
-              Icon(Icons.Filled.LocationOn, null, Modifier.size(18.dp))
-              Spacer(Modifier.width(6.dp))
-              Text("Mi ubicación")
-            }
-            OutlinedButton(onClick = { pidiendoCiudad = true }) { Text("Escribir ciudad") }
-          }
-        }
-      }
+      Text("¿Para cuándo?", style = MaterialTheme.typography.titleMedium)
       Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Momento.entries.forEach { m ->
-          FilterChip(selected = m == e.momento, onClick = { vm.elegirMomento(m) }, label = { Text(m.etiqueta) })
-        }
+        Momento.entries.forEach { m -> FilterChip(selected = m == e.momento, onClick = { vm.elegirMomento(m) }, label = { Text(m.etiqueta) }) }
       }
+
+      Text("¿Para qué?", style = MaterialTheme.typography.titleMedium)
+      FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Ocasion.entries.forEach { o -> FilterChip(selected = o == e.ocasion, onClick = { vm.elegirOcasion(o) }, label = { Text(o.etiqueta) }) }
+      }
+
+      Button(onClick = alCerrar, modifier = Modifier.fillMaxWidth().height(50.dp)) { Text("Listo") }
       if (e.clima != null) {
         Text("Datos del tiempo: MET Norway", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
       }
+      Spacer(Modifier.height(12.dp))
     }
   }
-
-  if (pidiendoCiudad) DialogoCiudad(alCerrar = { pidiendoCiudad = false }) { vm.buscarCiudad(it) }
-  if (avisoPermiso) {
-    AlertDialog(
-      onDismissRequest = { avisoPermiso = false },
-      confirmButton = { TextButton(onClick = { avisoPermiso = false; pidiendoCiudad = true }) { Text("Escribir ciudad") } },
-      dismissButton = { TextButton(onClick = { avisoPermiso = false }) { Text("Cerrar") } },
-      title = { Text("Sin permiso de ubicación") },
-      text = { Text("Sin tu ubicación no sé qué tiempo hace. Puedes escribir tu ciudad.") },
-    )
-  }
 }
 
+/** Todas las razones del look y sus piezas, con las que faltan para comprar. */
 @Composable
-fun DialogoCiudad(alCerrar: () -> Unit, alBuscar: (String) -> Unit) {
-  var texto by remember { mutableStateOf("") }
-  AlertDialog(
-    onDismissRequest = alCerrar,
-    title = { Text("¿En qué ciudad estás?") },
-    text = {
-      OutlinedTextField(value = texto, onValueChange = { texto = it }, singleLine = true, label = { Text("Ciudad") })
-    },
-    confirmButton = {
-      TextButton(onClick = { alBuscar(texto); alCerrar() }, enabled = texto.isNotBlank()) { Text("Buscar") }
-    },
-    dismissButton = { TextButton(onClick = alCerrar) { Text("Cancelar") } },
-  )
-}
-
-@Composable
-private fun TarjetaLook(e: Estado, vm: AppViewModel, look: Look, irAProbador: () -> Unit) {
+private fun HojaDetalles(look: Look, vm: AppViewModel, alEditar: () -> Unit, alCerrar: () -> Unit) {
   val enlaces = LocalUriHandler.current
-  Card(Modifier.fillMaxWidth()) {
-    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-      Row(verticalAlignment = Alignment.CenterVertically) {
-        Text("Look ${e.indice + 1} de ${e.sugerencias.size}", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
-        look.tendencia?.let { Etiqueta("🔥 $it") }
-      }
-      Row(verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = { vm.anterior() }, enabled = e.indice > 0) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Anterior") }
-        Maniqui(
-          prendas = look.prendas,
-          cuerpo = e.datos.perfil.cuerpo,
-          foto = vm::archivoFoto,
-          claveAnimacion = look.id,
-          modifier = Modifier.weight(1f).height(400.dp),
-        )
-        IconButton(onClick = { vm.siguiente() }) { Icon(Icons.AutoMirrored.Filled.ArrowForward, "Otro look") }
-      }
-
-      LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        items(look.prendas, key = { it.id }) { p ->
-          Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(76.dp)) {
-            MiniaturaPrenda(p, vm.archivoFoto(p.foto), 64.dp)
-            Text(p.nombre, style = MaterialTheme.typography.labelSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            if (p.virtual) {
-              TextButton(
-                onClick = { enlaces.openUri(vm.enlaceTienda(IdeaPrenda(p.subtipo, p.color, p.nombre))) },
-                contentPadding = PaddingValues(0.dp),
-              ) {
-                Icon(Icons.Filled.ShoppingCart, null, Modifier.size(14.dp))
-                Text(" Buscar", style = MaterialTheme.typography.labelSmall)
-              }
+  ModalBottomSheet(onDismissRequest = alCerrar) {
+    Column(
+      Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).navigationBarsPadding(),
+      verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+      Text("Por qué este look", style = MaterialTheme.typography.titleLarge)
+      ListaRazones(look.razones)
+      Text("Las piezas", style = MaterialTheme.typography.titleMedium)
+      look.prendas.forEach { p ->
+        Row(verticalAlignment = Alignment.CenterVertically) {
+          MiniaturaPrenda(p, vm.archivoFoto(p.foto), 52.dp)
+          Spacer(Modifier.width(12.dp))
+          Column(Modifier.weight(1f)) {
+            Text(p.nombre, style = MaterialTheme.typography.bodyLarge)
+            Text(
+              if (p.virtual) "No la tienes" else p.subtipo.etiqueta,
+              style = MaterialTheme.typography.bodySmall,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+          }
+          if (p.virtual) {
+            TextButton(onClick = { enlaces.openUri(vm.enlaceTienda(IdeaPrenda(p.subtipo, p.color, p.nombre))) }) {
+              Icon(Icons.Filled.ShoppingCart, null, Modifier.size(16.dp))
+              Text(" Buscar")
             }
           }
         }
       }
-
-      ListaRazones(look.razones)
-
-      Row(horizontalArrangement = Arrangement.SpaceEvenly, modifier = Modifier.fillMaxWidth()) {
-        AccionLook(Icons.Filled.ThumbDown, "No") { vm.noMeGusta(look) }
-        AccionLook(Icons.Filled.Favorite, "Me gusta") { vm.meGusta(look) }
-        AccionLook(Icons.Filled.Bookmark, "Guardar") { vm.guardarLook(look) }
-        AccionLook(Icons.Filled.Check, "Me lo pongo") { vm.meLoPongo(look) }
-      }
-      OutlinedButton(
-        onClick = {
-          vm.probarLook(look.prendas)
-          irAProbador()
-        },
-        modifier = Modifier.fillMaxWidth(),
-      ) { Text("Cambiar prendas en el probador") }
+      OutlinedButton(onClick = alEditar, modifier = Modifier.fillMaxWidth()) { Text("Editar este look") }
+      Spacer(Modifier.height(12.dp))
     }
-  }
-}
-
-@Composable
-private fun AccionLook(icono: androidx.compose.ui.graphics.vector.ImageVector, texto: String, alTocar: () -> Unit) {
-  Column(horizontalAlignment = Alignment.CenterHorizontally) {
-    IconButton(onClick = alTocar) { Icon(icono, texto, tint = MaterialTheme.colorScheme.primary) }
-    Text(texto, style = MaterialTheme.typography.labelSmall)
   }
 }

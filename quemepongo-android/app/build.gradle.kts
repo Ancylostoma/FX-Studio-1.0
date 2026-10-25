@@ -87,6 +87,8 @@ dependencies {
   implementation("io.coil-kt:coil-compose:2.7.0")
   implementation("com.google.android.gms:play-services-ads:23.6.0")
   implementation("com.google.android.ump:user-messaging-platform:3.1.0")
+  // Quita el fondo de las fotos de ropa, en el teléfono.
+  implementation("com.google.android.gms:play-services-mlkit-subject-segmentation:16.0.0-beta1")
 
   testImplementation("junit:junit:4.13.2")
   testImplementation("org.robolectric:robolectric:4.16.1")

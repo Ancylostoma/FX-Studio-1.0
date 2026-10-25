@@ -3,7 +3,6 @@ package com.ancylostoma.quemepongo
 import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
@@ -16,7 +15,7 @@ import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
-/** Abre la app de verdad (sin teléfono) y recorre todas las pestañas: si algo truena al arrancar, falla aquí. */
+/** Abre la app de verdad (sin teléfono) y la recorre como un usuario: si algo truena, falla aquí. */
 @RunWith(AndroidJUnit4::class)
 @Config(sdk = [36])
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -32,24 +31,37 @@ class ArranqueTest {
     }
   }
 
+  private fun tocar(texto: String) {
+    esperarTexto(texto)
+    app.onAllNodesWithText(texto)[0].performClick()
+    app.waitForIdle()
+  }
+
   @Test
-  fun abreLaBienvenidaYRecorreLasPestanas() {
+  fun recorreLaAppComoUnUsuario() {
     esperarTexto("Empezar")
     app.onNodeWithText("Empezar").performScrollTo().performClick()
-    esperarTexto("¿Qué me pongo hoy?")
-    // Que el motor haya armado un look y se dibuje el maniquí.
+
+    // Hoy: un look listo y el editor.
     esperarTexto("Me lo pongo")
+    tocar("Editar")
+    esperarTexto("Editar look")
+    // Atrás cierra el editor y vuelve a Hoy.
+    app.runOnUiThread { app.activity.onBackPressedDispatcher.onBackPressed() }
+    app.waitForIdle()
+    esperarTexto("Tu look de hoy")
 
-    for (pestana in listOf("Armario", "Probador", "Tendencias", "Perfil")) {
-      app.onNodeWithText(pestana).performClick()
-      app.waitForIdle()
-    }
-    esperarTexto("Mi estilo")
+    // Agregar una prenda sin foto en tres toques.
+    tocar("Agregar")
+    tocar("Continuar sin foto")
+    tocar("Arriba")
+    tocar("Guardar")
 
-    // El formulario de prenda nueva (cámara y galería) también debe abrir.
-    app.onNodeWithText("Armario").performClick()
-    esperarTexto("Mi armario")
-    app.onNodeWithContentDescription("Agregar prenda").performClick()
-    esperarTexto("Nueva prenda")
+    tocar("Armario")
+    esperarTexto("1 prenda")
+    tocar("Descubrir")
+    esperarTexto("Lo que se lleva ahora")
+    tocar("Yo")
+    esperarTexto("Aún no guardaste looks")
   }
 }

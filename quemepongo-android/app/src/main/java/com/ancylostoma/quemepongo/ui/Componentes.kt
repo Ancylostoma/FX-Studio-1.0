@@ -21,8 +21,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Checkroom
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -42,6 +43,8 @@ import coil.compose.AsyncImage
 import com.ancylostoma.quemepongo.data.Colores
 import com.ancylostoma.quemepongo.data.Cuerpo
 import com.ancylostoma.quemepongo.data.Estilo
+import com.ancylostoma.quemepongo.data.Forma
+import com.ancylostoma.quemepongo.data.Fotos
 import com.ancylostoma.quemepongo.data.Prenda
 import java.io.File
 
@@ -103,24 +106,64 @@ fun SelectorCuerpo(actual: Cuerpo, alElegir: (Cuerpo) -> Unit) {
   }
 }
 
-/** Miniatura de una prenda: su foto o, si no tiene, su color. */
+/**
+ * Miniatura de una prenda. Con foto sin fondo: la prenda sobre un fondo suave,
+ * como en una tienda. Con foto normal: recortada al cuadro. Sin foto: su silueta
+ * en su color.
+ */
 @Composable
 fun MiniaturaPrenda(p: Prenda, archivo: File?, tamano: Dp, modifier: Modifier = Modifier) {
-  val forma = RoundedCornerShape(12.dp)
+  val forma = RoundedCornerShape(16.dp)
+  val recorte = Fotos.esRecorte(p.foto)
   Box(
     modifier
       .size(tamano)
       .clip(forma)
-      .background(Color(Colores.de(p.color).argb))
-      .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f), forma),
+      .background(MaterialTheme.colorScheme.surfaceContainerHigh),
     contentAlignment = Alignment.Center,
   ) {
-    if (archivo != null) {
-      AsyncImage(model = archivo, contentDescription = p.nombre, contentScale = ContentScale.Crop, modifier = Modifier.size(tamano))
-    } else {
-      val tinta = if (Color(Colores.de(p.color).argb).luminance() > 0.5f) Color.Black else Color.White
-      Icon(Icons.Filled.Checkroom, null, tint = tinta.copy(alpha = 0.7f), modifier = Modifier.size(tamano * 0.45f))
+    when {
+      archivo != null && recorte -> AsyncImage(
+        model = archivo,
+        contentDescription = p.nombre,
+        contentScale = ContentScale.Fit,
+        modifier = Modifier.size(tamano).padding(tamano * 0.08f),
+      )
+      archivo != null -> AsyncImage(model = archivo, contentDescription = p.nombre, contentScale = ContentScale.Crop, modifier = Modifier.size(tamano))
+      else -> IconoForma(p.subtipo.forma, Color(Colores.de(p.color).argb), Modifier.size(tamano * 0.72f))
     }
+  }
+}
+
+/** Pantalla vacía: un dibujo, una frase y una sola acción. */
+@Composable
+fun EstadoVacio(forma: Forma, titulo: String, texto: String, boton: String?, alTocar: () -> Unit = {}) {
+  Column(
+    Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 32.dp),
+    horizontalAlignment = Alignment.CenterHorizontally,
+    verticalArrangement = Arrangement.spacedBy(12.dp),
+  ) {
+    Box(
+      Modifier.size(132.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
+      contentAlignment = Alignment.Center,
+    ) {
+      IconoForma(forma, MaterialTheme.colorScheme.primary.copy(alpha = 0.85f), Modifier.size(84.dp), borde = Color.Transparent)
+    }
+    Text(titulo, style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center)
+    Text(texto, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+    if (boton != null) Button(onClick = alTocar) { Text(boton) }
+  }
+}
+
+/** Título de pantalla con estilo de revista y, si hace falta, una acción a la derecha. */
+@Composable
+fun TituloPantalla(texto: String, subtitulo: String? = null, accion: (@Composable () -> Unit)? = null) {
+  Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+    Column(Modifier.weight(1f)) {
+      Text(texto, style = MaterialTheme.typography.headlineMedium)
+      if (subtitulo != null) Text(subtitulo, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+    accion?.invoke()
   }
 }
 
