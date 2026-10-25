@@ -1,0 +1,257 @@
+{
+  "version": 1,
+  "actualizado": "2026-10-25",
+  "_ayuda": "La app descarga este archivo desde la rama main de GitHub cada día. Edítalo aquí y todos los usuarios ven las tendencias nuevas sin publicar otra versión. Fechas: MM-DD (se repite cada año) o AAAA-MM-DD (una sola vez). Colores: negro, blanco, gris, beige, camel, marron, marino, denim, oliva, azul, celeste, verde, rojo, borgona, rosa, morado, amarillo, naranja, estampado. Subtipos: CAMISETA, TOP, POLO, CAMISA, BLUSA, SUETER, SUDADERA, JEANS, PANTALON_VESTIR, JOGGER, SHORT, FALDA, VESTIDO, VESTIDO_LARGO, CHAQUETA, CAZADORA, BLAZER, CARDIGAN, ABRIGO, PLUMIFERO, IMPERMEABLE, TENIS, ZAPATOS, TACONES, BOTAS, SANDALIAS, GORRO, GORRA, BUFANDA, BOLSO. tienda_url: pon aquí tu enlace de afiliado; {q} es la prenda buscada.",
+  "tienda_url": "https://www.google.com/search?tbm=shop&q={q}",
+  "tendencias": [
+    {
+      "id": "tierra-oi",
+      "titulo": "Tonos tierra y chocolate",
+      "descripcion": "Marrón, camel y beige en capas: la paleta más repetida del otoño-invierno.",
+      "tipo": "temporada",
+      "fuente": "Selección de temporada de Qué Me Pongo",
+      "desde": "09-01", "hasta": "02-28", "hemisferio": "norte",
+      "colores": ["marron", "camel", "beige", "oliva"],
+      "estilos": ["CLASICO", "MINIMALISTA"],
+      "prendas": [
+        {"subtipo": "SUETER", "color": "camel", "nombre": "Suéter camel de punto"},
+        {"subtipo": "PANTALON_VESTIR", "color": "marron", "nombre": "Pantalón marrón de pinzas"},
+        {"subtipo": "ABRIGO", "color": "camel", "nombre": "Abrigo camel"},
+        {"subtipo": "BOTAS", "color": "marron", "nombre": "Botines marrones"}
+      ],
+      "peso": 1.0
+    },
+    {
+      "id": "borgona-oi",
+      "titulo": "Borgoña",
+      "descripcion": "El rojo vino como color de acento sobre negro o gris.",
+      "tipo": "temporada",
+      "fuente": "Selección de temporada de Qué Me Pongo",
+      "desde": "09-15", "hasta": "01-31", "hemisferio": "norte",
+      "colores": ["borgona", "negro", "gris"],
+      "estilos": ["ELEGANTE", "CLASICO"],
+      "prendas": [
+        {"subtipo": "SUETER", "color": "borgona", "nombre": "Suéter borgoña"},
+        {"subtipo": "PANTALON_VESTIR", "color": "negro", "nombre": "Pantalón negro recto"},
+        {"subtipo": "ZAPATOS", "color": "negro", "nombre": "Mocasines negros"},
+        {"subtipo": "BOLSO", "color": "borgona", "nombre": "Bolso borgoña"}
+      ],
+      "peso": 0.9
+    },
+    {
+      "id": "colegial-oi",
+      "titulo": "Estilo colegial",
+      "descripcion": "Cárdigan, camisa y mocasines: el look 'preppy' de vuelta a clases.",
+      "tipo": "temporada",
+      "fuente": "Selección de temporada de Qué Me Pongo",
+      "desde": "09-01", "hasta": "12-15", "hemisferio": "norte",
+      "colores": ["marino", "verde", "blanco", "beige"],
+      "estilos": ["CLASICO", "ROMANTICO"],
+      "prendas": [
+        {"subtipo": "CAMISA", "color": "blanco", "nombre": "Camisa blanca"},
+        {"subtipo": "CARDIGAN", "color": "marino", "nombre": "Cárdigan azul marino"},
+        {"subtipo": "FALDA", "color": "gris", "nombre": "Falda gris plisada"},
+        {"subtipo": "ZAPATOS", "color": "marron", "nombre": "Mocasines marrones"}
+      ],
+      "peso": 0.8
+    },
+    {
+      "id": "blazer-oversize",
+      "titulo": "Blazer oversize con jeans",
+      "descripcion": "Blazer amplio, camiseta básica y tenis: arreglado sin esfuerzo.",
+      "tipo": "temporada",
+      "fuente": "Selección de Qué Me Pongo",
+      "desde": "", "hasta": "", "hemisferio": "ambos",
+      "colores": ["negro", "gris", "denim", "blanco"],
+      "estilos": ["URBANO", "MINIMALISTA", "ELEGANTE"],
+      "prendas": [
+        {"subtipo": "CAMISETA", "color": "blanco", "nombre": "Camiseta blanca"},
+        {"subtipo": "JEANS", "color": "denim", "nombre": "Jeans rectos"},
+        {"subtipo": "BLAZER", "color": "gris", "nombre": "Blazer gris oversize"},
+        {"subtipo": "TENIS", "color": "blanco", "nombre": "Tenis blancos"}
+      ],
+      "peso": 0.7
+    },
+    {
+      "id": "off-duty",
+      "titulo": "Famosos fuera de cámara",
+      "descripcion": "El uniforme de las celebridades por la calle: gabardina, básicos y gorra.",
+      "tipo": "famosos",
+      "fuente": "Inspirado en el estilo de calle de celebridades",
+      "desde": "", "hasta": "", "hemisferio": "ambos",
+      "colores": ["beige", "negro", "denim", "blanco"],
+      "estilos": ["URBANO", "CASUAL"],
+      "prendas": [
+        {"subtipo": "CAMISETA", "color": "negro", "nombre": "Camiseta negra"},
+        {"subtipo": "JEANS", "color": "denim", "nombre": "Jeans holgados"},
+        {"subtipo": "IMPERMEABLE", "color": "beige", "nombre": "Gabardina beige"},
+        {"subtipo": "TENIS", "color": "blanco", "nombre": "Tenis blancos"},
+        {"subtipo": "GORRA", "color": "negro", "nombre": "Gorra negra"}
+      ],
+      "peso": 0.8
+    },
+    {
+      "id": "alfombra-roja",
+      "titulo": "Alfombra roja minimalista",
+      "descripcion": "Siluetas limpias y un solo color: lo que más se repite en las galas.",
+      "tipo": "famosos",
+      "fuente": "Inspirado en las alfombras rojas",
+      "desde": "", "hasta": "", "hemisferio": "ambos",
+      "colores": ["negro", "blanco", "marino"],
+      "estilos": ["ELEGANTE", "MINIMALISTA"],
+      "prendas": [
+        {"subtipo": "VESTIDO_LARGO", "color": "negro", "nombre": "Vestido largo negro"},
+        {"subtipo": "BLAZER", "color": "negro", "nombre": "Blazer negro"},
+        {"subtipo": "TACONES", "color": "negro", "nombre": "Tacones negros"}
+      ],
+      "peso": 0.6
+    },
+    {
+      "id": "athleisure",
+      "titulo": "Athleisure",
+      "descripcion": "Ropa deportiva cómoda que también sirve para la calle.",
+      "tipo": "temporada",
+      "fuente": "Selección de Qué Me Pongo",
+      "desde": "", "hasta": "", "hemisferio": "ambos",
+      "colores": ["gris", "negro", "blanco"],
+      "estilos": ["DEPORTIVO", "URBANO"],
+      "prendas": [
+        {"subtipo": "SUDADERA", "color": "gris", "nombre": "Sudadera gris"},
+        {"subtipo": "JOGGER", "color": "negro", "nombre": "Jogger negro"},
+        {"subtipo": "TENIS", "color": "blanco", "nombre": "Tenis blancos"}
+      ],
+      "peso": 0.6
+    },
+    {
+      "id": "halloween",
+      "titulo": "Halloween",
+      "descripcion": "Negro con un toque de naranja o morado para las fiestas del 31.",
+      "tipo": "evento",
+      "fuente": "Evento: Halloween (31 de octubre)",
+      "desde": "10-20", "hasta": "10-31", "hemisferio": "ambos",
+      "colores": ["negro", "naranja", "morado"],
+      "estilos": ["URBANO", "CASUAL"],
+      "prendas": [
+        {"subtipo": "SUDADERA", "color": "naranja", "nombre": "Sudadera naranja"},
+        {"subtipo": "JEANS", "color": "negro", "nombre": "Jeans negros"},
+        {"subtipo": "BOTAS", "color": "negro", "nombre": "Botas negras"}
+      ],
+      "peso": 1.2
+    },
+    {
+      "id": "dia-de-muertos",
+      "titulo": "Día de Muertos",
+      "descripcion": "Negro con flores y tonos cempasúchil para el 1 y 2 de noviembre.",
+      "tipo": "evento",
+      "fuente": "Evento: Día de Muertos",
+      "desde": "10-28", "hasta": "11-02", "hemisferio": "ambos",
+      "colores": ["negro", "naranja", "amarillo", "morado", "estampado"],
+      "estilos": ["ROMANTICO", "BOHEMIO"],
+      "prendas": [
+        {"subtipo": "BLUSA", "color": "estampado", "nombre": "Blusa de flores"},
+        {"subtipo": "FALDA", "color": "negro", "nombre": "Falda negra"},
+        {"subtipo": "VESTIDO_LARGO", "color": "negro", "nombre": "Vestido negro largo"}
+      ],
+      "peso": 1.1
+    },
+    {
+      "id": "fiestas-fin-de-ano",
+      "titulo": "Fiestas de fin de año",
+      "descripcion": "Negro, verde esmeralda y borgoña para cenas y fiestas de diciembre.",
+      "tipo": "evento",
+      "fuente": "Evento: Navidad y Año Nuevo",
+      "desde": "12-01", "hasta": "01-06", "hemisferio": "ambos",
+      "colores": ["negro", "verde", "borgona", "rojo"],
+      "estilos": ["ELEGANTE", "ROMANTICO"],
+      "prendas": [
+        {"subtipo": "VESTIDO", "color": "verde", "nombre": "Vestido verde esmeralda"},
+        {"subtipo": "BLAZER", "color": "negro", "nombre": "Blazer de terciopelo negro"},
+        {"subtipo": "PANTALON_VESTIR", "color": "negro", "nombre": "Pantalón negro de vestir"},
+        {"subtipo": "TACONES", "color": "negro", "nombre": "Tacones negros"}
+      ],
+      "peso": 1.2
+    },
+    {
+      "id": "san-valentin",
+      "titulo": "San Valentín",
+      "descripcion": "Rojo o rosa como protagonista, el resto en neutros.",
+      "tipo": "evento",
+      "fuente": "Evento: 14 de febrero",
+      "desde": "02-07", "hasta": "02-14", "hemisferio": "ambos",
+      "colores": ["rojo", "rosa", "blanco", "negro"],
+      "estilos": ["ROMANTICO", "ELEGANTE"],
+      "prendas": [
+        {"subtipo": "BLUSA", "color": "rojo", "nombre": "Blusa roja"},
+        {"subtipo": "VESTIDO", "color": "rosa", "nombre": "Vestido rosa"},
+        {"subtipo": "SUETER", "color": "rojo", "nombre": "Suéter rojo"}
+      ],
+      "peso": 1.1
+    },
+    {
+      "id": "verano-norte",
+      "titulo": "Lino y colores frescos",
+      "descripcion": "Tejidos ligeros, blanco y celeste para el calor.",
+      "tipo": "temporada",
+      "fuente": "Selección de temporada de Qué Me Pongo",
+      "desde": "05-15", "hasta": "08-31", "hemisferio": "norte",
+      "colores": ["blanco", "beige", "celeste", "amarillo"],
+      "estilos": ["BOHEMIO", "CASUAL", "MINIMALISTA"],
+      "prendas": [
+        {"subtipo": "CAMISA", "color": "blanco", "nombre": "Camisa de lino blanca"},
+        {"subtipo": "SHORT", "color": "beige", "nombre": "Short de lino beige"},
+        {"subtipo": "VESTIDO", "color": "celeste", "nombre": "Vestido celeste"},
+        {"subtipo": "SANDALIAS", "color": "marron", "nombre": "Sandalias de cuero"}
+      ],
+      "peso": 1.0
+    },
+    {
+      "id": "verano-sur",
+      "titulo": "Lino y colores frescos",
+      "descripcion": "Tejidos ligeros, blanco y celeste para el calor.",
+      "tipo": "temporada",
+      "fuente": "Selección de temporada de Qué Me Pongo",
+      "desde": "11-15", "hasta": "02-28", "hemisferio": "sur",
+      "colores": ["blanco", "beige", "celeste", "amarillo"],
+      "estilos": ["BOHEMIO", "CASUAL", "MINIMALISTA"],
+      "prendas": [
+        {"subtipo": "CAMISA", "color": "blanco", "nombre": "Camisa de lino blanca"},
+        {"subtipo": "SHORT", "color": "beige", "nombre": "Short de lino beige"},
+        {"subtipo": "VESTIDO", "color": "celeste", "nombre": "Vestido celeste"},
+        {"subtipo": "SANDALIAS", "color": "marron", "nombre": "Sandalias de cuero"}
+      ],
+      "peso": 1.0
+    },
+    {
+      "id": "primavera-sur",
+      "titulo": "Primavera en flor",
+      "descripcion": "Estampados florales y tonos pastel para la primavera.",
+      "tipo": "temporada",
+      "fuente": "Selección de temporada de Qué Me Pongo",
+      "desde": "09-21", "hasta": "12-20", "hemisferio": "sur",
+      "colores": ["estampado", "rosa", "celeste", "blanco"],
+      "estilos": ["ROMANTICO", "BOHEMIO"],
+      "prendas": [
+        {"subtipo": "BLUSA", "color": "estampado", "nombre": "Blusa floral"},
+        {"subtipo": "JEANS", "color": "denim", "nombre": "Jeans claros"},
+        {"subtipo": "VESTIDO", "color": "rosa", "nombre": "Vestido rosa pastel"}
+      ],
+      "peso": 1.0
+    },
+    {
+      "id": "invierno-sur",
+      "titulo": "Tonos tierra y chocolate",
+      "descripcion": "Marrón, camel y beige en capas: la paleta más repetida del invierno.",
+      "tipo": "temporada",
+      "fuente": "Selección de temporada de Qué Me Pongo",
+      "desde": "03-01", "hasta": "08-31", "hemisferio": "sur",
+      "colores": ["marron", "camel", "beige", "oliva"],
+      "estilos": ["CLASICO", "MINIMALISTA"],
+      "prendas": [
+        {"subtipo": "SUETER", "color": "camel", "nombre": "Suéter camel de punto"},
+        {"subtipo": "ABRIGO", "color": "camel", "nombre": "Abrigo camel"},
+        {"subtipo": "BOTAS", "color": "marron", "nombre": "Botines marrones"}
+      ],
+      "peso": 1.0
+    }
+  ]
+}
