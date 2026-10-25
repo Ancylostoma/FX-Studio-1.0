@@ -12,6 +12,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -101,68 +102,73 @@ fun PantallaHoy(e: Estado, vm: AppViewModel, abrirEditor: (List<Prenda>) -> Unit
   LaunchedEffect(e.tanda) { paginas.scrollToPage(0) }
   LaunchedEffect(paginas.currentPage) { if (paginas.currentPage < looks.size) vm.verLook(paginas.currentPage) }
 
-  Column(Modifier.fillMaxSize().padding(horizontal = 16.dp).padding(top = 12.dp)) {
-    val hoy = LocalDate.now()
-    Text(
-      hoy.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault()).replaceFirstChar { it.uppercase() } +
-        " ${hoy.dayOfMonth} de " + hoy.month.getDisplayName(TextStyle.FULL, Locale.getDefault()),
-      style = MaterialTheme.typography.labelLarge,
-      color = MaterialTheme.colorScheme.primary,
-    )
-    Text("Tu look de hoy", style = MaterialTheme.typography.headlineMedium)
-    Spacer(Modifier.height(10.dp))
-    BarraContexto(e) { verContexto = true }
-    Spacer(Modifier.height(10.dp))
+  // En pantallas bajas el look conserva un mínimo de alto y la pantalla se desplaza.
+  BoxWithConstraints(Modifier.fillMaxSize()) {
+    val altoLook = (maxHeight - 290.dp).coerceAtLeast(340.dp)
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(top = 12.dp)) {
+      val hoy = LocalDate.now()
+      val es = Locale.forLanguageTag("es")
+      Text(
+        hoy.dayOfWeek.getDisplayName(TextStyle.FULL, es).replaceFirstChar { it.uppercase() } +
+          " ${hoy.dayOfMonth} de " + hoy.month.getDisplayName(TextStyle.FULL, es),
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.primary,
+      )
+      Text("Tu look de hoy", style = MaterialTheme.typography.headlineMedium)
+      Spacer(Modifier.height(10.dp))
+      BarraContexto(e) { verContexto = true }
+      Spacer(Modifier.height(10.dp))
 
-    if (looks.isEmpty()) {
-      Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-    } else {
-      HorizontalPager(
-        state = paginas,
-        modifier = Modifier.weight(1f).fillMaxWidth(),
-        pageSpacing = 12.dp,
-        key = { i -> looks.getOrNull(i)?.id ?: "mas" },
-      ) { i ->
-        val look = looks.getOrNull(i)
-        if (look == null) {
-          PaginaMasLooks { vm.masLooks() }
-        } else {
-          PaginaLook(e, vm, look)
+      if (looks.isEmpty()) {
+        Box(Modifier.height(altoLook).fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+      } else {
+        HorizontalPager(
+          state = paginas,
+          modifier = Modifier.height(altoLook).fillMaxWidth(),
+          pageSpacing = 12.dp,
+          key = { i -> looks.getOrNull(i)?.id ?: "mas" },
+        ) { i ->
+          val look = looks.getOrNull(i)
+          if (look == null) {
+            PaginaMasLooks { vm.masLooks() }
+          } else {
+            PaginaLook(e, vm, look)
+          }
         }
+        Puntos(total = looks.size + 1, actual = paginas.currentPage)
       }
-      Puntos(total = looks.size + 1, actual = paginas.currentPage)
-    }
 
-    val look = e.sugerencias.getOrNull(paginas.currentPage)
-    if (look != null) {
-      Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) {
-        Text(
-          look.razones.firstOrNull().orEmpty(),
-          style = MaterialTheme.typography.bodyMedium,
-          maxLines = 2,
-          overflow = TextOverflow.Ellipsis,
-          modifier = Modifier.weight(1f),
-        )
-        TextButton(onClick = { detalles = look }) { Text("¿Por qué?") }
-      }
-      Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-        OutlinedButton(onClick = { abrirEditor(look.prendas) }, modifier = Modifier.height(52.dp)) {
-          Icon(Icons.Filled.Tune, null, Modifier.size(18.dp))
-          Spacer(Modifier.width(6.dp))
-          Text("Editar")
+      val look = e.sugerencias.getOrNull(paginas.currentPage)
+      if (look != null) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) {
+          Text(
+            look.razones.firstOrNull().orEmpty(),
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+          )
+          TextButton(onClick = { detalles = look }) { Text("¿Por qué?") }
         }
-        Button(onClick = { vm.meLoPongo(look) }, modifier = Modifier.weight(1f).height(52.dp)) {
-          Icon(Icons.Filled.Check, null, Modifier.size(20.dp))
-          Spacer(Modifier.width(8.dp))
-          Text("Me lo pongo", style = MaterialTheme.typography.titleMedium)
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+          OutlinedButton(onClick = { abrirEditor(look.prendas) }, modifier = Modifier.height(52.dp)) {
+            Icon(Icons.Filled.Tune, null, Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text("Editar")
+          }
+          Button(onClick = { vm.meLoPongo(look) }, modifier = Modifier.weight(1f).height(52.dp)) {
+            Icon(Icons.Filled.Check, null, Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Me lo pongo", style = MaterialTheme.typography.titleMedium)
+          }
         }
+      } else {
+        Spacer(Modifier.height(64.dp))
       }
-    } else {
-      Spacer(Modifier.height(64.dp))
-    }
-    if (e.datos.prendas.count { !it.virtual } < 4) {
-      TextButton(onClick = alAgregar, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-        Text("Fotografía tu ropa para looks con tus prendas →")
+      if (e.datos.prendas.count { !it.virtual } < 4) {
+        TextButton(onClick = alAgregar, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+          Text("Agrega tu ropa para looks con tus prendas →", maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
       }
     }
   }

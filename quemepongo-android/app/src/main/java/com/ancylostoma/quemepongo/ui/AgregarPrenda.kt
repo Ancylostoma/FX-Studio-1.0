@@ -246,17 +246,18 @@ fun AgregarPrenda(inicial: Prenda, esNueva: Boolean, vm: AppViewModel, alCerrar:
 
 @Composable
 private fun PasoFoto(procesando: Boolean, tomarFoto: () -> Unit, elegirFoto: () -> Unit, sinFoto: () -> Unit) {
+  // Desplazable: en pantallas bajas los botones no deben quedar aplastados.
   Column(
-    Modifier.fillMaxSize().padding(24.dp),
+    Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
     horizontalAlignment = Alignment.CenterHorizontally,
-    verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+    verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically),
   ) {
     if (procesando) {
       CircularProgressIndicator()
       Text("Quitando el fondo…", style = MaterialTheme.typography.titleMedium)
       return@Column
     }
-    IconoForma(Forma.TOP_MANGA_LARGA, MaterialTheme.colorScheme.primaryContainer, Modifier.size(120.dp), borde = MaterialTheme.colorScheme.primary)
+    IconoForma(Forma.TOP_MANGA_LARGA, MaterialTheme.colorScheme.primaryContainer, Modifier.size(96.dp), borde = MaterialTheme.colorScheme.primary)
     Text("Hazle una foto a la prenda", style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center)
     Text(
       "Extendida sobre la cama o colgada, con buena luz. Le quitamos el fondo para que se vea como en una tienda.",
