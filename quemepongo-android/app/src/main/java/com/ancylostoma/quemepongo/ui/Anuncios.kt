@@ -1,6 +1,7 @@
 package com.ancylostoma.quemepongo.ui
 
 import android.app.Activity
+import android.os.Build
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -33,6 +34,8 @@ object Anuncios {
   private lateinit var consentimiento: ConsentInformation
 
   fun preparar(actividad: Activity) {
+    // En las pruebas de Robolectric no hay servicios de Google.
+    if (Build.FINGERPRINT == "robolectric") return
     consentimiento = UserMessagingPlatform.getConsentInformation(actividad)
     consentimiento.requestConsentInfoUpdate(
       actividad,

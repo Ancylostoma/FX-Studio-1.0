@@ -52,9 +52,9 @@ android {
 
   buildTypes {
     release {
-      isMinifyEnabled = true
-      isShrinkResources = true
-      proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+      // R8 apagado mientras se estabiliza la app: los errores salen legibles.
+      // Al encenderlo la app pesa menos, pero hay que probar la release otra vez.
+      isMinifyEnabled = false
       signingConfig = signingConfigs.getByName(if (llaveSubida != null) "subida" else "pruebas")
     }
     debug { signingConfig = signingConfigs.getByName("pruebas") }
@@ -68,6 +68,7 @@ android {
     compose = true
     buildConfig = true
   }
+  testOptions { unitTests { isIncludeAndroidResources = true } }
 }
 
 dependencies {
@@ -88,6 +89,11 @@ dependencies {
   implementation("com.google.android.ump:user-messaging-platform:3.1.0")
 
   testImplementation("junit:junit:4.13.2")
+  testImplementation("org.robolectric:robolectric:4.16.1")
+  testImplementation("androidx.test:core:1.6.1")
+  testImplementation("androidx.test.ext:junit:1.3.0")
+  testImplementation(platform("androidx.compose:compose-bom:2024.09.00"))
+  testImplementation("androidx.compose.ui:ui-test-junit4")
   // En las pruebas JVM, org.json de Android es un esqueleto vacío; esta es la real.
   testImplementation("org.json:json:20240303")
 }
