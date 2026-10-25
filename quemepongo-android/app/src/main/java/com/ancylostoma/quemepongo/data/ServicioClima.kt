@@ -13,6 +13,7 @@ import android.os.Bundle
 import android.os.CancellationSignal
 import android.os.Looper
 import androidx.core.content.ContextCompat
+import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import java.time.Instant
@@ -61,7 +62,7 @@ data class Clima(val lugar: String, val puntos: List<PuntoClima>, val obtenidoMs
       nieve = nieve,
       vientoMs = viento,
       soleado = principal.startsWith("clearsky") || principal.startsWith("fair"),
-      descripcion = describir(principal),
+      cielo = cielo(principal),
     )
   }
 
@@ -72,19 +73,19 @@ data class Clima(val lugar: String, val puntos: List<PuntoClima>, val obtenidoMs
       return t + 0.33 * e - 0.70 * vientoMs - 4.0
     }
 
-    fun describir(simbolo: String): String = when {
-      "thunder" in simbolo -> "Tormenta"
-      "sleet" in simbolo -> "Aguanieve"
-      "snow" in simbolo -> "Nieve"
-      "heavyrain" in simbolo -> "Lluvia fuerte"
-      "lightrain" in simbolo -> "Lluvia ligera"
-      "rain" in simbolo -> "Lluvia"
-      simbolo.startsWith("fog") -> "Niebla"
-      simbolo.startsWith("clearsky") -> "Despejado"
-      simbolo.startsWith("fair") -> "Poco nuboso"
-      simbolo.startsWith("partlycloudy") -> "Parcialmente nublado"
-      simbolo.startsWith("cloudy") -> "Nublado"
-      else -> ""
+    fun cielo(simbolo: String): Cielo = when {
+      "thunder" in simbolo -> Cielo.TORMENTA
+      "sleet" in simbolo -> Cielo.AGUANIEVE
+      "snow" in simbolo -> Cielo.NIEVE
+      "heavyrain" in simbolo -> Cielo.LLUVIA_FUERTE
+      "lightrain" in simbolo -> Cielo.LLOVIZNA
+      "rain" in simbolo -> Cielo.LLUVIA
+      simbolo.startsWith("fog") -> Cielo.NIEBLA
+      simbolo.startsWith("clearsky") -> Cielo.DESPEJADO
+      simbolo.startsWith("fair") -> Cielo.POCO_NUBOSO
+      simbolo.startsWith("partlycloudy") -> Cielo.PARCIAL
+      simbolo.startsWith("cloudy") -> Cielo.NUBLADO
+      else -> Cielo.DESCONOCIDO
     }
   }
 }
@@ -96,19 +97,41 @@ data class Clima(val lugar: String, val puntos: List<PuntoClima>, val obtenidoMs
 object ServicioClima {
   private const val AGENTE = "QueMePongo/1.0 github.com/Ancylostoma/FX-Studio-1.0"
 
-  suspend fun pronostico(lat: Double, lon: Double, lugar: String): Clima = withContext(Dispatchers.IO) {
-    val url = URL(String.format(Locale.US, "https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=%.4f&lon=%.4f", lat, lon))
-    val conexion = (url.openConnection() as HttpURLConnection).apply {
-      setRequestProperty("User-Agent", AGENTE)
-      connectTimeout = 10_000
-      readTimeout = 15_000
-    }
+  private const val VIGENCIA_MS = 45 * 60_000L
+  private const val VIGENCIA_SIN_RED_MS = 6 * 3_600_000L
+
+  /**
+   * Con miles de usuarios, todos piden el tiempo a la misma hora (el aviso de
+   * la mañana). Para respetar el límite de MET Norway (unas 20 peticiones por
+   * segundo por app) el pronóstico se guarda 45 minutos y las coordenadas van
+   * con 2 decimales (~1 km): así vecinos comparten la respuesta en su caché.
+   * Sin internet, sirve un pronóstico de hasta 6 horas.
+   */
+  suspend fun pronostico(lat: Double, lon: Double, lugar: String, carpetaCache: File): Clima = withContext(Dispatchers.IO) {
+    val clave = String.format(Locale.US, "%.2f,%.2f", lat, lon)
+    val cache = File(carpetaCache, "clima.json")
+    val guardado = runCatching { JSONObject(cache.readText()) }.getOrNull()?.takeIf { it.optString("clave") == clave }
+    val edad = guardado?.let { System.currentTimeMillis() - it.optLong("hora") } ?: Long.MAX_VALUE
+    if (guardado != null && edad < VIGENCIA_MS) return@withContext Clima(lugar, leer(guardado.getString("texto")), guardado.optLong("hora"))
+
     try {
-      if (conexion.responseCode != 200) error("El servicio del tiempo respondió ${conexion.responseCode}")
-      val texto = conexion.inputStream.bufferedReader().use { it.readText() }
-      Clima(lugar, leer(texto), System.currentTimeMillis())
-    } finally {
-      conexion.disconnect()
+      val url = URL(String.format(Locale.US, "https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=%.2f&lon=%.2f", lat, lon))
+      val conexion = (url.openConnection() as HttpURLConnection).apply {
+        setRequestProperty("User-Agent", AGENTE)
+        connectTimeout = 10_000
+        readTimeout = 15_000
+      }
+      try {
+        if (conexion.responseCode != 200) error("MET Norway: ${conexion.responseCode}")
+        val texto = conexion.inputStream.bufferedReader().use { it.readText() }
+        val ahora = System.currentTimeMillis()
+        runCatching { cache.writeText(JSONObject().put("clave", clave).put("hora", ahora).put("texto", texto).toString()) }
+        Clima(lugar, leer(texto), ahora)
+      } finally {
+        conexion.disconnect()
+      }
+    } catch (e: Exception) {
+      if (guardado != null && edad < VIGENCIA_SIN_RED_MS) Clima(lugar, leer(guardado.getString("texto")), guardado.optLong("hora")) else throw e
     }
   }
 

@@ -62,8 +62,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.ancylostoma.quemepongo.BuildConfig
+import com.ancylostoma.quemepongo.R
 import com.ancylostoma.quemepongo.data.AvisoDiario
 import com.ancylostoma.quemepongo.data.Forma
 import com.ancylostoma.quemepongo.data.Vista
@@ -93,11 +95,11 @@ fun PantallaYo(e: Estado, vm: AppViewModel, abrirEditor: (List<Prenda>) -> Unit,
   ) {
     item(span = { GridItemSpan(maxLineSpan) }) {
       Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        TituloPantalla("Yo", accion = {
-          IconButton(onClick = abrirAjustes) { Icon(Icons.Filled.Settings, "Ajustes") }
+        TituloPantalla(t(R.string.tab_yo), accion = {
+          IconButton(onClick = abrirAjustes) { Icon(Icons.Filled.Settings, t(R.string.ajustes)) }
         })
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-          listOf("Guardados (${e.datos.looks.size})", "Me los puse (${e.datos.historial.size})").forEachIndexed { i, texto ->
+          listOf(stringResource(R.string.yo_guardados, e.datos.looks.size), stringResource(R.string.yo_puestos, e.datos.historial.size)).forEachIndexed { i, texto ->
             SegmentedButton(
               selected = vista == i,
               onClick = { vista = i },
@@ -110,9 +112,9 @@ fun PantallaYo(e: Estado, vm: AppViewModel, abrirEditor: (List<Prenda>) -> Unit,
     if (lista.isEmpty()) {
       item(span = { GridItemSpan(maxLineSpan) }) {
         if (vista == 0) {
-          EstadoVacio(Forma.VESTIDO_CORTO, "Aún no guardaste looks", "Toca el corazón de un look en Hoy para guardarlo aquí.", "Ver looks de hoy", irAHoy)
+          EstadoVacio(Forma.VESTIDO_CORTO, t(R.string.yo_vacio_g_titulo), t(R.string.yo_vacio_g_texto), t(R.string.yo_vacio_g_boton), irAHoy)
         } else {
-          EstadoVacio(Forma.TOP_MANGA_CORTA, "Tu diario de looks", "Cada vez que toques \"Me lo pongo\" queda anotado aquí, y no te repito la ropa.", "Elegir el de hoy", irAHoy)
+          EstadoVacio(Forma.TOP_MANGA_CORTA, t(R.string.yo_vacio_p_titulo), t(R.string.yo_vacio_p_texto), t(R.string.yo_vacio_p_boton), irAHoy)
         }
       }
     }
@@ -126,7 +128,7 @@ fun PantallaYo(e: Estado, vm: AppViewModel, abrirEditor: (List<Prenda>) -> Unit,
         horizontalAlignment = Alignment.CenterHorizontally,
       ) {
         VistaLook(actuales(l), e.datos.perfil.cuerpo, e.datos.perfil.vista, vm::archivoFoto, Modifier.fillMaxWidth().height(190.dp), claveAnimacion = l.id)
-        Text(l.ocasion.etiqueta, style = MaterialTheme.typography.labelLarge)
+        Text(t(l.ocasion.res()), style = MaterialTheme.typography.labelLarge)
         Text(
           DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(l.fecha)),
           style = MaterialTheme.typography.labelSmall,
@@ -139,21 +141,21 @@ fun PantallaYo(e: Estado, vm: AppViewModel, abrirEditor: (List<Prenda>) -> Unit,
   elegido?.let { l ->
     ModalBottomSheet(onDismissRequest = { elegido = null }) {
       Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).navigationBarsPadding(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(l.ocasion.etiqueta, style = MaterialTheme.typography.titleLarge)
-        Text(l.prendas.joinToString(" · ") { it.nombre }, style = MaterialTheme.typography.bodyMedium)
+        Text(t(l.ocasion.res()), style = MaterialTheme.typography.titleLarge)
+        Text(l.prendas.joinToString(" · ") { contexto.nombre(it) }, style = MaterialTheme.typography.bodyMedium)
         Button(onClick = {
           elegido = null
           abrirEditor(actuales(l))
-        }, modifier = Modifier.fillMaxWidth().height(50.dp)) { Text("Ponérmelo / editar") }
+        }, modifier = Modifier.fillMaxWidth().height(50.dp)) { Text(t(R.string.yo_ponermelo)) }
         OutlinedButton(onClick = {
           val prendas = actuales(l)
           elegido = null
-          alcance.launch { runCatching { Compartir.look(contexto, prendas, e.datos.perfil.cuerpo, vm::archivoFoto, "Mi look") } }
-        }, modifier = Modifier.fillMaxWidth()) { Text("Compartir") }
+          alcance.launch { runCatching { Compartir.look(contexto, prendas, e.datos.perfil.cuerpo, vm::archivoFoto, contexto.getString(R.string.compartir_titulo)) } }
+        }, modifier = Modifier.fillMaxWidth()) { Text(t(R.string.hoy_compartir)) }
         OutlinedButton(onClick = {
           elegido = null
           if (vista == 0) vm.borrarLook(l.id) else vm.borrarDelHistorial(l.id)
-        }, modifier = Modifier.fillMaxWidth()) { Text("Borrar", color = MaterialTheme.colorScheme.error) }
+        }, modifier = Modifier.fillMaxWidth()) { Text(t(R.string.borrar), color = MaterialTheme.colorScheme.error) }
         Spacer(Modifier.height(12.dp))
       }
     }
@@ -174,53 +176,53 @@ fun PantallaAjustes(e: Estado, vm: AppViewModel, alCerrar: () -> Unit) {
 
   Column(Modifier.fillMaxSize()) {
     Row(Modifier.fillMaxWidth().padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
-      IconButton(onClick = alCerrar) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Volver") }
-      Text("Ajustes", style = MaterialTheme.typography.titleLarge)
+      IconButton(onClick = alCerrar) { Icon(Icons.AutoMirrored.Filled.ArrowBack, t(R.string.atras)) }
+      Text(t(R.string.ajustes), style = MaterialTheme.typography.titleLarge)
     }
     Column(
       Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
       verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-      Seccion("Estilos que me gustan") {
+      Seccion(t(R.string.aj_estilos)) {
         SelectorEstilos(perfil.estilos) { s -> vm.cambiarPerfil { it.copy(estilos = if (s in it.estilos) it.estilos - s else it.estilos + s) } }
       }
       HorizontalDivider()
-      Seccion("Colores favoritos") {
+      Seccion(t(R.string.aj_favoritos)) {
         SelectorColores(perfil.coloresFavoritos, { c ->
           vm.cambiarPerfil { it.copy(coloresFavoritos = alternar(it.coloresFavoritos, c), coloresEvitar = it.coloresEvitar - c) }
         })
       }
-      Seccion("Colores que no me pongo") {
+      Seccion(t(R.string.aj_evitar)) {
         SelectorColores(perfil.coloresEvitar, { c ->
           vm.cambiarPerfil { it.copy(coloresEvitar = alternar(it.coloresEvitar, c), coloresFavoritos = it.coloresFavoritos - c) }
         })
       }
       HorizontalDivider()
-      Seccion("Maniquí") { SelectorCuerpo(perfil.cuerpo) { c -> vm.cambiarPerfil { it.copy(cuerpo = c) } } }
-      Seccion("¿Cuánto te importa ir a la moda?") {
+      Seccion(t(R.string.aj_maniqui)) { SelectorCuerpo(perfil.cuerpo) { c -> vm.cambiarPerfil { it.copy(cuerpo = c) } } }
+      Seccion(t(R.string.aj_moda)) {
         var valor by remember(perfil.importanciaModa) { mutableStateOf(perfil.importanciaModa.toFloat()) }
         Slider(value = valor, onValueChange = { valor = it }, onValueChangeFinished = { vm.cambiarPerfil { it.copy(importanciaModa = valor.toDouble()) } })
         Text(
           when {
-            valor < 0.3f -> "Prefiero mi estilo de siempre"
-            valor < 0.7f -> "Un poco de tendencia está bien"
-            else -> "Quiero ir a la última"
+            valor < 0.3f -> t(R.string.aj_moda_0)
+            valor < 0.7f -> t(R.string.aj_moda_1)
+            else -> t(R.string.aj_moda_2)
           },
           style = MaterialTheme.typography.bodySmall,
         )
       }
-      Seccion("Ver los looks como") {
+      Seccion(t(R.string.aj_vista)) {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-          listOf(Vista.AUTO to "Automático", Vista.COLLAGE to "Collage de fotos", Vista.MANIQUI to "Maniquí").forEach { (v, texto) ->
+          listOf(Vista.AUTO to t(R.string.vista_auto), Vista.COLLAGE to t(R.string.vista_collage), Vista.MANIQUI to t(R.string.vista_maniqui)).forEach { (v, texto) ->
             FilterChip(selected = perfil.vista == v, onClick = { vm.cambiarVista(v) }, label = { Text(texto) })
           }
         }
-        Text("Automático: collage cuando todas tus prendas del look tienen foto.", style = MaterialTheme.typography.bodySmall)
+        Text(t(R.string.aj_vista_texto), style = MaterialTheme.typography.bodySmall)
       }
       HorizontalDivider()
-      Seccion("Aviso cada mañana") {
+      Seccion(t(R.string.aj_aviso)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-          Text("Tu look del día a las 7:30, con el tiempo que hará", modifier = Modifier.weight(1f))
+          Text(t(R.string.aj_aviso_texto), modifier = Modifier.weight(1f))
           Switch(checked = perfil.avisoDiario, onCheckedChange = { activar ->
             if (activar && !AvisoDiario.puedeAvisar(contexto) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
               permisoAviso.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -231,31 +233,31 @@ fun PantallaAjustes(e: Estado, vm: AppViewModel, alCerrar: () -> Unit) {
         }
       }
       HorizontalDivider()
-      Seccion("Ciudad para el tiempo") {
+      Seccion(t(R.string.aj_ciudad)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-          Text(perfil.ciudad ?: "Sin ciudad", modifier = Modifier.weight(1f))
-          TextButton(onClick = { pidiendoCiudad = true }) { Text("Cambiar") }
+          Text(perfil.ciudad ?: t(R.string.aj_sin_ciudad), modifier = Modifier.weight(1f))
+          TextButton(onClick = { pidiendoCiudad = true }) { Text(t(R.string.hoy_cambiar)) }
         }
       }
-      Seccion("Aprendizaje") {
-        Text("Aprendo de tus corazones, de los looks que descartas y de lo que te pones.", style = MaterialTheme.typography.bodySmall)
-        OutlinedButton(onClick = { confirmarReinicio = true }) { Text("Empezar de cero") }
+      Seccion(t(R.string.aj_aprendizaje)) {
+        Text(t(R.string.aj_aprendizaje_texto), style = MaterialTheme.typography.bodySmall)
+        OutlinedButton(onClick = { confirmarReinicio = true }) { Text(t(R.string.aj_reiniciar)) }
       }
       HorizontalDivider()
-      Seccion("Privacidad") {
+      Seccion(t(R.string.aj_privacidad)) {
         Text(
-          "Tus fotos y tu armario se quedan en este teléfono. La ubicación solo se usa para pedir el pronóstico.",
+          t(R.string.aj_privacidad_texto),
           style = MaterialTheme.typography.bodySmall,
         )
         Row {
-          TextButton(onClick = { enlaces.openUri(URL_PRIVACIDAD) }) { Text("Política de privacidad") }
+          TextButton(onClick = { enlaces.openUri(URL_PRIVACIDAD) }) { Text(t(R.string.aj_politica)) }
           if (Anuncios.opcionesPrivacidad && actividad != null) {
-            TextButton(onClick = { Anuncios.mostrarOpcionesPrivacidad(actividad) }) { Text("Anuncios") }
+            TextButton(onClick = { Anuncios.mostrarOpcionesPrivacidad(actividad) }) { Text(t(R.string.aj_anuncios)) }
           }
         }
       }
       Text(
-        "Qué Me Pongo ${BuildConfig.VERSION_NAME} · Datos del tiempo: MET Norway (CC BY 4.0)",
+        stringResource(R.string.aj_version, BuildConfig.VERSION_NAME),
         style = MaterialTheme.typography.labelSmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
       )
@@ -267,15 +269,15 @@ fun PantallaAjustes(e: Estado, vm: AppViewModel, alCerrar: () -> Unit) {
   if (confirmarReinicio) {
     AlertDialog(
       onDismissRequest = { confirmarReinicio = false },
-      title = { Text("¿Borrar lo aprendido?") },
-      text = { Text("Olvido tus gustos. Tu armario y tus looks guardados no se tocan.") },
+      title = { Text(t(R.string.reiniciar_titulo)) },
+      text = { Text(t(R.string.reiniciar_texto)) },
       confirmButton = {
         TextButton(onClick = {
           confirmarReinicio = false
           vm.reiniciarAprendizaje()
-        }) { Text("Borrar") }
+        }) { Text(t(R.string.borrar)) }
       },
-      dismissButton = { TextButton(onClick = { confirmarReinicio = false }) { Text("Cancelar") } },
+      dismissButton = { TextButton(onClick = { confirmarReinicio = false }) { Text(t(R.string.cancelar)) } },
     )
   }
 }
@@ -287,13 +289,13 @@ fun DialogoCiudad(alCerrar: () -> Unit, alBuscar: (String) -> Unit) {
   var texto by remember { mutableStateOf("") }
   AlertDialog(
     onDismissRequest = alCerrar,
-    title = { Text("¿En qué ciudad estás?") },
+    title = { Text(t(R.string.ciudad_titulo)) },
     text = {
-      androidx.compose.material3.OutlinedTextField(value = texto, onValueChange = { texto = it }, singleLine = true, label = { Text("Ciudad") })
+      androidx.compose.material3.OutlinedTextField(value = texto, onValueChange = { texto = it }, singleLine = true, label = { Text(t(R.string.ciudad_campo)) })
     },
     confirmButton = {
-      TextButton(onClick = { alBuscar(texto); alCerrar() }, enabled = texto.isNotBlank()) { Text("Buscar") }
+      TextButton(onClick = { alBuscar(texto); alCerrar() }, enabled = texto.isNotBlank()) { Text(t(R.string.buscar)) }
     },
-    dismissButton = { TextButton(onClick = alCerrar) { Text("Cancelar") } },
+    dismissButton = { TextButton(onClick = alCerrar) { Text(t(R.string.cancelar)) } },
   )
 }

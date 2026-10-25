@@ -8,6 +8,7 @@ import com.ancylostoma.quemepongo.data.Ocasion
 import com.ancylostoma.quemepongo.data.Perfil
 import com.ancylostoma.quemepongo.data.Prenda
 import com.ancylostoma.quemepongo.data.Preferencias
+import com.ancylostoma.quemepongo.data.Razon
 import com.ancylostoma.quemepongo.data.Subtipo
 import com.ancylostoma.quemepongo.motor.Contexto
 import com.ancylostoma.quemepongo.motor.IdeasCompra
@@ -23,7 +24,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MotorTest {
-  private fun p(id: String, s: Subtipo, color: String) = Prenda(id, s.etiqueta, s, color)
+  private fun p(id: String, s: Subtipo, color: String) = Prenda(id, s.name, s, color)
 
   private val armario = listOf(
     p("camiseta", Subtipo.CAMISETA, "blanco"),
@@ -80,7 +81,7 @@ class MotorTest {
     val looks = Motor.sugerir(emptyList(), ctx(clima(20.0)))
     assertTrue(looks.isNotEmpty())
     assertTrue(looks.first().prendas.all { it.virtual })
-    assertTrue(looks.first().razones.any { it.startsWith("Te falta") })
+    assertTrue(looks.first().razones.any { it is Razon.TeFalta })
   }
 
   @Test
@@ -154,8 +155,9 @@ class MotorTest {
     val ideas = IdeasCompra.sugerir(armario, Perfil(), Preferencias(), catalogo.tendencias)
     assertTrue(ideas.isNotEmpty())
     assertFalse(ideas.any { i -> armario.any { it.subtipo == i.idea.subtipo && it.color == i.idea.color } })
-    val url = IdeasCompra.enlace(catalogo.tiendaUrl, ideas.first().idea)
+    val url = IdeasCompra.enlace(catalogo.tiendaUrl, "Camiseta blanca")
     assertFalse(url.contains("{q}"))
+    assertTrue(url.contains("Camiseta+blanca"))
   }
 
   @Test
@@ -166,5 +168,32 @@ class MotorTest {
     assertEquals(perfil, Json.perfil(Json.perfil(perfil)))
     val pref = Motor.aprender(Preferencias(), armario.take(3), 1.0)
     assertEquals(pref, Json.preferencias(Json.preferencias(pref)))
+  }
+
+  @Test
+  fun armarioGrandeSigueSiendoRapido() {
+    // 1000 prendas y un año de uso: el motor debe responder rápido igual.
+    val subtipos = Subtipo.entries
+    val colores = Colores.todos.map { it.clave }
+    val grande = (0 until 1000).map { i ->
+      Prenda("p$i", "", subtipos[i % subtipos.size], colores[(i * 7) % colores.size], ultimoUso = if (i % 3 == 0) 999_000_000L else 0L)
+    }
+    var pref = Preferencias()
+    repeat(365) { d -> pref = Motor.aprender(pref, grande.subList(d % 990, d % 990 + 4), if (d % 2 == 0) 1.0 else -1.0) }
+    val inicio = System.nanoTime()
+    val looks = Motor.sugerir(grande, ctx(clima(14.0, lluvia = true)).copy(preferencias = pref), cantidad = 6)
+    val ms = (System.nanoTime() - inicio) / 1_000_000
+    assertEquals(6, looks.size)
+    assertTrue("Tardó $ms ms", ms < 1500)
+  }
+
+  @Test
+  fun tendenciasEnVariosIdiomas() {
+    val texto = """{"tendencias":[{"id":"x","titulo":{"es":"Hola","en":"Hello"},"descripcion":"Solo uno","prendas":[{"subtipo":"CAMISETA","color":"negro","nombre":{"es":"Camiseta negra","fr":"T-shirt noir"}}]}]}"""
+    val fr = Json.tendencias(texto, "fr").tendencias.first()
+    assertEquals("Hello", fr.titulo) // sin francés: inglés
+    assertEquals("Solo uno", fr.descripcion)
+    assertEquals("T-shirt noir", fr.prendas.first().nombre)
+    assertEquals("Hola", Json.tendencias(texto, "es").tendencias.first().titulo)
   }
 }

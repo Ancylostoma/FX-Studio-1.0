@@ -23,8 +23,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.ancylostoma.quemepongo.R
 import com.ancylostoma.quemepongo.data.Categoria
 import com.ancylostoma.quemepongo.data.Forma
 import com.ancylostoma.quemepongo.data.Prenda
@@ -43,15 +45,15 @@ fun PantallaArmario(e: Estado, vm: AppViewModel, alAgregar: () -> Unit, alEditar
   ) {
     item(span = { GridItemSpan(maxLineSpan) }) {
       Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        TituloPantalla("Armario", if (reales.isEmpty()) null else if (reales.size == 1) "1 prenda" else "${reales.size} prendas")
+        TituloPantalla(t(R.string.tab_armario), if (reales.isEmpty()) null else pluralStringResource(R.plurals.armario_prendas, reales.size, reales.size))
         if (reales.isNotEmpty()) {
           LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            item { FilterChip(selected = filtro == null, onClick = { filtro = null }, label = { Text("Todo") }) }
+            item { FilterChip(selected = filtro == null, onClick = { filtro = null }, label = { Text(t(R.string.armario_todo)) }) }
             items(Categoria.entries.filter { c -> reales.any { it.categoria == c } }) { c ->
               FilterChip(
                 selected = filtro == c,
                 onClick = { filtro = if (filtro == c) null else c },
-                label = { Text(c.etiqueta) },
+                label = { Text(t(c.res())) },
                 leadingIcon = { IconoForma(formaDeCategoria(c), MaterialTheme.colorScheme.onSurfaceVariant, Modifier.size(18.dp)) },
               )
             }
@@ -63,9 +65,9 @@ fun PantallaArmario(e: Estado, vm: AppViewModel, alAgregar: () -> Unit, alEditar
       item(span = { GridItemSpan(maxLineSpan) }) {
         EstadoVacio(
           Forma.CHAQUETA,
-          "Tu armario está vacío",
-          "Fotografía tu ropa y los looks se armarán con tus prendas. Le quitamos el fondo a cada foto.",
-          "Fotografía tu primera prenda",
+          t(R.string.armario_vacio_titulo),
+          t(R.string.armario_vacio_texto),
+          t(R.string.armario_vacio_boton),
           alAgregar,
         )
       }
@@ -74,9 +76,9 @@ fun PantallaArmario(e: Estado, vm: AppViewModel, alAgregar: () -> Unit, alEditar
       Column(Modifier.clickable { alEditar(p) }) {
         MiniaturaPrenda(p, vm.archivoFoto(p.foto), 104.dp, Modifier.fillMaxWidth())
         Spacer(Modifier.height(6.dp))
-        Text(p.nombre, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(nombre(p), style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text(
-          if (p.usos == 0) "Sin estrenar" else "Usada ${p.usos} ${if (p.usos == 1) "vez" else "veces"}",
+          if (p.usos == 0) t(R.string.armario_sin_estrenar) else pluralStringResource(R.plurals.armario_usada, p.usos, p.usos),
           style = MaterialTheme.typography.labelSmall,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

@@ -56,9 +56,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
+import com.ancylostoma.quemepongo.R
 import com.ancylostoma.quemepongo.data.Categoria
 import com.ancylostoma.quemepongo.data.Colores
 import com.ancylostoma.quemepongo.data.Forma
@@ -118,7 +120,8 @@ fun AgregarPrenda(inicial: Prenda, esNueva: Boolean, vm: AppViewModel, alCerrar:
   fun guardar(): Prenda {
     val final = p.copy(
       id = p.id.removePrefix("nueva-"),
-      nombre = p.nombre.trim().ifBlank { "${p.subtipo.etiqueta} · ${Colores.de(p.color).etiqueta}" },
+      // Sin nombre: se muestra "Tipo · Color" en el idioma del teléfono.
+      nombre = p.nombre.trim(),
     )
     importadas.filter { it != final.foto }.forEach { vm.descartarFoto(it) }
     vm.guardarPrenda(final)
@@ -127,8 +130,8 @@ fun AgregarPrenda(inicial: Prenda, esNueva: Boolean, vm: AppViewModel, alCerrar:
 
   Column(Modifier.fillMaxSize()) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-      IconButton(onClick = cerrarSinGuardar) { Icon(Icons.Filled.Close, "Cerrar") }
-      Text(if (esNueva) "Nueva prenda" else "Editar prenda", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+      IconButton(onClick = cerrarSinGuardar) { Icon(Icons.Filled.Close, t(R.string.cerrar)) }
+      Text(t(if (esNueva) R.string.agregar_nueva else R.string.agregar_editar), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
     }
 
     if (enFoto) {
@@ -145,11 +148,11 @@ fun AgregarPrenda(inicial: Prenda, esNueva: Boolean, vm: AppViewModel, alCerrar:
         if (procesando) CircularProgressIndicator()
       }
       Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-        TextButton(onClick = tomarFoto) { Text("Otra foto") }
-        TextButton(onClick = elegirFoto) { Text("De la galería") }
+        TextButton(onClick = tomarFoto) { Text(t(R.string.agregar_otra_foto)) }
+        TextButton(onClick = elegirFoto) { Text(t(R.string.agregar_galeria)) }
       }
 
-      Text("¿Qué es?", style = MaterialTheme.typography.titleMedium)
+      Text(t(R.string.agregar_que_es), style = MaterialTheme.typography.titleMedium)
       // Seis categorías grandes; al elegir una ya queda su tipo más común.
       Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Categoria.entries.chunked(3).forEach { fila ->
@@ -173,7 +176,7 @@ fun AgregarPrenda(inicial: Prenda, esNueva: Boolean, vm: AppViewModel, alCerrar:
             FilterChip(
               selected = p.subtipo == s,
               onClick = { p = p.copy(subtipo = s, abrigo = s.abrigo, formalidad = s.formalidad, estilos = s.estilos, impermeable = s.impermeable) },
-              label = { Text(s.etiqueta) },
+              label = { Text(t(s.res())) },
             )
           }
         }
@@ -183,10 +186,10 @@ fun AgregarPrenda(inicial: Prenda, esNueva: Boolean, vm: AppViewModel, alCerrar:
         MuestraColor(p.color, 30.dp)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-          Text("Color: ${Colores.de(p.color).etiqueta}", style = MaterialTheme.typography.bodyLarge)
-          if (p.foto != null) Text("Detectado de la foto", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+          Text(stringResource(R.string.agregar_color, t(colorRes(p.color))), style = MaterialTheme.typography.bodyLarge)
+          if (p.foto != null) Text(t(R.string.agregar_detectado), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Text(if (cambiarColor) "Listo" else "Cambiar", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
+        Text(t(if (cambiarColor) R.string.listo else R.string.agregar_cambiar), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
       }
       if (cambiarColor) {
         SelectorColores(setOf(p.color), {
@@ -196,7 +199,7 @@ fun AgregarPrenda(inicial: Prenda, esNueva: Boolean, vm: AppViewModel, alCerrar:
       }
 
       Row(Modifier.fillMaxWidth().clickable { masDetalles = !masDetalles }, verticalAlignment = Alignment.CenterVertically) {
-        Text("Más detalles", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+        Text(t(R.string.agregar_mas), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
         Icon(if (masDetalles) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, null)
       }
       if (masDetalles) Detalles(p) { p = it }
@@ -214,32 +217,32 @@ fun AgregarPrenda(inicial: Prenda, esNueva: Boolean, vm: AppViewModel, alCerrar:
           onClick = { guardar(); alOtra() },
           enabled = eligioTipo && !procesando,
           modifier = Modifier.height(52.dp),
-        ) { Text("Guardar y otra") }
+        ) { Text(t(R.string.agregar_guardar_otra)) }
       } else {
-        TextButton(onClick = { confirmarBorrado = true }) { Text("Borrar", color = MaterialTheme.colorScheme.error) }
+        TextButton(onClick = { confirmarBorrado = true }) { Text(t(R.string.borrar), color = MaterialTheme.colorScheme.error) }
       }
       Button(
         onClick = { guardar(); alCerrar() },
         enabled = eligioTipo && !procesando,
         modifier = Modifier.weight(1f).height(52.dp),
-      ) { Text(if (eligioTipo) "Guardar" else "Elige qué es") }
+      ) { Text(t(if (eligioTipo) R.string.guardar else R.string.agregar_elige)) }
     }
   }
 
   if (confirmarBorrado) {
     AlertDialog(
       onDismissRequest = { confirmarBorrado = false },
-      title = { Text("¿Borrar esta prenda?") },
-      text = { Text("Se borra del armario junto con su foto.") },
+      title = { Text(t(R.string.borrar_titulo)) },
+      text = { Text(t(R.string.borrar_texto)) },
       confirmButton = {
         TextButton(onClick = {
           confirmarBorrado = false
           vm.borrarPrenda(inicial)
           importadas.forEach { vm.descartarFoto(it) }
           alCerrar()
-        }) { Text("Borrar", color = MaterialTheme.colorScheme.error) }
+        }) { Text(t(R.string.borrar), color = MaterialTheme.colorScheme.error) }
       },
-      dismissButton = { TextButton(onClick = { confirmarBorrado = false }) { Text("Cancelar") } },
+      dismissButton = { TextButton(onClick = { confirmarBorrado = false }) { Text(t(R.string.cancelar)) } },
     )
   }
 }
@@ -254,20 +257,20 @@ private fun PasoFoto(procesando: Boolean, tomarFoto: () -> Unit, elegirFoto: () 
   ) {
     if (procesando) {
       CircularProgressIndicator()
-      Text("Quitando el fondo…", style = MaterialTheme.typography.titleMedium)
+      Text(t(R.string.foto_quitando), style = MaterialTheme.typography.titleMedium)
       return@Column
     }
     IconoForma(Forma.TOP_MANGA_LARGA, MaterialTheme.colorScheme.primaryContainer, Modifier.size(96.dp), borde = MaterialTheme.colorScheme.primary)
-    Text("Hazle una foto a la prenda", style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center)
+    Text(t(R.string.foto_titulo), style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center)
     Text(
-      "Extendida sobre la cama o colgada, con buena luz. Le quitamos el fondo para que se vea como en una tienda.",
+      t(R.string.foto_texto),
       style = MaterialTheme.typography.bodyMedium,
       color = MaterialTheme.colorScheme.onSurfaceVariant,
       textAlign = TextAlign.Center,
     )
-    BotonGrande(Icons.Filled.CameraAlt, "Tomar foto", principal = true, alTocar = tomarFoto)
-    BotonGrande(Icons.Filled.PhotoLibrary, "Elegir de la galería", principal = false, alTocar = elegirFoto)
-    TextButton(onClick = sinFoto) { Text("Continuar sin foto") }
+    BotonGrande(Icons.Filled.CameraAlt, t(R.string.foto_tomar), principal = true, alTocar = tomarFoto)
+    BotonGrande(Icons.Filled.PhotoLibrary, t(R.string.foto_galeria), principal = false, alTocar = elegirFoto)
+    TextButton(onClick = sinFoto) { Text(t(R.string.foto_sin)) }
   }
 }
 
@@ -304,7 +307,7 @@ private fun BotonCategoria(c: Categoria, elegida: Boolean, modifier: Modifier, a
       borde = Color.Transparent,
     )
     Spacer(Modifier.height(6.dp))
-    Text(c.etiqueta, style = MaterialTheme.typography.labelLarge)
+    Text(t(c.res()), style = MaterialTheme.typography.labelLarge)
   }
 }
 
@@ -314,40 +317,46 @@ private fun Detalles(p: Prenda, alCambiar: (Prenda) -> Unit) {
     OutlinedTextField(
       value = p.nombre,
       onValueChange = { alCambiar(p.copy(nombre = it)) },
-      label = { Text("Nombre (opcional)") },
-      placeholder = { Text("${p.subtipo.etiqueta} · ${Colores.de(p.color).etiqueta}") },
+      label = { Text(t(R.string.detalle_nombre)) },
+      placeholder = { Text(nombre(p.copy(nombre = ""))) },
       singleLine = true,
       modifier = Modifier.fillMaxWidth(),
     )
-    Text("Estilo", style = MaterialTheme.typography.labelLarge)
+    Text(t(R.string.detalle_estilo), style = MaterialTheme.typography.labelLarge)
     SelectorEstilos(p.estilos) { s ->
       val nuevos = if (s in p.estilos) p.estilos - s else p.estilos + s
       if (nuevos.isNotEmpty()) alCambiar(p.copy(estilos = nuevos))
     }
-    Text("¿Cuánto abriga? ${etiquetaAbrigo(p.abrigo)}", style = MaterialTheme.typography.labelLarge)
+    Text(stringResource(R.string.detalle_abrigo, etiquetaAbrigo(p.abrigo)), style = MaterialTheme.typography.labelLarge)
     Slider(value = p.abrigo.toFloat(), onValueChange = { alCambiar(p.copy(abrigo = it.roundToInt())) }, valueRange = 0f..5f, steps = 4)
-    Text("¿Qué tan formal es? ${etiquetaFormalidad(p.formalidad)}", style = MaterialTheme.typography.labelLarge)
+    Text(stringResource(R.string.detalle_formal, etiquetaFormalidad(p.formalidad)), style = MaterialTheme.typography.labelLarge)
     Slider(value = p.formalidad.toFloat(), onValueChange = { alCambiar(p.copy(formalidad = it.roundToInt())) }, valueRange = 1f..5f, steps = 3)
     Row(verticalAlignment = Alignment.CenterVertically) {
-      Text("Sirve para la lluvia", modifier = Modifier.weight(1f))
+      Text(t(R.string.detalle_lluvia), modifier = Modifier.weight(1f))
       Switch(checked = p.impermeable, onCheckedChange = { alCambiar(p.copy(impermeable = it)) })
     }
   }
 }
 
-private fun etiquetaAbrigo(n: Int) = when (n) {
-  0 -> "(muy fresca)"
-  1 -> "(fresca)"
-  2 -> "(media)"
-  3 -> "(abriga)"
-  4 -> "(abriga mucho)"
-  else -> "(para mucho frío)"
-}
+@Composable
+private fun etiquetaAbrigo(n: Int) = t(
+  when (n) {
+    0 -> R.string.abrigo_0
+    1 -> R.string.abrigo_1
+    2 -> R.string.abrigo_2
+    3 -> R.string.abrigo_3
+    4 -> R.string.abrigo_4
+    else -> R.string.abrigo_5
+  },
+)
 
-private fun etiquetaFormalidad(n: Int) = when (n) {
-  1 -> "(deporte)"
-  2 -> "(informal)"
-  3 -> "(arreglada)"
-  4 -> "(formal)"
-  else -> "(de gala)"
-}
+@Composable
+private fun etiquetaFormalidad(n: Int) = t(
+  when (n) {
+    1 -> R.string.formal_1
+    2 -> R.string.formal_2
+    3 -> R.string.formal_3
+    4 -> R.string.formal_4
+    else -> R.string.formal_5
+  },
+)

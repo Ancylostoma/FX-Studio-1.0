@@ -1,255 +1,1314 @@
 {
-  "version": 1,
+  "version": 2,
   "actualizado": "2026-10-25",
-  "_ayuda": "La app descarga este archivo desde la rama main de GitHub cada día. Edítalo aquí y todos los usuarios ven las tendencias nuevas sin publicar otra versión. Fechas: MM-DD (se repite cada año) o AAAA-MM-DD (una sola vez). Colores: negro, blanco, gris, beige, camel, marron, marino, denim, oliva, azul, celeste, verde, rojo, borgona, rosa, morado, amarillo, naranja, estampado. Subtipos: CAMISETA, TOP, POLO, CAMISA, BLUSA, SUETER, SUDADERA, JEANS, PANTALON_VESTIR, JOGGER, SHORT, FALDA, VESTIDO, VESTIDO_LARGO, CHAQUETA, CAZADORA, BLAZER, CARDIGAN, ABRIGO, PLUMIFERO, IMPERMEABLE, TENIS, ZAPATOS, TACONES, BOTAS, SANDALIAS, GORRO, GORRA, BUFANDA, BOLSO. tienda_url: pon aquí tu enlace de afiliado; {q} es la prenda buscada.",
+  "_ayuda": "La app descarga este archivo desde la rama main de GitHub cada día. Edítalo aquí (sube \"version\" al cambiarlo) y todos los usuarios ven las tendencias nuevas sin publicar otra versión. Fechas: MM-DD (se repite cada año) o AAAA-MM-DD (una sola vez). Colores: negro, blanco, gris, beige, camel, marron, marino, denim, oliva, azul, celeste, verde, rojo, borgona, rosa, morado, amarillo, naranja, estampado. Subtipos: CAMISETA, TOP, POLO, CAMISA, BLUSA, SUETER, SUDADERA, JEANS, PANTALON_VESTIR, JOGGER, SHORT, FALDA, VESTIDO, VESTIDO_LARGO, CHAQUETA, CAZADORA, BLAZER, CARDIGAN, ABRIGO, PLUMIFERO, IMPERMEABLE, TENIS, ZAPATOS, TACONES, BOTAS, SANDALIAS, GORRO, GORRA, BUFANDA, BOLSO. tienda_url: pon aquí tu enlace de afiliado; {q} es la prenda buscada. Textos: cada uno puede ser un texto o {\"es\": ..., \"en\": ..., \"pt\": ..., \"fr\": ..., \"de\": ..., \"it\": ...}; si falta un idioma se usa el inglés.",
   "tienda_url": "https://www.google.com/search?tbm=shop&q={q}",
   "tendencias": [
     {
       "id": "tierra-oi",
-      "titulo": "Tonos tierra y chocolate",
-      "descripcion": "Marrón, camel y beige en capas: la paleta más repetida del otoño-invierno.",
+      "titulo": {
+        "en": "Earth and chocolate tones",
+        "es": "Tonos tierra y chocolate",
+        "pt": "Tons terrosos e chocolate",
+        "fr": "Tons terre et chocolat",
+        "de": "Erd- und Schokotöne",
+        "it": "Toni terra e cioccolato"
+      },
+      "descripcion": {
+        "en": "Brown, camel and beige in layers: the most repeated palette of fall-winter.",
+        "es": "Marrón, camel y beige en capas: la paleta más repetida del otoño-invierno.",
+        "pt": "Marrom, caramelo e bege em camadas: a paleta mais vista do outono-inverno.",
+        "fr": "Marron, camel et beige superposés : la palette phare de l'automne-hiver.",
+        "de": "Braun, Camel und Beige im Lagenlook: die Farbpalette des Herbst-Winters.",
+        "it": "Marrone, cammello e beige a strati: la palette più vista dell'autunno-inverno."
+      },
       "tipo": "temporada",
-      "fuente": "Selección de temporada de Qué Me Pongo",
-      "desde": "09-01", "hasta": "02-28", "hemisferio": "norte",
-      "colores": ["marron", "camel", "beige", "oliva"],
-      "estilos": ["CLASICO", "MINIMALISTA"],
+      "fuente": {
+        "en": "Qué Me Pongo seasonal pick",
+        "es": "Selección de temporada de Qué Me Pongo",
+        "pt": "Seleção da temporada do Qué Me Pongo",
+        "fr": "Sélection de saison Qué Me Pongo",
+        "de": "Saisonauswahl von Qué Me Pongo",
+        "it": "Selezione di stagione di Qué Me Pongo"
+      },
+      "desde": "09-01",
+      "hasta": "02-28",
+      "hemisferio": "norte",
+      "colores": [
+        "marron",
+        "camel",
+        "beige",
+        "oliva"
+      ],
+      "estilos": [
+        "CLASICO",
+        "MINIMALISTA"
+      ],
       "prendas": [
-        {"subtipo": "SUETER", "color": "camel", "nombre": "Suéter camel de punto"},
-        {"subtipo": "PANTALON_VESTIR", "color": "marron", "nombre": "Pantalón marrón de pinzas"},
-        {"subtipo": "ABRIGO", "color": "camel", "nombre": "Abrigo camel"},
-        {"subtipo": "BOTAS", "color": "marron", "nombre": "Botines marrones"}
+        {
+          "subtipo": "SUETER",
+          "color": "camel",
+          "nombre": {
+            "en": "Camel knit sweater",
+            "es": "Suéter camel de punto",
+            "pt": "Suéter de tricô caramelo",
+            "fr": "Pull en maille camel",
+            "de": "Camel-Strickpullover",
+            "it": "Maglione in maglia cammello"
+          }
+        },
+        {
+          "subtipo": "PANTALON_VESTIR",
+          "color": "marron",
+          "nombre": {
+            "en": "Brown pleated trousers",
+            "es": "Pantalón marrón de pinzas",
+            "pt": "Calça marrom com pregas",
+            "fr": "Pantalon marron à pinces",
+            "de": "Braune Bundfaltenhose",
+            "it": "Pantaloni marroni con pince"
+          }
+        },
+        {
+          "subtipo": "ABRIGO",
+          "color": "camel",
+          "nombre": {
+            "en": "Camel coat",
+            "es": "Abrigo camel",
+            "pt": "Sobretudo caramelo",
+            "fr": "Manteau camel",
+            "de": "Camel-Mantel",
+            "it": "Cappotto cammello"
+          }
+        },
+        {
+          "subtipo": "BOTAS",
+          "color": "marron",
+          "nombre": {
+            "en": "Brown ankle boots",
+            "es": "Botines marrones",
+            "pt": "Botas marrons",
+            "fr": "Bottines marron",
+            "de": "Braune Stiefeletten",
+            "it": "Stivaletti marroni"
+          }
+        }
       ],
       "peso": 1.0
     },
     {
       "id": "borgona-oi",
-      "titulo": "Borgoña",
-      "descripcion": "El rojo vino como color de acento sobre negro o gris.",
+      "titulo": {
+        "en": "Burgundy",
+        "es": "Borgoña",
+        "pt": "Vinho",
+        "fr": "Bordeaux",
+        "de": "Bordeaux",
+        "it": "Bordeaux"
+      },
+      "descripcion": {
+        "en": "Wine red as an accent over black or gray.",
+        "es": "El rojo vino como color de acento sobre negro o gris.",
+        "pt": "O vinho como cor de destaque sobre preto ou cinza.",
+        "fr": "Le rouge vin en touche de couleur sur du noir ou du gris.",
+        "de": "Weinrot als Akzent zu Schwarz oder Grau.",
+        "it": "Il rosso vino come accento su nero o grigio."
+      },
       "tipo": "temporada",
-      "fuente": "Selección de temporada de Qué Me Pongo",
-      "desde": "09-15", "hasta": "01-31", "hemisferio": "norte",
-      "colores": ["borgona", "negro", "gris"],
-      "estilos": ["ELEGANTE", "CLASICO"],
+      "fuente": {
+        "en": "Qué Me Pongo seasonal pick",
+        "es": "Selección de temporada de Qué Me Pongo",
+        "pt": "Seleção da temporada do Qué Me Pongo",
+        "fr": "Sélection de saison Qué Me Pongo",
+        "de": "Saisonauswahl von Qué Me Pongo",
+        "it": "Selezione di stagione di Qué Me Pongo"
+      },
+      "desde": "09-15",
+      "hasta": "01-31",
+      "hemisferio": "norte",
+      "colores": [
+        "borgona",
+        "negro",
+        "gris"
+      ],
+      "estilos": [
+        "ELEGANTE",
+        "CLASICO"
+      ],
       "prendas": [
-        {"subtipo": "SUETER", "color": "borgona", "nombre": "Suéter borgoña"},
-        {"subtipo": "PANTALON_VESTIR", "color": "negro", "nombre": "Pantalón negro recto"},
-        {"subtipo": "ZAPATOS", "color": "negro", "nombre": "Mocasines negros"},
-        {"subtipo": "BOLSO", "color": "borgona", "nombre": "Bolso borgoña"}
+        {
+          "subtipo": "SUETER",
+          "color": "borgona",
+          "nombre": {
+            "en": "Burgundy sweater",
+            "es": "Suéter borgoña",
+            "pt": "Suéter vinho",
+            "fr": "Pull bordeaux",
+            "de": "Bordeaux-Pullover",
+            "it": "Maglione bordeaux"
+          }
+        },
+        {
+          "subtipo": "PANTALON_VESTIR",
+          "color": "negro",
+          "nombre": {
+            "en": "Straight black trousers",
+            "es": "Pantalón negro recto",
+            "pt": "Calça preta reta",
+            "fr": "Pantalon noir droit",
+            "de": "Gerade schwarze Hose",
+            "it": "Pantaloni neri dritti"
+          }
+        },
+        {
+          "subtipo": "ZAPATOS",
+          "color": "negro",
+          "nombre": {
+            "en": "Black loafers",
+            "es": "Mocasines negros",
+            "pt": "Mocassins pretos",
+            "fr": "Mocassins noirs",
+            "de": "Schwarze Loafer",
+            "it": "Mocassini neri"
+          }
+        },
+        {
+          "subtipo": "BOLSO",
+          "color": "borgona",
+          "nombre": {
+            "en": "Burgundy bag",
+            "es": "Bolso borgoña",
+            "pt": "Bolsa vinho",
+            "fr": "Sac bordeaux",
+            "de": "Bordeaux-Tasche",
+            "it": "Borsa bordeaux"
+          }
+        }
       ],
       "peso": 0.9
     },
     {
       "id": "colegial-oi",
-      "titulo": "Estilo colegial",
-      "descripcion": "Cárdigan, camisa y mocasines: el look 'preppy' de vuelta a clases.",
+      "titulo": {
+        "en": "Preppy style",
+        "es": "Estilo colegial",
+        "pt": "Estilo preppy",
+        "fr": "Style preppy",
+        "de": "Preppy-Stil",
+        "it": "Stile preppy"
+      },
+      "descripcion": {
+        "en": "Cardigan, shirt and loafers: the back-to-school preppy look.",
+        "es": "Cárdigan, camisa y mocasines: el look 'preppy' de vuelta a clases.",
+        "pt": "Cardigã, camisa e mocassins: o look preppy de volta às aulas.",
+        "fr": "Cardigan, chemise et mocassins : le look preppy de la rentrée.",
+        "de": "Strickjacke, Hemd und Loafer: der Preppy-Look zum Schulanfang.",
+        "it": "Cardigan, camicia e mocassini: il look preppy del ritorno a scuola."
+      },
       "tipo": "temporada",
-      "fuente": "Selección de temporada de Qué Me Pongo",
-      "desde": "09-01", "hasta": "12-15", "hemisferio": "norte",
-      "colores": ["marino", "verde", "blanco", "beige"],
-      "estilos": ["CLASICO", "ROMANTICO"],
+      "fuente": {
+        "en": "Qué Me Pongo seasonal pick",
+        "es": "Selección de temporada de Qué Me Pongo",
+        "pt": "Seleção da temporada do Qué Me Pongo",
+        "fr": "Sélection de saison Qué Me Pongo",
+        "de": "Saisonauswahl von Qué Me Pongo",
+        "it": "Selezione di stagione di Qué Me Pongo"
+      },
+      "desde": "09-01",
+      "hasta": "12-15",
+      "hemisferio": "norte",
+      "colores": [
+        "marino",
+        "verde",
+        "blanco",
+        "beige"
+      ],
+      "estilos": [
+        "CLASICO",
+        "ROMANTICO"
+      ],
       "prendas": [
-        {"subtipo": "CAMISA", "color": "blanco", "nombre": "Camisa blanca"},
-        {"subtipo": "CARDIGAN", "color": "marino", "nombre": "Cárdigan azul marino"},
-        {"subtipo": "FALDA", "color": "gris", "nombre": "Falda gris plisada"},
-        {"subtipo": "ZAPATOS", "color": "marron", "nombre": "Mocasines marrones"}
+        {
+          "subtipo": "CAMISA",
+          "color": "blanco",
+          "nombre": {
+            "en": "White shirt",
+            "es": "Camisa blanca",
+            "pt": "Camisa branca",
+            "fr": "Chemise blanche",
+            "de": "Weißes Hemd",
+            "it": "Camicia bianca"
+          }
+        },
+        {
+          "subtipo": "CARDIGAN",
+          "color": "marino",
+          "nombre": {
+            "en": "Navy cardigan",
+            "es": "Cárdigan azul marino",
+            "pt": "Cardigã azul-marinho",
+            "fr": "Cardigan bleu marine",
+            "de": "Marineblaue Strickjacke",
+            "it": "Cardigan blu navy"
+          }
+        },
+        {
+          "subtipo": "FALDA",
+          "color": "gris",
+          "nombre": {
+            "en": "Gray pleated skirt",
+            "es": "Falda gris plisada",
+            "pt": "Saia cinza plissada",
+            "fr": "Jupe grise plissée",
+            "de": "Grauer Faltenrock",
+            "it": "Gonna grigia a pieghe"
+          }
+        },
+        {
+          "subtipo": "ZAPATOS",
+          "color": "marron",
+          "nombre": {
+            "en": "Brown loafers",
+            "es": "Mocasines marrones",
+            "pt": "Mocassins marrons",
+            "fr": "Mocassins marron",
+            "de": "Braune Loafer",
+            "it": "Mocassini marroni"
+          }
+        }
       ],
       "peso": 0.8
     },
     {
       "id": "blazer-oversize",
-      "titulo": "Blazer oversize con jeans",
-      "descripcion": "Blazer amplio, camiseta básica y tenis: arreglado sin esfuerzo.",
+      "titulo": {
+        "en": "Oversized blazer with jeans",
+        "es": "Blazer oversize con jeans",
+        "pt": "Blazer oversized com jeans",
+        "fr": "Blazer oversize et jean",
+        "de": "Oversized-Blazer mit Jeans",
+        "it": "Blazer oversize con jeans"
+      },
+      "descripcion": {
+        "en": "Loose blazer, basic tee and sneakers: put-together without effort.",
+        "es": "Blazer amplio, camiseta básica y tenis: arreglado sin esfuerzo.",
+        "pt": "Blazer amplo, camiseta básica e tênis: arrumado sem esforço.",
+        "fr": "Blazer ample, t-shirt basique et baskets : chic sans effort.",
+        "de": "Weiter Blazer, Basic-Shirt und Sneaker: schick ohne Aufwand.",
+        "it": "Blazer ampio, t-shirt basica e sneakers: curato senza sforzo."
+      },
       "tipo": "temporada",
-      "fuente": "Selección de Qué Me Pongo",
-      "desde": "", "hasta": "", "hemisferio": "ambos",
-      "colores": ["negro", "gris", "denim", "blanco"],
-      "estilos": ["URBANO", "MINIMALISTA", "ELEGANTE"],
+      "fuente": {
+        "en": "Qué Me Pongo pick",
+        "es": "Selección de Qué Me Pongo",
+        "pt": "Seleção do Qué Me Pongo",
+        "fr": "Sélection Qué Me Pongo",
+        "de": "Auswahl von Qué Me Pongo",
+        "it": "Selezione di Qué Me Pongo"
+      },
+      "desde": "",
+      "hasta": "",
+      "hemisferio": "ambos",
+      "colores": [
+        "negro",
+        "gris",
+        "denim",
+        "blanco"
+      ],
+      "estilos": [
+        "URBANO",
+        "MINIMALISTA",
+        "ELEGANTE"
+      ],
       "prendas": [
-        {"subtipo": "CAMISETA", "color": "blanco", "nombre": "Camiseta blanca"},
-        {"subtipo": "JEANS", "color": "denim", "nombre": "Jeans rectos"},
-        {"subtipo": "BLAZER", "color": "gris", "nombre": "Blazer gris oversize"},
-        {"subtipo": "TENIS", "color": "blanco", "nombre": "Tenis blancos"}
+        {
+          "subtipo": "CAMISETA",
+          "color": "blanco",
+          "nombre": {
+            "en": "White T-shirt",
+            "es": "Camiseta blanca",
+            "pt": "Camiseta branca",
+            "fr": "T-shirt blanc",
+            "de": "Weißes T-Shirt",
+            "it": "T-shirt bianca"
+          }
+        },
+        {
+          "subtipo": "JEANS",
+          "color": "denim",
+          "nombre": {
+            "en": "Straight jeans",
+            "es": "Jeans rectos",
+            "pt": "Jeans reto",
+            "fr": "Jean droit",
+            "de": "Gerade Jeans",
+            "it": "Jeans dritti"
+          }
+        },
+        {
+          "subtipo": "BLAZER",
+          "color": "gris",
+          "nombre": {
+            "en": "Gray oversized blazer",
+            "es": "Blazer gris oversize",
+            "pt": "Blazer cinza oversized",
+            "fr": "Blazer gris oversize",
+            "de": "Grauer Oversized-Blazer",
+            "it": "Blazer grigio oversize"
+          }
+        },
+        {
+          "subtipo": "TENIS",
+          "color": "blanco",
+          "nombre": {
+            "en": "White sneakers",
+            "es": "Tenis blancos",
+            "pt": "Tênis brancos",
+            "fr": "Baskets blanches",
+            "de": "Weiße Sneaker",
+            "it": "Sneakers bianche"
+          }
+        }
       ],
       "peso": 0.7
     },
     {
       "id": "off-duty",
-      "titulo": "Famosos fuera de cámara",
-      "descripcion": "El uniforme de las celebridades por la calle: gabardina, básicos y gorra.",
+      "titulo": {
+        "en": "Celebrities off duty",
+        "es": "Famosos fuera de cámara",
+        "pt": "Famosos fora das câmeras",
+        "fr": "Les stars hors caméra",
+        "de": "Promis privat",
+        "it": "Celebrità fuori set"
+      },
+      "descripcion": {
+        "en": "The celebrity street uniform: trench coat, basics and a cap.",
+        "es": "El uniforme de las celebridades por la calle: gabardina, básicos y gorra.",
+        "pt": "O uniforme das celebridades na rua: trench, básicos e boné.",
+        "fr": "L'uniforme des stars dans la rue : trench, basiques et casquette.",
+        "de": "Die Straßenuniform der Stars: Trenchcoat, Basics und Kappe.",
+        "it": "La divisa delle celebrità per strada: trench, basici e cappellino."
+      },
       "tipo": "famosos",
-      "fuente": "Inspirado en el estilo de calle de celebridades",
-      "desde": "", "hasta": "", "hemisferio": "ambos",
-      "colores": ["beige", "negro", "denim", "blanco"],
-      "estilos": ["URBANO", "CASUAL"],
+      "fuente": {
+        "en": "Inspired by celebrity street style",
+        "es": "Inspirado en el estilo de calle de celebridades",
+        "pt": "Inspirado no estilo de rua das celebridades",
+        "fr": "Inspiré du street style des célébrités",
+        "de": "Inspiriert vom Streetstyle der Stars",
+        "it": "Ispirato allo street style delle celebrità"
+      },
+      "desde": "",
+      "hasta": "",
+      "hemisferio": "ambos",
+      "colores": [
+        "beige",
+        "negro",
+        "denim",
+        "blanco"
+      ],
+      "estilos": [
+        "URBANO",
+        "CASUAL"
+      ],
       "prendas": [
-        {"subtipo": "CAMISETA", "color": "negro", "nombre": "Camiseta negra"},
-        {"subtipo": "JEANS", "color": "denim", "nombre": "Jeans holgados"},
-        {"subtipo": "IMPERMEABLE", "color": "beige", "nombre": "Gabardina beige"},
-        {"subtipo": "TENIS", "color": "blanco", "nombre": "Tenis blancos"},
-        {"subtipo": "GORRA", "color": "negro", "nombre": "Gorra negra"}
+        {
+          "subtipo": "CAMISETA",
+          "color": "negro",
+          "nombre": {
+            "en": "Black T-shirt",
+            "es": "Camiseta negra",
+            "pt": "Camiseta preta",
+            "fr": "T-shirt noir",
+            "de": "Schwarzes T-Shirt",
+            "it": "T-shirt nera"
+          }
+        },
+        {
+          "subtipo": "JEANS",
+          "color": "denim",
+          "nombre": {
+            "en": "Baggy jeans",
+            "es": "Jeans holgados",
+            "pt": "Jeans largo",
+            "fr": "Jean ample",
+            "de": "Weite Jeans",
+            "it": "Jeans larghi"
+          }
+        },
+        {
+          "subtipo": "IMPERMEABLE",
+          "color": "beige",
+          "nombre": {
+            "en": "Beige trench coat",
+            "es": "Gabardina beige",
+            "pt": "Trench bege",
+            "fr": "Trench beige",
+            "de": "Beiger Trenchcoat",
+            "it": "Trench beige"
+          }
+        },
+        {
+          "subtipo": "TENIS",
+          "color": "blanco",
+          "nombre": {
+            "en": "White sneakers",
+            "es": "Tenis blancos",
+            "pt": "Tênis brancos",
+            "fr": "Baskets blanches",
+            "de": "Weiße Sneaker",
+            "it": "Sneakers bianche"
+          }
+        },
+        {
+          "subtipo": "GORRA",
+          "color": "negro",
+          "nombre": {
+            "en": "Black cap",
+            "es": "Gorra negra",
+            "pt": "Boné preto",
+            "fr": "Casquette noire",
+            "de": "Schwarze Kappe",
+            "it": "Cappellino nero"
+          }
+        }
       ],
       "peso": 0.8
     },
     {
       "id": "alfombra-roja",
-      "titulo": "Alfombra roja minimalista",
-      "descripcion": "Siluetas limpias y un solo color: lo que más se repite en las galas.",
+      "titulo": {
+        "en": "Minimalist red carpet",
+        "es": "Alfombra roja minimalista",
+        "pt": "Tapete vermelho minimalista",
+        "fr": "Tapis rouge minimaliste",
+        "de": "Minimalistischer roter Teppich",
+        "it": "Red carpet minimal"
+      },
+      "descripcion": {
+        "en": "Clean silhouettes in a single color: the most repeated look at galas.",
+        "es": "Siluetas limpias y un solo color: lo que más se repite en las galas.",
+        "pt": "Silhuetas limpas e uma só cor: o que mais se repete nas premiações.",
+        "fr": "Silhouettes épurées et une seule couleur : ce qu'on voit le plus aux galas.",
+        "de": "Klare Silhouetten in einer Farbe: der häufigste Gala-Look.",
+        "it": "Silhouette pulite e un solo colore: ciò che si vede di più ai gala."
+      },
       "tipo": "famosos",
-      "fuente": "Inspirado en las alfombras rojas",
-      "desde": "", "hasta": "", "hemisferio": "ambos",
-      "colores": ["negro", "blanco", "marino"],
-      "estilos": ["ELEGANTE", "MINIMALISTA"],
+      "fuente": {
+        "en": "Inspired by red carpets",
+        "es": "Inspirado en las alfombras rojas",
+        "pt": "Inspirado nos tapetes vermelhos",
+        "fr": "Inspiré des tapis rouges",
+        "de": "Inspiriert von roten Teppichen",
+        "it": "Ispirato ai red carpet"
+      },
+      "desde": "",
+      "hasta": "",
+      "hemisferio": "ambos",
+      "colores": [
+        "negro",
+        "blanco",
+        "marino"
+      ],
+      "estilos": [
+        "ELEGANTE",
+        "MINIMALISTA"
+      ],
       "prendas": [
-        {"subtipo": "VESTIDO_LARGO", "color": "negro", "nombre": "Vestido largo negro"},
-        {"subtipo": "BLAZER", "color": "negro", "nombre": "Blazer negro"},
-        {"subtipo": "TACONES", "color": "negro", "nombre": "Tacones negros"}
+        {
+          "subtipo": "VESTIDO_LARGO",
+          "color": "negro",
+          "nombre": {
+            "en": "Long black dress",
+            "es": "Vestido largo negro",
+            "pt": "Vestido longo preto",
+            "fr": "Robe longue noire",
+            "de": "Langes schwarzes Kleid",
+            "it": "Abito lungo nero"
+          }
+        },
+        {
+          "subtipo": "BLAZER",
+          "color": "negro",
+          "nombre": {
+            "en": "Black blazer",
+            "es": "Blazer negro",
+            "pt": "Blazer preto",
+            "fr": "Blazer noir",
+            "de": "Schwarzer Blazer",
+            "it": "Blazer nero"
+          }
+        },
+        {
+          "subtipo": "TACONES",
+          "color": "negro",
+          "nombre": {
+            "en": "Black heels",
+            "es": "Tacones negros",
+            "pt": "Salto alto preto",
+            "fr": "Talons noirs",
+            "de": "Schwarze High Heels",
+            "it": "Tacchi neri"
+          }
+        }
       ],
       "peso": 0.6
     },
     {
       "id": "athleisure",
-      "titulo": "Athleisure",
-      "descripcion": "Ropa deportiva cómoda que también sirve para la calle.",
+      "titulo": {
+        "en": "Athleisure",
+        "es": "Athleisure",
+        "pt": "Athleisure",
+        "fr": "Athleisure",
+        "de": "Athleisure",
+        "it": "Athleisure"
+      },
+      "descripcion": {
+        "en": "Comfortable sportswear that also works on the street.",
+        "es": "Ropa deportiva cómoda que también sirve para la calle.",
+        "pt": "Roupa esportiva confortável que também serve para a rua.",
+        "fr": "Des vêtements de sport confortables qui se portent aussi en ville.",
+        "de": "Bequeme Sportkleidung, die auch auf der Straße funktioniert.",
+        "it": "Abbigliamento sportivo comodo che va bene anche in città."
+      },
       "tipo": "temporada",
-      "fuente": "Selección de Qué Me Pongo",
-      "desde": "", "hasta": "", "hemisferio": "ambos",
-      "colores": ["gris", "negro", "blanco"],
-      "estilos": ["DEPORTIVO", "URBANO"],
+      "fuente": {
+        "en": "Qué Me Pongo pick",
+        "es": "Selección de Qué Me Pongo",
+        "pt": "Seleção do Qué Me Pongo",
+        "fr": "Sélection Qué Me Pongo",
+        "de": "Auswahl von Qué Me Pongo",
+        "it": "Selezione di Qué Me Pongo"
+      },
+      "desde": "",
+      "hasta": "",
+      "hemisferio": "ambos",
+      "colores": [
+        "gris",
+        "negro",
+        "blanco"
+      ],
+      "estilos": [
+        "DEPORTIVO",
+        "URBANO"
+      ],
       "prendas": [
-        {"subtipo": "SUDADERA", "color": "gris", "nombre": "Sudadera gris"},
-        {"subtipo": "JOGGER", "color": "negro", "nombre": "Jogger negro"},
-        {"subtipo": "TENIS", "color": "blanco", "nombre": "Tenis blancos"}
+        {
+          "subtipo": "SUDADERA",
+          "color": "gris",
+          "nombre": {
+            "en": "Gray hoodie",
+            "es": "Sudadera gris",
+            "pt": "Moletom cinza",
+            "fr": "Sweat gris",
+            "de": "Grauer Hoodie",
+            "it": "Felpa grigia"
+          }
+        },
+        {
+          "subtipo": "JOGGER",
+          "color": "negro",
+          "nombre": {
+            "en": "Black joggers",
+            "es": "Jogger negro",
+            "pt": "Jogger preto",
+            "fr": "Jogging noir",
+            "de": "Schwarze Jogginghose",
+            "it": "Jogger neri"
+          }
+        },
+        {
+          "subtipo": "TENIS",
+          "color": "blanco",
+          "nombre": {
+            "en": "White sneakers",
+            "es": "Tenis blancos",
+            "pt": "Tênis brancos",
+            "fr": "Baskets blanches",
+            "de": "Weiße Sneaker",
+            "it": "Sneakers bianche"
+          }
+        }
       ],
       "peso": 0.6
     },
     {
       "id": "halloween",
-      "titulo": "Halloween",
-      "descripcion": "Negro con un toque de naranja o morado para las fiestas del 31.",
+      "titulo": {
+        "en": "Halloween",
+        "es": "Halloween",
+        "pt": "Halloween",
+        "fr": "Halloween",
+        "de": "Halloween",
+        "it": "Halloween"
+      },
+      "descripcion": {
+        "en": "Black with a touch of orange or purple for the parties on the 31st.",
+        "es": "Negro con un toque de naranja o morado para las fiestas del 31.",
+        "pt": "Preto com um toque de laranja ou roxo para as festas do dia 31.",
+        "fr": "Du noir avec une touche d'orange ou de violet pour les soirées du 31.",
+        "de": "Schwarz mit einem Hauch Orange oder Lila für die Partys am 31.",
+        "it": "Nero con un tocco di arancione o viola per le feste del 31."
+      },
       "tipo": "evento",
-      "fuente": "Evento: Halloween (31 de octubre)",
-      "desde": "10-20", "hasta": "10-31", "hemisferio": "ambos",
-      "colores": ["negro", "naranja", "morado"],
-      "estilos": ["URBANO", "CASUAL"],
+      "fuente": {
+        "en": "Event: Halloween (October 31)",
+        "es": "Evento: Halloween (31 de octubre)",
+        "pt": "Evento: Halloween (31 de outubro)",
+        "fr": "Événement : Halloween (31 octobre)",
+        "de": "Anlass: Halloween (31. Oktober)",
+        "it": "Evento: Halloween (31 ottobre)"
+      },
+      "desde": "10-20",
+      "hasta": "10-31",
+      "hemisferio": "ambos",
+      "colores": [
+        "negro",
+        "naranja",
+        "morado"
+      ],
+      "estilos": [
+        "URBANO",
+        "CASUAL"
+      ],
       "prendas": [
-        {"subtipo": "SUDADERA", "color": "naranja", "nombre": "Sudadera naranja"},
-        {"subtipo": "JEANS", "color": "negro", "nombre": "Jeans negros"},
-        {"subtipo": "BOTAS", "color": "negro", "nombre": "Botas negras"}
+        {
+          "subtipo": "SUDADERA",
+          "color": "naranja",
+          "nombre": {
+            "en": "Orange hoodie",
+            "es": "Sudadera naranja",
+            "pt": "Moletom laranja",
+            "fr": "Sweat orange",
+            "de": "Oranger Hoodie",
+            "it": "Felpa arancione"
+          }
+        },
+        {
+          "subtipo": "JEANS",
+          "color": "negro",
+          "nombre": {
+            "en": "Black jeans",
+            "es": "Jeans negros",
+            "pt": "Jeans preto",
+            "fr": "Jean noir",
+            "de": "Schwarze Jeans",
+            "it": "Jeans neri"
+          }
+        },
+        {
+          "subtipo": "BOTAS",
+          "color": "negro",
+          "nombre": {
+            "en": "Black boots",
+            "es": "Botas negras",
+            "pt": "Botas pretas",
+            "fr": "Bottes noires",
+            "de": "Schwarze Stiefel",
+            "it": "Stivali neri"
+          }
+        }
       ],
       "peso": 1.2
     },
     {
       "id": "dia-de-muertos",
-      "titulo": "Día de Muertos",
-      "descripcion": "Negro con flores y tonos cempasúchil para el 1 y 2 de noviembre.",
+      "titulo": {
+        "en": "Day of the Dead",
+        "es": "Día de Muertos",
+        "pt": "Dia dos Mortos",
+        "fr": "Jour des Morts",
+        "de": "Tag der Toten",
+        "it": "Giorno dei Morti"
+      },
+      "descripcion": {
+        "en": "Black with flowers and marigold tones for November 1 and 2.",
+        "es": "Negro con flores y tonos cempasúchil para el 1 y 2 de noviembre.",
+        "pt": "Preto com flores e tons de cravo-de-defunto para 1º e 2 de novembro.",
+        "fr": "Du noir avec des fleurs et des tons souci pour les 1er et 2 novembre.",
+        "de": "Schwarz mit Blumen und Studentenblumen-Tönen für den 1. und 2. November.",
+        "it": "Nero con fiori e toni tagete per l'1 e il 2 novembre."
+      },
       "tipo": "evento",
-      "fuente": "Evento: Día de Muertos",
-      "desde": "10-28", "hasta": "11-02", "hemisferio": "ambos",
-      "colores": ["negro", "naranja", "amarillo", "morado", "estampado"],
-      "estilos": ["ROMANTICO", "BOHEMIO"],
+      "fuente": {
+        "en": "Event: Day of the Dead",
+        "es": "Evento: Día de Muertos",
+        "pt": "Evento: Dia dos Mortos",
+        "fr": "Événement : Jour des Morts",
+        "de": "Anlass: Tag der Toten",
+        "it": "Evento: Giorno dei Morti"
+      },
+      "desde": "10-28",
+      "hasta": "11-02",
+      "hemisferio": "ambos",
+      "colores": [
+        "negro",
+        "naranja",
+        "amarillo",
+        "morado",
+        "estampado"
+      ],
+      "estilos": [
+        "ROMANTICO",
+        "BOHEMIO"
+      ],
       "prendas": [
-        {"subtipo": "BLUSA", "color": "estampado", "nombre": "Blusa de flores"},
-        {"subtipo": "FALDA", "color": "negro", "nombre": "Falda negra"},
-        {"subtipo": "VESTIDO_LARGO", "color": "negro", "nombre": "Vestido negro largo"}
+        {
+          "subtipo": "BLUSA",
+          "color": "estampado",
+          "nombre": {
+            "en": "Floral blouse",
+            "es": "Blusa de flores",
+            "pt": "Blusa floral",
+            "fr": "Chemisier fleuri",
+            "de": "Geblümte Bluse",
+            "it": "Blusa a fiori"
+          }
+        },
+        {
+          "subtipo": "FALDA",
+          "color": "negro",
+          "nombre": {
+            "en": "Black skirt",
+            "es": "Falda negra",
+            "pt": "Saia preta",
+            "fr": "Jupe noire",
+            "de": "Schwarzer Rock",
+            "it": "Gonna nera"
+          }
+        },
+        {
+          "subtipo": "VESTIDO_LARGO",
+          "color": "negro",
+          "nombre": {
+            "en": "Long black dress",
+            "es": "Vestido negro largo",
+            "pt": "Vestido preto longo",
+            "fr": "Robe noire longue",
+            "de": "Langes schwarzes Kleid",
+            "it": "Abito nero lungo"
+          }
+        }
       ],
       "peso": 1.1
     },
     {
       "id": "fiestas-fin-de-ano",
-      "titulo": "Fiestas de fin de año",
-      "descripcion": "Negro, verde esmeralda y borgoña para cenas y fiestas de diciembre.",
+      "titulo": {
+        "en": "Holiday season",
+        "es": "Fiestas de fin de año",
+        "pt": "Festas de fim de ano",
+        "fr": "Fêtes de fin d'année",
+        "de": "Feiertage zum Jahresende",
+        "it": "Feste di fine anno"
+      },
+      "descripcion": {
+        "en": "Black, emerald green and burgundy for December dinners and parties.",
+        "es": "Negro, verde esmeralda y borgoña para cenas y fiestas de diciembre.",
+        "pt": "Preto, verde-esmeralda e vinho para jantares e festas de dezembro.",
+        "fr": "Noir, vert émeraude et bordeaux pour les dîners et soirées de décembre.",
+        "de": "Schwarz, Smaragdgrün und Bordeaux für Dinner und Partys im Dezember.",
+        "it": "Nero, verde smeraldo e bordeaux per cene e feste di dicembre."
+      },
       "tipo": "evento",
-      "fuente": "Evento: Navidad y Año Nuevo",
-      "desde": "12-01", "hasta": "01-06", "hemisferio": "ambos",
-      "colores": ["negro", "verde", "borgona", "rojo"],
-      "estilos": ["ELEGANTE", "ROMANTICO"],
+      "fuente": {
+        "en": "Event: Christmas and New Year",
+        "es": "Evento: Navidad y Año Nuevo",
+        "pt": "Evento: Natal e Ano-Novo",
+        "fr": "Événement : Noël et Nouvel An",
+        "de": "Anlass: Weihnachten und Silvester",
+        "it": "Evento: Natale e Capodanno"
+      },
+      "desde": "12-01",
+      "hasta": "01-06",
+      "hemisferio": "ambos",
+      "colores": [
+        "negro",
+        "verde",
+        "borgona",
+        "rojo"
+      ],
+      "estilos": [
+        "ELEGANTE",
+        "ROMANTICO"
+      ],
       "prendas": [
-        {"subtipo": "VESTIDO", "color": "verde", "nombre": "Vestido verde esmeralda"},
-        {"subtipo": "BLAZER", "color": "negro", "nombre": "Blazer de terciopelo negro"},
-        {"subtipo": "PANTALON_VESTIR", "color": "negro", "nombre": "Pantalón negro de vestir"},
-        {"subtipo": "TACONES", "color": "negro", "nombre": "Tacones negros"}
+        {
+          "subtipo": "VESTIDO",
+          "color": "verde",
+          "nombre": {
+            "en": "Emerald green dress",
+            "es": "Vestido verde esmeralda",
+            "pt": "Vestido verde-esmeralda",
+            "fr": "Robe vert émeraude",
+            "de": "Smaragdgrünes Kleid",
+            "it": "Abito verde smeraldo"
+          }
+        },
+        {
+          "subtipo": "BLAZER",
+          "color": "negro",
+          "nombre": {
+            "en": "Black velvet blazer",
+            "es": "Blazer de terciopelo negro",
+            "pt": "Blazer de veludo preto",
+            "fr": "Blazer en velours noir",
+            "de": "Schwarzer Samtblazer",
+            "it": "Blazer di velluto nero"
+          }
+        },
+        {
+          "subtipo": "PANTALON_VESTIR",
+          "color": "negro",
+          "nombre": {
+            "en": "Black dress pants",
+            "es": "Pantalón negro de vestir",
+            "pt": "Calça social preta",
+            "fr": "Pantalon habillé noir",
+            "de": "Schwarze Stoffhose",
+            "it": "Pantaloni eleganti neri"
+          }
+        },
+        {
+          "subtipo": "TACONES",
+          "color": "negro",
+          "nombre": {
+            "en": "Black heels",
+            "es": "Tacones negros",
+            "pt": "Salto alto preto",
+            "fr": "Talons noirs",
+            "de": "Schwarze High Heels",
+            "it": "Tacchi neri"
+          }
+        }
       ],
       "peso": 1.2
     },
     {
       "id": "san-valentin",
-      "titulo": "San Valentín",
-      "descripcion": "Rojo o rosa como protagonista, el resto en neutros.",
+      "titulo": {
+        "en": "Valentine's Day",
+        "es": "San Valentín",
+        "pt": "Dia dos Namorados",
+        "fr": "Saint-Valentin",
+        "de": "Valentinstag",
+        "it": "San Valentino"
+      },
+      "descripcion": {
+        "en": "Red or pink as the star, everything else in neutrals.",
+        "es": "Rojo o rosa como protagonista, el resto en neutros.",
+        "pt": "Vermelho ou rosa como protagonista, o resto em neutros.",
+        "fr": "Le rouge ou le rose en vedette, le reste en neutres.",
+        "de": "Rot oder Rosa als Hingucker, der Rest neutral.",
+        "it": "Rosso o rosa protagonista, il resto neutro."
+      },
       "tipo": "evento",
-      "fuente": "Evento: 14 de febrero",
-      "desde": "02-07", "hasta": "02-14", "hemisferio": "ambos",
-      "colores": ["rojo", "rosa", "blanco", "negro"],
-      "estilos": ["ROMANTICO", "ELEGANTE"],
+      "fuente": {
+        "en": "Event: February 14",
+        "es": "Evento: 14 de febrero",
+        "pt": "Evento: 14 de fevereiro",
+        "fr": "Événement : 14 février",
+        "de": "Anlass: 14. Februar",
+        "it": "Evento: 14 febbraio"
+      },
+      "desde": "02-07",
+      "hasta": "02-14",
+      "hemisferio": "ambos",
+      "colores": [
+        "rojo",
+        "rosa",
+        "blanco",
+        "negro"
+      ],
+      "estilos": [
+        "ROMANTICO",
+        "ELEGANTE"
+      ],
       "prendas": [
-        {"subtipo": "BLUSA", "color": "rojo", "nombre": "Blusa roja"},
-        {"subtipo": "VESTIDO", "color": "rosa", "nombre": "Vestido rosa"},
-        {"subtipo": "SUETER", "color": "rojo", "nombre": "Suéter rojo"}
+        {
+          "subtipo": "BLUSA",
+          "color": "rojo",
+          "nombre": {
+            "en": "Red blouse",
+            "es": "Blusa roja",
+            "pt": "Blusa vermelha",
+            "fr": "Chemisier rouge",
+            "de": "Rote Bluse",
+            "it": "Blusa rossa"
+          }
+        },
+        {
+          "subtipo": "VESTIDO",
+          "color": "rosa",
+          "nombre": {
+            "en": "Pink dress",
+            "es": "Vestido rosa",
+            "pt": "Vestido rosa",
+            "fr": "Robe rose",
+            "de": "Rosa Kleid",
+            "it": "Abito rosa"
+          }
+        },
+        {
+          "subtipo": "SUETER",
+          "color": "rojo",
+          "nombre": {
+            "en": "Red sweater",
+            "es": "Suéter rojo",
+            "pt": "Suéter vermelho",
+            "fr": "Pull rouge",
+            "de": "Roter Pullover",
+            "it": "Maglione rosso"
+          }
+        }
       ],
       "peso": 1.1
     },
     {
       "id": "verano-norte",
-      "titulo": "Lino y colores frescos",
-      "descripcion": "Tejidos ligeros, blanco y celeste para el calor.",
+      "titulo": {
+        "en": "Linen and fresh colors",
+        "es": "Lino y colores frescos",
+        "pt": "Linho e cores frescas",
+        "fr": "Lin et couleurs fraîches",
+        "de": "Leinen und frische Farben",
+        "it": "Lino e colori freschi"
+      },
+      "descripcion": {
+        "en": "Light fabrics, white and light blue for the heat.",
+        "es": "Tejidos ligeros, blanco y celeste para el calor.",
+        "pt": "Tecidos leves, branco e azul-claro para o calor.",
+        "fr": "Tissus légers, blanc et bleu ciel pour la chaleur.",
+        "de": "Leichte Stoffe, Weiß und Hellblau für die Hitze.",
+        "it": "Tessuti leggeri, bianco e azzurro per il caldo."
+      },
       "tipo": "temporada",
-      "fuente": "Selección de temporada de Qué Me Pongo",
-      "desde": "05-15", "hasta": "08-31", "hemisferio": "norte",
-      "colores": ["blanco", "beige", "celeste", "amarillo"],
-      "estilos": ["BOHEMIO", "CASUAL", "MINIMALISTA"],
+      "fuente": {
+        "en": "Qué Me Pongo seasonal pick",
+        "es": "Selección de temporada de Qué Me Pongo",
+        "pt": "Seleção da temporada do Qué Me Pongo",
+        "fr": "Sélection de saison Qué Me Pongo",
+        "de": "Saisonauswahl von Qué Me Pongo",
+        "it": "Selezione di stagione di Qué Me Pongo"
+      },
+      "desde": "05-15",
+      "hasta": "08-31",
+      "hemisferio": "norte",
+      "colores": [
+        "blanco",
+        "beige",
+        "celeste",
+        "amarillo"
+      ],
+      "estilos": [
+        "BOHEMIO",
+        "CASUAL",
+        "MINIMALISTA"
+      ],
       "prendas": [
-        {"subtipo": "CAMISA", "color": "blanco", "nombre": "Camisa de lino blanca"},
-        {"subtipo": "SHORT", "color": "beige", "nombre": "Short de lino beige"},
-        {"subtipo": "VESTIDO", "color": "celeste", "nombre": "Vestido celeste"},
-        {"subtipo": "SANDALIAS", "color": "marron", "nombre": "Sandalias de cuero"}
+        {
+          "subtipo": "CAMISA",
+          "color": "blanco",
+          "nombre": {
+            "en": "White linen shirt",
+            "es": "Camisa de lino blanca",
+            "pt": "Camisa de linho branca",
+            "fr": "Chemise en lin blanche",
+            "de": "Weißes Leinenhemd",
+            "it": "Camicia di lino bianca"
+          }
+        },
+        {
+          "subtipo": "SHORT",
+          "color": "beige",
+          "nombre": {
+            "en": "Beige linen shorts",
+            "es": "Short de lino beige",
+            "pt": "Short de linho bege",
+            "fr": "Short en lin beige",
+            "de": "Beige Leinenshorts",
+            "it": "Pantaloncini di lino beige"
+          }
+        },
+        {
+          "subtipo": "VESTIDO",
+          "color": "celeste",
+          "nombre": {
+            "en": "Light blue dress",
+            "es": "Vestido celeste",
+            "pt": "Vestido azul-claro",
+            "fr": "Robe bleu ciel",
+            "de": "Hellblaues Kleid",
+            "it": "Abito azzurro"
+          }
+        },
+        {
+          "subtipo": "SANDALIAS",
+          "color": "marron",
+          "nombre": {
+            "en": "Leather sandals",
+            "es": "Sandalias de cuero",
+            "pt": "Sandálias de couro",
+            "fr": "Sandales en cuir",
+            "de": "Ledersandalen",
+            "it": "Sandali di pelle"
+          }
+        }
       ],
       "peso": 1.0
     },
     {
       "id": "verano-sur",
-      "titulo": "Lino y colores frescos",
-      "descripcion": "Tejidos ligeros, blanco y celeste para el calor.",
+      "titulo": {
+        "en": "Linen and fresh colors",
+        "es": "Lino y colores frescos",
+        "pt": "Linho e cores frescas",
+        "fr": "Lin et couleurs fraîches",
+        "de": "Leinen und frische Farben",
+        "it": "Lino e colori freschi"
+      },
+      "descripcion": {
+        "en": "Light fabrics, white and light blue for the heat.",
+        "es": "Tejidos ligeros, blanco y celeste para el calor.",
+        "pt": "Tecidos leves, branco e azul-claro para o calor.",
+        "fr": "Tissus légers, blanc et bleu ciel pour la chaleur.",
+        "de": "Leichte Stoffe, Weiß und Hellblau für die Hitze.",
+        "it": "Tessuti leggeri, bianco e azzurro per il caldo."
+      },
       "tipo": "temporada",
-      "fuente": "Selección de temporada de Qué Me Pongo",
-      "desde": "11-15", "hasta": "02-28", "hemisferio": "sur",
-      "colores": ["blanco", "beige", "celeste", "amarillo"],
-      "estilos": ["BOHEMIO", "CASUAL", "MINIMALISTA"],
+      "fuente": {
+        "en": "Qué Me Pongo seasonal pick",
+        "es": "Selección de temporada de Qué Me Pongo",
+        "pt": "Seleção da temporada do Qué Me Pongo",
+        "fr": "Sélection de saison Qué Me Pongo",
+        "de": "Saisonauswahl von Qué Me Pongo",
+        "it": "Selezione di stagione di Qué Me Pongo"
+      },
+      "desde": "11-15",
+      "hasta": "02-28",
+      "hemisferio": "sur",
+      "colores": [
+        "blanco",
+        "beige",
+        "celeste",
+        "amarillo"
+      ],
+      "estilos": [
+        "BOHEMIO",
+        "CASUAL",
+        "MINIMALISTA"
+      ],
       "prendas": [
-        {"subtipo": "CAMISA", "color": "blanco", "nombre": "Camisa de lino blanca"},
-        {"subtipo": "SHORT", "color": "beige", "nombre": "Short de lino beige"},
-        {"subtipo": "VESTIDO", "color": "celeste", "nombre": "Vestido celeste"},
-        {"subtipo": "SANDALIAS", "color": "marron", "nombre": "Sandalias de cuero"}
+        {
+          "subtipo": "CAMISA",
+          "color": "blanco",
+          "nombre": {
+            "en": "White linen shirt",
+            "es": "Camisa de lino blanca",
+            "pt": "Camisa de linho branca",
+            "fr": "Chemise en lin blanche",
+            "de": "Weißes Leinenhemd",
+            "it": "Camicia di lino bianca"
+          }
+        },
+        {
+          "subtipo": "SHORT",
+          "color": "beige",
+          "nombre": {
+            "en": "Beige linen shorts",
+            "es": "Short de lino beige",
+            "pt": "Short de linho bege",
+            "fr": "Short en lin beige",
+            "de": "Beige Leinenshorts",
+            "it": "Pantaloncini di lino beige"
+          }
+        },
+        {
+          "subtipo": "VESTIDO",
+          "color": "celeste",
+          "nombre": {
+            "en": "Light blue dress",
+            "es": "Vestido celeste",
+            "pt": "Vestido azul-claro",
+            "fr": "Robe bleu ciel",
+            "de": "Hellblaues Kleid",
+            "it": "Abito azzurro"
+          }
+        },
+        {
+          "subtipo": "SANDALIAS",
+          "color": "marron",
+          "nombre": {
+            "en": "Leather sandals",
+            "es": "Sandalias de cuero",
+            "pt": "Sandálias de couro",
+            "fr": "Sandales en cuir",
+            "de": "Ledersandalen",
+            "it": "Sandali di pelle"
+          }
+        }
       ],
       "peso": 1.0
     },
     {
       "id": "primavera-sur",
-      "titulo": "Primavera en flor",
-      "descripcion": "Estampados florales y tonos pastel para la primavera.",
+      "titulo": {
+        "en": "Spring in bloom",
+        "es": "Primavera en flor",
+        "pt": "Primavera em flor",
+        "fr": "Printemps en fleurs",
+        "de": "Frühling in Blüte",
+        "it": "Primavera in fiore"
+      },
+      "descripcion": {
+        "en": "Floral prints and pastel tones for spring.",
+        "es": "Estampados florales y tonos pastel para la primavera.",
+        "pt": "Estampas florais e tons pastel para a primavera.",
+        "fr": "Imprimés fleuris et tons pastel pour le printemps.",
+        "de": "Blumenmuster und Pastelltöne für den Frühling.",
+        "it": "Stampe floreali e toni pastello per la primavera."
+      },
       "tipo": "temporada",
-      "fuente": "Selección de temporada de Qué Me Pongo",
-      "desde": "09-21", "hasta": "12-20", "hemisferio": "sur",
-      "colores": ["estampado", "rosa", "celeste", "blanco"],
-      "estilos": ["ROMANTICO", "BOHEMIO"],
+      "fuente": {
+        "en": "Qué Me Pongo seasonal pick",
+        "es": "Selección de temporada de Qué Me Pongo",
+        "pt": "Seleção da temporada do Qué Me Pongo",
+        "fr": "Sélection de saison Qué Me Pongo",
+        "de": "Saisonauswahl von Qué Me Pongo",
+        "it": "Selezione di stagione di Qué Me Pongo"
+      },
+      "desde": "09-21",
+      "hasta": "12-20",
+      "hemisferio": "sur",
+      "colores": [
+        "estampado",
+        "rosa",
+        "celeste",
+        "blanco"
+      ],
+      "estilos": [
+        "ROMANTICO",
+        "BOHEMIO"
+      ],
       "prendas": [
-        {"subtipo": "BLUSA", "color": "estampado", "nombre": "Blusa floral"},
-        {"subtipo": "JEANS", "color": "denim", "nombre": "Jeans claros"},
-        {"subtipo": "VESTIDO", "color": "rosa", "nombre": "Vestido rosa pastel"}
+        {
+          "subtipo": "BLUSA",
+          "color": "estampado",
+          "nombre": {
+            "en": "Floral blouse",
+            "es": "Blusa floral",
+            "pt": "Blusa floral",
+            "fr": "Chemisier fleuri",
+            "de": "Geblümte Bluse",
+            "it": "Blusa floreale"
+          }
+        },
+        {
+          "subtipo": "JEANS",
+          "color": "denim",
+          "nombre": {
+            "en": "Light jeans",
+            "es": "Jeans claros",
+            "pt": "Jeans claro",
+            "fr": "Jean clair",
+            "de": "Helle Jeans",
+            "it": "Jeans chiari"
+          }
+        },
+        {
+          "subtipo": "VESTIDO",
+          "color": "rosa",
+          "nombre": {
+            "en": "Pastel pink dress",
+            "es": "Vestido rosa pastel",
+            "pt": "Vestido rosa pastel",
+            "fr": "Robe rose pastel",
+            "de": "Pastellrosa Kleid",
+            "it": "Abito rosa pastello"
+          }
+        }
       ],
       "peso": 1.0
     },
     {
       "id": "invierno-sur",
-      "titulo": "Tonos tierra y chocolate",
-      "descripcion": "Marrón, camel y beige en capas: la paleta más repetida del invierno.",
+      "titulo": {
+        "en": "Earth and chocolate tones",
+        "es": "Tonos tierra y chocolate",
+        "pt": "Tons terrosos e chocolate",
+        "fr": "Tons terre et chocolat",
+        "de": "Erd- und Schokotöne",
+        "it": "Toni terra e cioccolato"
+      },
+      "descripcion": {
+        "en": "Brown, camel and beige in layers: the most repeated palette of winter.",
+        "es": "Marrón, camel y beige en capas: la paleta más repetida del invierno.",
+        "pt": "Marrom, caramelo e bege em camadas: a paleta mais vista do inverno.",
+        "fr": "Marron, camel et beige superposés : la palette phare de l'hiver.",
+        "de": "Braun, Camel und Beige im Lagenlook: die Farbpalette des Winters.",
+        "it": "Marrone, cammello e beige a strati: la palette più vista dell'inverno."
+      },
       "tipo": "temporada",
-      "fuente": "Selección de temporada de Qué Me Pongo",
-      "desde": "03-01", "hasta": "08-31", "hemisferio": "sur",
-      "colores": ["marron", "camel", "beige", "oliva"],
-      "estilos": ["CLASICO", "MINIMALISTA"],
+      "fuente": {
+        "en": "Qué Me Pongo seasonal pick",
+        "es": "Selección de temporada de Qué Me Pongo",
+        "pt": "Seleção da temporada do Qué Me Pongo",
+        "fr": "Sélection de saison Qué Me Pongo",
+        "de": "Saisonauswahl von Qué Me Pongo",
+        "it": "Selezione di stagione di Qué Me Pongo"
+      },
+      "desde": "03-01",
+      "hasta": "08-31",
+      "hemisferio": "sur",
+      "colores": [
+        "marron",
+        "camel",
+        "beige",
+        "oliva"
+      ],
+      "estilos": [
+        "CLASICO",
+        "MINIMALISTA"
+      ],
       "prendas": [
-        {"subtipo": "SUETER", "color": "camel", "nombre": "Suéter camel de punto"},
-        {"subtipo": "ABRIGO", "color": "camel", "nombre": "Abrigo camel"},
-        {"subtipo": "BOTAS", "color": "marron", "nombre": "Botines marrones"}
+        {
+          "subtipo": "SUETER",
+          "color": "camel",
+          "nombre": {
+            "en": "Camel knit sweater",
+            "es": "Suéter camel de punto",
+            "pt": "Suéter de tricô caramelo",
+            "fr": "Pull en maille camel",
+            "de": "Camel-Strickpullover",
+            "it": "Maglione in maglia cammello"
+          }
+        },
+        {
+          "subtipo": "ABRIGO",
+          "color": "camel",
+          "nombre": {
+            "en": "Camel coat",
+            "es": "Abrigo camel",
+            "pt": "Sobretudo caramelo",
+            "fr": "Manteau camel",
+            "de": "Camel-Mantel",
+            "it": "Cappotto cammello"
+          }
+        },
+        {
+          "subtipo": "BOTAS",
+          "color": "marron",
+          "nombre": {
+            "en": "Brown ankle boots",
+            "es": "Botines marrones",
+            "pt": "Botas marrons",
+            "fr": "Bottines marron",
+            "de": "Braune Stiefeletten",
+            "it": "Stivaletti marroni"
+          }
+        }
       ],
       "peso": 1.0
     }

@@ -22,12 +22,15 @@ import com.ancylostoma.quemepongo.R
 import com.ancylostoma.quemepongo.motor.Contexto
 import com.ancylostoma.quemepongo.motor.Motor
 import com.ancylostoma.quemepongo.motor.Tendencias
+import com.ancylostoma.quemepongo.ui.nombre
+import com.ancylostoma.quemepongo.ui.temperatura
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.util.concurrent.TimeUnit
-import kotlin.math.roundToInt
+import java.util.Locale
+import kotlin.random.Random
 
 /** El aviso de cada mañana: "Tu look de hoy está listo", con el tiempo y las prendas. */
 object AvisoDiario {
@@ -44,8 +47,11 @@ object AvisoDiario {
     val ahora = LocalDateTime.now()
     var proxima = ahora.toLocalDate().atTime(HORA)
     if (!proxima.isAfter(ahora)) proxima = proxima.plusDays(1)
+    // Cada teléfono a un minuto distinto entre 7:30 y 7:50: así miles de usuarios no piden
+    // el tiempo en el mismo segundo.
+    val reparto = Random.nextLong(20 * 60_000L)
     val pedido = PeriodicWorkRequestBuilder<TrabajoAvisoDiario>(1, TimeUnit.DAYS)
-      .setInitialDelay(Duration.between(ahora, proxima).toMillis(), TimeUnit.MILLISECONDS)
+      .setInitialDelay(Duration.between(ahora, proxima).toMillis() + reparto, TimeUnit.MILLISECONDS)
       .build()
     wm.enqueueUniquePeriodicWork(TRABAJO, ExistingPeriodicWorkPolicy.UPDATE, pedido)
   }
@@ -58,7 +64,7 @@ object AvisoDiario {
   fun mostrar(contexto: Context, titulo: String, texto: String) {
     if (!puedeAvisar(contexto)) return
     val nm = contexto.getSystemService(NotificationManager::class.java)
-    nm.createNotificationChannel(NotificationChannel(CANAL, "Look del día", NotificationManager.IMPORTANCE_DEFAULT))
+    nm.createNotificationChannel(NotificationChannel(CANAL, contexto.getString(R.string.aviso_canal), NotificationManager.IMPORTANCE_DEFAULT))
     val abrir = PendingIntent.getActivity(
       contexto,
       0,
@@ -82,8 +88,8 @@ class TrabajoAvisoDiario(contexto: Context, parametros: WorkerParameters) : Coro
   override suspend fun doWork(): Result {
     val datos = Almacen(applicationContext).cargar()
     if (!datos.perfil.avisoDiario) return Result.success()
-    val texto = runCatching { resumen(datos) }.getOrNull() ?: "Toca para ver qué ponerte hoy."
-    AvisoDiario.mostrar(applicationContext, "Tu look de hoy está listo", texto)
+    val texto = runCatching { resumen(datos) }.getOrNull() ?: applicationContext.getString(R.string.aviso_generico)
+    AvisoDiario.mostrar(applicationContext, applicationContext.getString(R.string.aviso_titulo), texto)
     return Result.success()
   }
 
@@ -92,7 +98,7 @@ class TrabajoAvisoDiario(contexto: Context, parametros: WorkerParameters) : Coro
     val lat = d.perfil.latitud
     val lon = d.perfil.longitud
     val clima = if (lat != null && lon != null) {
-      runCatching { ServicioClima.pronostico(lat, lon, d.perfil.ciudad ?: "") }.getOrNull()
+      runCatching { ServicioClima.pronostico(lat, lon, d.perfil.ciudad ?: "", applicationContext.cacheDir) }.getOrNull()
     } else {
       null
     }
@@ -102,8 +108,10 @@ class TrabajoAvisoDiario(contexto: Context, parametros: WorkerParameters) : Coro
     val look = Motor.sugerir(d.prendas, ctx, cantidad = 1).firstOrNull()
     val piezas = look?.prendas
       ?.filter { it.categoria != Categoria.ACCESORIO }
-      ?.joinToString(" + ") { it.nombre.substringBefore(" ·").lowercase() }
-    val tiempo = condicion?.let { "${it.temperatura.roundToInt()}°" + (if (it.lluvia) " y lluvia" else "") + ": " } ?: ""
-    return tiempo + (piezas ?: "toca para verlo")
+      ?.joinToString(" + ") { applicationContext.nombre(it).lowercase(Locale.getDefault()) }
+      ?: return applicationContext.getString(R.string.aviso_generico)
+    if (condicion == null) return piezas.replaceFirstChar { it.uppercase() }
+    val temp = temperatura(condicion.temperatura)
+    return applicationContext.getString(if (condicion.lluvia) R.string.aviso_lluvia else R.string.aviso_tiempo, temp, piezas)
   }
 }

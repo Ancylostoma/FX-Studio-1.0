@@ -43,6 +43,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.ancylostoma.quemepongo.R
 import com.ancylostoma.quemepongo.data.Prenda
 import com.ancylostoma.quemepongo.data.Tendencia
 
@@ -54,7 +55,7 @@ fun PantallaDescubrir(e: Estado, vm: AppViewModel, abrirEditor: (List<Prenda>) -
   val enlaces = LocalUriHandler.current
 
   LazyColumn(contentPadding = PaddingValues(vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-    item { Box(Modifier.padding(horizontal = 16.dp)) { TituloPantalla("Descubrir", "Lo que se lleva ahora") } }
+    item { Box(Modifier.padding(horizontal = 16.dp)) { TituloPantalla(t(R.string.tab_descubrir), t(R.string.descubrir_sub)) } }
     item {
       LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         items(activas, key = { it.id }) { t -> TarjetaTendencia(e, vm, t) { abierta = t } }
@@ -63,9 +64,9 @@ fun PantallaDescubrir(e: Estado, vm: AppViewModel, abrirEditor: (List<Prenda>) -
     if (ideas.isNotEmpty()) {
       item {
         Column(Modifier.padding(horizontal = 16.dp)) {
-          Text("Para ti", style = MaterialTheme.typography.titleLarge)
+          Text(t(R.string.para_ti), style = MaterialTheme.typography.titleLarge)
           Text(
-            "Piezas parecidas a lo que te gusta y lo que le falta a tu armario.",
+            t(R.string.para_ti_texto),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
@@ -87,10 +88,10 @@ fun PantallaDescubrir(e: Estado, vm: AppViewModel, abrirEditor: (List<Prenda>) -
           }
           Spacer(Modifier.width(12.dp))
           Column(Modifier.weight(1f)) {
-            Text(i.idea.nombre, style = MaterialTheme.typography.bodyLarge)
-            Text(i.motivo, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(nombre(i.idea), style = MaterialTheme.typography.bodyLarge)
+            Text(texto(i.motivo), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
           }
-          Icon(Icons.Filled.ShoppingCart, "Buscar en tienda", tint = MaterialTheme.colorScheme.primary)
+          Icon(Icons.Filled.ShoppingCart, t(R.string.buscar_tienda), tint = MaterialTheme.colorScheme.primary)
         }
       }
     }
@@ -121,14 +122,14 @@ private fun TarjetaTendencia(e: Estado, vm: AppViewModel, t: Tendencia, alTocar:
     Maniqui(look.prendas, e.datos.perfil.cuerpo, vm::archivoFoto, Modifier.fillMaxWidth().height(230.dp), claveAnimacion = t.id)
     Etiqueta(
       when (t.tipo) {
-        "evento" -> "Evento"
-        "famosos" -> "Famosos"
-        else -> "Temporada"
+        "evento" -> t(R.string.tipo_evento)
+        "famosos" -> t(R.string.tipo_famosos)
+        else -> t(R.string.tipo_temporada)
       },
     )
     Text(t.titulo, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
     Text(t.descripcion, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    Text("Ver piezas →", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+    Text(t(R.string.ver_piezas), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
   }
 }
 
@@ -144,17 +145,17 @@ private fun HojaTendencia(t: Tendencia, vm: AppViewModel, alProbar: () -> Unit, 
       Text(t.descripcion, style = MaterialTheme.typography.bodyMedium)
       if (t.fuente.isNotBlank()) Text(t.fuente, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
       Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { t.colores.forEach { MuestraColor(it, 22.dp) } }
-      Text("Las piezas", style = MaterialTheme.typography.titleMedium)
+      Text(t(R.string.piezas), style = MaterialTheme.typography.titleMedium)
       t.prendas.forEach { idea ->
         Row(verticalAlignment = Alignment.CenterVertically) {
           IconoForma(idea.subtipo.forma, androidx.compose.ui.graphics.Color(com.ancylostoma.quemepongo.data.Colores.de(idea.color).argb), Modifier.size(34.dp))
           Spacer(Modifier.width(12.dp))
-          Text(idea.nombre, modifier = Modifier.weight(1f))
-          TextButton(onClick = { enlaces.openUri(vm.enlaceTienda(idea)) }) { Text("Comprar") }
+          Text(nombre(idea), modifier = Modifier.weight(1f))
+          TextButton(onClick = { enlaces.openUri(vm.enlaceTienda(idea)) }) { Text(t(R.string.comprar)) }
         }
       }
-      Button(onClick = alProbar, modifier = Modifier.fillMaxWidth().height(50.dp)) { Text("Probar este look") }
-      OutlinedButton(onClick = alCerrar, modifier = Modifier.fillMaxWidth()) { Text("Cerrar") }
+      Button(onClick = alProbar, modifier = Modifier.fillMaxWidth().height(50.dp)) { Text(t(R.string.probar_look)) }
+      OutlinedButton(onClick = alCerrar, modifier = Modifier.fillMaxWidth()) { Text(t(R.string.cerrar)) }
       Spacer(Modifier.height(12.dp))
     }
   }

@@ -10,11 +10,11 @@ import com.ancylostoma.quemepongo.data.Look
 import com.ancylostoma.quemepongo.data.Ocasion
 import com.ancylostoma.quemepongo.data.Perfil
 import com.ancylostoma.quemepongo.data.Prenda
+import com.ancylostoma.quemepongo.data.Razon
 import com.ancylostoma.quemepongo.data.Preferencias
 import com.ancylostoma.quemepongo.data.Subtipo
 import com.ancylostoma.quemepongo.data.Tendencia
 import kotlin.math.abs
-import kotlin.math.roundToInt
 import kotlin.random.Random
 
 data class Contexto(
@@ -124,7 +124,7 @@ object Motor {
       id = "t-${t.id}",
       prendas = prendas,
       puntuacion = puntuar(prendas, ctx),
-      razones = listOf(t.descripcion) + prendas.filter { it.virtual }.map { "Te falta: ${it.nombre}" },
+      razones = listOf<Razon>(Razon.Texto(t.descripcion)) + prendas.filter { it.virtual }.map { Razon.TeFalta(it) },
       tendencia = t.titulo,
     )
   }
@@ -291,34 +291,33 @@ object Motor {
 
   // ---- Razones ----
 
-  fun explicar(prendas: List<Prenda>, ctx: Contexto): List<String> {
-    val r = mutableListOf<String>()
+  fun explicar(prendas: List<Prenda>, ctx: Contexto): List<Razon> {
+    val r = mutableListOf<Razon>()
     val clima = ctx.clima
     if (clima != null) {
-      val t = clima.sensacion.roundToInt()
       val abrigo = prendas.firstOrNull { it.categoria == Categoria.ABRIGO }
-      when {
-        clima.lluvia && abrigo?.impermeable == true -> r.add("Va a llover: ${abrigo.nombre.lowercase()} y calzado cerrado")
-        clima.lluvia -> r.add("Va a llover: evita el calzado abierto")
-        abrigoIdeal(clima.sensacion) >= 4 -> r.add("Sensación de $t °C: capas que abrigan")
-        clima.sensacion >= 26 -> r.add("Calor ($t °C): prendas frescas y sin capas")
-        else -> r.add("Sensación de $t °C: abrigo justo")
-      }
+      r.add(
+        when {
+          clima.lluvia -> Razon.Lluvia(abrigo?.takeIf { it.impermeable })
+          abrigoIdeal(clima.sensacion) >= 4 -> Razon.Frio(clima.sensacion)
+          clima.sensacion >= 26 -> Razon.Calor(clima.sensacion)
+          else -> Razon.Templado(clima.sensacion)
+        },
+      )
     }
-    r.add("Formalidad ideal para: ${ctx.ocasion.etiqueta.lowercase()}")
+    r.add(Razon.ParaOcasion(ctx.ocasion))
 
-    val claves = prendas.map { it.color }.distinct()
     if (Colores.armonia(prendas.map { it.color }) >= 0.7) {
-      r.add("Colores que combinan: " + claves.take(3).joinToString(" + ") { Colores.de(it).etiqueta.lowercase() })
+      r.add(Razon.ColoresCombinan(prendas.map { it.color }.distinct().take(3)))
     }
-    mejorTendencia(prendas, ctx)?.let { r.add("En tendencia: ${it.titulo}") }
+    mejorTendencia(prendas, ctx)?.let { r.add(Razon.EnTendencia(it.titulo)) }
 
     val estilosMios = ctx.perfil.estilos
     val comunes = prendas.flatMap { it.estilos }.filter { it in estilosMios }.groupingBy { it }.eachCount()
-    comunes.maxByOrNull { it.value }?.let { r.add("Va con tu estilo ${it.key.etiqueta.lowercase()}") }
+    comunes.maxByOrNull { it.value }?.let { r.add(Razon.TuEstilo(it.key)) }
 
-    if (puntosPreferencia(prendas, ctx.preferencias) > 1.0) r.add("Se parece a looks que te gustaron")
-    prendas.filter { it.virtual }.forEach { r.add("Te falta: ${it.nombre.lowercase()} (idea de compra)") }
+    if (puntosPreferencia(prendas, ctx.preferencias) > 1.0) r.add(Razon.Parecido)
+    prendas.filter { it.virtual }.forEach { r.add(Razon.TeFalta(it)) }
     return r
   }
 
@@ -349,27 +348,27 @@ object Motor {
 /** Prendas genéricas para completar looks cuando el armario no tiene algo. */
 object Catalogo {
   val base = listOf(
-    IdeaPrenda(Subtipo.CAMISETA, "blanco", "Camiseta blanca"),
-    IdeaPrenda(Subtipo.CAMISETA, "negro", "Camiseta negra"),
-    IdeaPrenda(Subtipo.CAMISA, "celeste", "Camisa celeste"),
-    IdeaPrenda(Subtipo.CAMISA, "blanco", "Camisa blanca"),
-    IdeaPrenda(Subtipo.SUETER, "beige", "Suéter beige"),
-    IdeaPrenda(Subtipo.SUETER, "marino", "Suéter azul marino"),
-    IdeaPrenda(Subtipo.SUDADERA, "gris", "Sudadera gris"),
-    IdeaPrenda(Subtipo.JEANS, "denim", "Jeans clásicos"),
-    IdeaPrenda(Subtipo.PANTALON_VESTIR, "negro", "Pantalón de vestir negro"),
-    IdeaPrenda(Subtipo.PANTALON_VESTIR, "beige", "Pantalón chino beige"),
-    IdeaPrenda(Subtipo.JOGGER, "negro", "Jogger negro"),
-    IdeaPrenda(Subtipo.SHORT, "beige", "Short beige"),
-    IdeaPrenda(Subtipo.CHAQUETA, "denim", "Chaqueta de mezclilla"),
-    IdeaPrenda(Subtipo.BLAZER, "marino", "Blazer azul marino"),
-    IdeaPrenda(Subtipo.ABRIGO, "camel", "Abrigo camel"),
-    IdeaPrenda(Subtipo.PLUMIFERO, "negro", "Plumífero negro"),
-    IdeaPrenda(Subtipo.IMPERMEABLE, "beige", "Gabardina beige"),
-    IdeaPrenda(Subtipo.TENIS, "blanco", "Tenis blancos"),
-    IdeaPrenda(Subtipo.ZAPATOS, "negro", "Mocasines negros"),
-    IdeaPrenda(Subtipo.BOTAS, "marron", "Botines marrones"),
-    IdeaPrenda(Subtipo.SANDALIAS, "marron", "Sandalias de cuero"),
+    IdeaPrenda(Subtipo.CAMISETA, "blanco"),
+    IdeaPrenda(Subtipo.CAMISETA, "negro"),
+    IdeaPrenda(Subtipo.CAMISA, "celeste"),
+    IdeaPrenda(Subtipo.CAMISA, "blanco"),
+    IdeaPrenda(Subtipo.SUETER, "beige"),
+    IdeaPrenda(Subtipo.SUETER, "marino"),
+    IdeaPrenda(Subtipo.SUDADERA, "gris"),
+    IdeaPrenda(Subtipo.JEANS, "denim"),
+    IdeaPrenda(Subtipo.PANTALON_VESTIR, "negro"),
+    IdeaPrenda(Subtipo.PANTALON_VESTIR, "beige"),
+    IdeaPrenda(Subtipo.JOGGER, "negro"),
+    IdeaPrenda(Subtipo.SHORT, "beige"),
+    IdeaPrenda(Subtipo.CHAQUETA, "denim"),
+    IdeaPrenda(Subtipo.BLAZER, "marino"),
+    IdeaPrenda(Subtipo.ABRIGO, "camel"),
+    IdeaPrenda(Subtipo.PLUMIFERO, "negro"),
+    IdeaPrenda(Subtipo.IMPERMEABLE, "beige"),
+    IdeaPrenda(Subtipo.TENIS, "blanco"),
+    IdeaPrenda(Subtipo.ZAPATOS, "negro"),
+    IdeaPrenda(Subtipo.BOTAS, "marron"),
+    IdeaPrenda(Subtipo.SANDALIAS, "marron"),
   )
 
   fun desdeIdea(idea: IdeaPrenda, prefijo: String = "v"): Prenda = Prenda(

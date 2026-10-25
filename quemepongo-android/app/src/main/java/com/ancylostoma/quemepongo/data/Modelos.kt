@@ -2,13 +2,13 @@ package com.ancylostoma.quemepongo.data
 
 // Modelos puros (sin Android) para que el motor se pueda probar en la JVM.
 
-enum class Categoria(val etiqueta: String) {
-  SUPERIOR("Arriba"),
-  INFERIOR("Abajo"),
-  VESTIDO("Vestidos"),
-  ABRIGO("Abrigos"),
-  CALZADO("Calzado"),
-  ACCESORIO("Accesorios"),
+enum class Categoria {
+  SUPERIOR,
+  INFERIOR,
+  VESTIDO,
+  ABRIGO,
+  CALZADO,
+  ACCESORIO,
 }
 
 /** Cómo se dibuja la prenda sobre el maniquí. [capa] decide el orden: menor = más pegado al cuerpo. */
@@ -34,19 +34,19 @@ enum class Forma(val capa: Int) {
   BOLSO(70),
 }
 
-enum class Estilo(val etiqueta: String) {
-  CASUAL("Casual"),
-  ELEGANTE("Elegante"),
-  DEPORTIVO("Deportivo"),
-  URBANO("Urbano"),
-  CLASICO("Clásico"),
-  MINIMALISTA("Minimalista"),
-  BOHEMIO("Bohemio"),
-  ROMANTICO("Romántico"),
+enum class Estilo {
+  CASUAL,
+  ELEGANTE,
+  DEPORTIVO,
+  URBANO,
+  CLASICO,
+  MINIMALISTA,
+  BOHEMIO,
+  ROMANTICO,
 }
 
+// Los nombres que ve el usuario están en los recursos de cada idioma (ui/Textos.kt).
 enum class Subtipo(
-  val etiqueta: String,
   val categoria: Categoria,
   val forma: Forma,
   /** 0 = muy fresco, 5 = muy abrigado. */
@@ -56,36 +56,36 @@ enum class Subtipo(
   val estilos: Set<Estilo>,
   val impermeable: Boolean = false,
 ) {
-  CAMISETA("Camiseta", Categoria.SUPERIOR, Forma.TOP_MANGA_CORTA, 1, 1, setOf(Estilo.CASUAL, Estilo.DEPORTIVO, Estilo.URBANO, Estilo.MINIMALISTA)),
-  TOP("Top sin mangas", Categoria.SUPERIOR, Forma.TOP_SIN_MANGAS, 1, 2, setOf(Estilo.CASUAL, Estilo.ROMANTICO, Estilo.BOHEMIO)),
-  POLO("Polo", Categoria.SUPERIOR, Forma.TOP_MANGA_CORTA, 1, 2, setOf(Estilo.CASUAL, Estilo.CLASICO)),
-  CAMISA("Camisa", Categoria.SUPERIOR, Forma.TOP_MANGA_LARGA, 2, 4, setOf(Estilo.CLASICO, Estilo.ELEGANTE, Estilo.MINIMALISTA)),
-  BLUSA("Blusa", Categoria.SUPERIOR, Forma.TOP_MANGA_LARGA, 2, 3, setOf(Estilo.ROMANTICO, Estilo.ELEGANTE, Estilo.BOHEMIO)),
-  SUETER("Suéter", Categoria.SUPERIOR, Forma.TOP_MANGA_LARGA, 3, 3, setOf(Estilo.CLASICO, Estilo.CASUAL, Estilo.MINIMALISTA)),
-  SUDADERA("Sudadera", Categoria.SUPERIOR, Forma.TOP_MANGA_LARGA, 3, 1, setOf(Estilo.DEPORTIVO, Estilo.URBANO, Estilo.CASUAL)),
-  JEANS("Jeans", Categoria.INFERIOR, Forma.PANTALON, 2, 2, setOf(Estilo.CASUAL, Estilo.URBANO, Estilo.CLASICO)),
-  PANTALON_VESTIR("Pantalón de vestir", Categoria.INFERIOR, Forma.PANTALON, 2, 4, setOf(Estilo.ELEGANTE, Estilo.CLASICO, Estilo.MINIMALISTA)),
-  JOGGER("Jogger", Categoria.INFERIOR, Forma.PANTALON, 2, 1, setOf(Estilo.DEPORTIVO, Estilo.URBANO)),
-  SHORT("Short", Categoria.INFERIOR, Forma.SHORT, 1, 1, setOf(Estilo.CASUAL, Estilo.DEPORTIVO)),
-  FALDA("Falda", Categoria.INFERIOR, Forma.FALDA, 1, 3, setOf(Estilo.ROMANTICO, Estilo.ELEGANTE, Estilo.BOHEMIO)),
-  VESTIDO("Vestido corto", Categoria.VESTIDO, Forma.VESTIDO_CORTO, 1, 3, setOf(Estilo.ROMANTICO, Estilo.CASUAL, Estilo.ELEGANTE)),
-  VESTIDO_LARGO("Vestido largo", Categoria.VESTIDO, Forma.VESTIDO_LARGO, 2, 4, setOf(Estilo.ELEGANTE, Estilo.BOHEMIO, Estilo.ROMANTICO)),
-  CHAQUETA("Chaqueta", Categoria.ABRIGO, Forma.CHAQUETA, 2, 2, setOf(Estilo.CASUAL, Estilo.URBANO)),
-  CAZADORA("Cazadora de cuero", Categoria.ABRIGO, Forma.CHAQUETA, 2, 3, setOf(Estilo.URBANO, Estilo.ELEGANTE)),
-  BLAZER("Blazer", Categoria.ABRIGO, Forma.CHAQUETA, 2, 4, setOf(Estilo.ELEGANTE, Estilo.CLASICO, Estilo.MINIMALISTA)),
-  CARDIGAN("Cárdigan", Categoria.ABRIGO, Forma.CHAQUETA, 2, 2, setOf(Estilo.CASUAL, Estilo.ROMANTICO, Estilo.BOHEMIO)),
-  ABRIGO("Abrigo largo", Categoria.ABRIGO, Forma.ABRIGO_LARGO, 4, 4, setOf(Estilo.ELEGANTE, Estilo.CLASICO)),
-  PLUMIFERO("Plumífero / parka", Categoria.ABRIGO, Forma.CHAQUETA, 4, 1, setOf(Estilo.DEPORTIVO, Estilo.URBANO, Estilo.CASUAL)),
-  IMPERMEABLE("Gabardina / impermeable", Categoria.ABRIGO, Forma.ABRIGO_LARGO, 2, 3, setOf(Estilo.CLASICO, Estilo.CASUAL), impermeable = true),
-  TENIS("Tenis", Categoria.CALZADO, Forma.CALZADO_DEPORTIVO, 1, 1, setOf(Estilo.CASUAL, Estilo.DEPORTIVO, Estilo.URBANO)),
-  ZAPATOS("Zapatos / mocasines", Categoria.CALZADO, Forma.ZAPATO, 1, 4, setOf(Estilo.ELEGANTE, Estilo.CLASICO)),
-  TACONES("Tacones", Categoria.CALZADO, Forma.TACON, 0, 5, setOf(Estilo.ELEGANTE, Estilo.ROMANTICO)),
-  BOTAS("Botas / botines", Categoria.CALZADO, Forma.BOTA, 2, 3, setOf(Estilo.CASUAL, Estilo.URBANO, Estilo.BOHEMIO)),
-  SANDALIAS("Sandalias", Categoria.CALZADO, Forma.SANDALIA, 0, 1, setOf(Estilo.CASUAL, Estilo.BOHEMIO)),
-  GORRO("Gorro de lana", Categoria.ACCESORIO, Forma.GORRO, 1, 1, setOf(Estilo.CASUAL, Estilo.URBANO)),
-  GORRA("Gorra", Categoria.ACCESORIO, Forma.GORRA, 0, 1, setOf(Estilo.DEPORTIVO, Estilo.URBANO)),
-  BUFANDA("Bufanda", Categoria.ACCESORIO, Forma.BUFANDA, 1, 2, setOf(Estilo.CLASICO, Estilo.CASUAL)),
-  BOLSO("Bolso / mochila", Categoria.ACCESORIO, Forma.BOLSO, 0, 3, setOf(Estilo.CASUAL, Estilo.ELEGANTE));
+  CAMISETA(Categoria.SUPERIOR, Forma.TOP_MANGA_CORTA, 1, 1, setOf(Estilo.CASUAL, Estilo.DEPORTIVO, Estilo.URBANO, Estilo.MINIMALISTA)),
+  TOP(Categoria.SUPERIOR, Forma.TOP_SIN_MANGAS, 1, 2, setOf(Estilo.CASUAL, Estilo.ROMANTICO, Estilo.BOHEMIO)),
+  POLO(Categoria.SUPERIOR, Forma.TOP_MANGA_CORTA, 1, 2, setOf(Estilo.CASUAL, Estilo.CLASICO)),
+  CAMISA(Categoria.SUPERIOR, Forma.TOP_MANGA_LARGA, 2, 4, setOf(Estilo.CLASICO, Estilo.ELEGANTE, Estilo.MINIMALISTA)),
+  BLUSA(Categoria.SUPERIOR, Forma.TOP_MANGA_LARGA, 2, 3, setOf(Estilo.ROMANTICO, Estilo.ELEGANTE, Estilo.BOHEMIO)),
+  SUETER(Categoria.SUPERIOR, Forma.TOP_MANGA_LARGA, 3, 3, setOf(Estilo.CLASICO, Estilo.CASUAL, Estilo.MINIMALISTA)),
+  SUDADERA(Categoria.SUPERIOR, Forma.TOP_MANGA_LARGA, 3, 1, setOf(Estilo.DEPORTIVO, Estilo.URBANO, Estilo.CASUAL)),
+  JEANS(Categoria.INFERIOR, Forma.PANTALON, 2, 2, setOf(Estilo.CASUAL, Estilo.URBANO, Estilo.CLASICO)),
+  PANTALON_VESTIR(Categoria.INFERIOR, Forma.PANTALON, 2, 4, setOf(Estilo.ELEGANTE, Estilo.CLASICO, Estilo.MINIMALISTA)),
+  JOGGER(Categoria.INFERIOR, Forma.PANTALON, 2, 1, setOf(Estilo.DEPORTIVO, Estilo.URBANO)),
+  SHORT(Categoria.INFERIOR, Forma.SHORT, 1, 1, setOf(Estilo.CASUAL, Estilo.DEPORTIVO)),
+  FALDA(Categoria.INFERIOR, Forma.FALDA, 1, 3, setOf(Estilo.ROMANTICO, Estilo.ELEGANTE, Estilo.BOHEMIO)),
+  VESTIDO(Categoria.VESTIDO, Forma.VESTIDO_CORTO, 1, 3, setOf(Estilo.ROMANTICO, Estilo.CASUAL, Estilo.ELEGANTE)),
+  VESTIDO_LARGO(Categoria.VESTIDO, Forma.VESTIDO_LARGO, 2, 4, setOf(Estilo.ELEGANTE, Estilo.BOHEMIO, Estilo.ROMANTICO)),
+  CHAQUETA(Categoria.ABRIGO, Forma.CHAQUETA, 2, 2, setOf(Estilo.CASUAL, Estilo.URBANO)),
+  CAZADORA(Categoria.ABRIGO, Forma.CHAQUETA, 2, 3, setOf(Estilo.URBANO, Estilo.ELEGANTE)),
+  BLAZER(Categoria.ABRIGO, Forma.CHAQUETA, 2, 4, setOf(Estilo.ELEGANTE, Estilo.CLASICO, Estilo.MINIMALISTA)),
+  CARDIGAN(Categoria.ABRIGO, Forma.CHAQUETA, 2, 2, setOf(Estilo.CASUAL, Estilo.ROMANTICO, Estilo.BOHEMIO)),
+  ABRIGO(Categoria.ABRIGO, Forma.ABRIGO_LARGO, 4, 4, setOf(Estilo.ELEGANTE, Estilo.CLASICO)),
+  PLUMIFERO(Categoria.ABRIGO, Forma.CHAQUETA, 4, 1, setOf(Estilo.DEPORTIVO, Estilo.URBANO, Estilo.CASUAL)),
+  IMPERMEABLE(Categoria.ABRIGO, Forma.ABRIGO_LARGO, 2, 3, setOf(Estilo.CLASICO, Estilo.CASUAL), impermeable = true),
+  TENIS(Categoria.CALZADO, Forma.CALZADO_DEPORTIVO, 1, 1, setOf(Estilo.CASUAL, Estilo.DEPORTIVO, Estilo.URBANO)),
+  ZAPATOS(Categoria.CALZADO, Forma.ZAPATO, 1, 4, setOf(Estilo.ELEGANTE, Estilo.CLASICO)),
+  TACONES(Categoria.CALZADO, Forma.TACON, 0, 5, setOf(Estilo.ELEGANTE, Estilo.ROMANTICO)),
+  BOTAS(Categoria.CALZADO, Forma.BOTA, 2, 3, setOf(Estilo.CASUAL, Estilo.URBANO, Estilo.BOHEMIO)),
+  SANDALIAS(Categoria.CALZADO, Forma.SANDALIA, 0, 1, setOf(Estilo.CASUAL, Estilo.BOHEMIO)),
+  GORRO(Categoria.ACCESORIO, Forma.GORRO, 1, 1, setOf(Estilo.CASUAL, Estilo.URBANO)),
+  GORRA(Categoria.ACCESORIO, Forma.GORRA, 0, 1, setOf(Estilo.DEPORTIVO, Estilo.URBANO)),
+  BUFANDA(Categoria.ACCESORIO, Forma.BUFANDA, 1, 2, setOf(Estilo.CLASICO, Estilo.CASUAL)),
+  BOLSO(Categoria.ACCESORIO, Forma.BOLSO, 0, 3, setOf(Estilo.CASUAL, Estilo.ELEGANTE));
 
   companion object {
     fun deCategoria(c: Categoria) = entries.filter { it.categoria == c }
@@ -114,20 +114,20 @@ data class Prenda(
   val categoria get() = subtipo.categoria
 }
 
-enum class Ocasion(val etiqueta: String, val formalidad: Double) {
-  CASUAL("Día a día", 2.0),
-  TRABAJO("Trabajo", 3.5),
-  CITA("Cita", 3.3),
-  FIESTA("Fiesta", 4.0),
-  FORMAL("Evento formal", 4.8),
-  DEPORTE("Deporte", 1.0),
-  VIAJE("Viaje", 1.8),
+enum class Ocasion(val formalidad: Double) {
+  CASUAL(2.0),
+  TRABAJO(3.5),
+  CITA(3.3),
+  FIESTA(4.0),
+  FORMAL(4.8),
+  DEPORTE(1.0),
+  VIAJE(1.8),
 }
 
-enum class Momento(val etiqueta: String, val hora: Int) {
-  MANANA("Mañana", 9),
-  TARDE("Tarde", 15),
-  NOCHE("Noche", 21);
+enum class Momento(val hora: Int) {
+  MANANA(9),
+  TARDE(15),
+  NOCHE(21);
 
   companion object {
     fun deHora(h: Int) = when (h) {
@@ -138,10 +138,10 @@ enum class Momento(val etiqueta: String, val hora: Int) {
   }
 }
 
-enum class Cuerpo(val etiqueta: String) {
-  FEMENINO("Femenino"),
-  MASCULINO("Masculino"),
-  NEUTRO("Neutro"),
+enum class Cuerpo {
+  FEMENINO,
+  MASCULINO,
+  NEUTRO,
 }
 
 data class Perfil(
@@ -171,8 +171,11 @@ data class CondicionClima(
   val nieve: Boolean = false,
   val vientoMs: Double = 0.0,
   val soleado: Boolean = false,
-  val descripcion: String = "",
+  val cielo: Cielo = Cielo.DESCONOCIDO,
 )
+
+/** Cómo estará el cielo (el texto en cada idioma lo pone la interfaz). */
+enum class Cielo { DESPEJADO, POCO_NUBOSO, PARCIAL, NUBLADO, NIEBLA, LLOVIZNA, LLUVIA, LLUVIA_FUERTE, AGUANIEVE, NIEVE, TORMENTA, DESCONOCIDO }
 
 /** Lo aprendido de los "me gusta", "no me gusta" y looks usados. Valores entre -3 y 3. */
 data class Preferencias(
@@ -183,7 +186,8 @@ data class Preferencias(
   val pares: Map<String, Double> = emptyMap(),
 )
 
-data class IdeaPrenda(val subtipo: Subtipo, val color: String, val nombre: String)
+/** Prenda que no tienes. [nombre] vacío = se nombra por su tipo y color en el idioma del teléfono. */
+data class IdeaPrenda(val subtipo: Subtipo, val color: String, val nombre: String = "")
 
 data class Tendencia(
   val id: String,
@@ -219,9 +223,26 @@ data class Look(
   val id: String,
   val prendas: List<Prenda>,
   val puntuacion: Double,
-  val razones: List<String>,
+  val razones: List<Razon>,
   val tendencia: String? = null,
 )
+
+/** Por qué se eligió un look. Son datos: cada idioma los escribe a su manera. */
+sealed interface Razon {
+  /** Va a llover; [impermeable] es la prenda que protege, si la hay. */
+  data class Lluvia(val impermeable: Prenda?) : Razon
+  data class Frio(val sensacion: Double) : Razon
+  data class Calor(val sensacion: Double) : Razon
+  data class Templado(val sensacion: Double) : Razon
+  data class ParaOcasion(val ocasion: Ocasion) : Razon
+  data class ColoresCombinan(val colores: List<String>) : Razon
+  data class EnTendencia(val titulo: String) : Razon
+  data class TuEstilo(val estilo: Estilo) : Razon
+  data object Parecido : Razon
+  data class TeFalta(val prenda: Prenda) : Razon
+  /** Texto ya escrito (la descripción de una tendencia). */
+  data class Texto(val texto: String) : Razon
+}
 
 data class LookGuardado(
   val id: String,

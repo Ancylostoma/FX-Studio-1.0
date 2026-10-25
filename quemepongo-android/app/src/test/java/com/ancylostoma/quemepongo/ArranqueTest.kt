@@ -40,6 +40,7 @@ class ArranqueTest {
   }
 
   @Test
+  @Config(qualifiers = "es")
   fun recorreLaAppComoUnUsuario() {
     // Bienvenida en pasos.
     tocar("Empezar")
@@ -70,5 +71,21 @@ class ArranqueTest {
     esperarTexto("Lo que se lleva ahora")
     tocar("Yo")
     esperarTexto("Aún no guardaste looks")
+  }
+
+  /** La misma app en inglés (el idioma por defecto para el resto del mundo). */
+  @Test
+  @Config(qualifiers = "en")
+  fun funcionaEnIngles() {
+    tocar("Start")
+    tocar("Next")
+    tocar("Skip")
+    tocar("Not now")
+    tocar("No, thanks")
+    tocar("I'll do it later")
+    esperarTexto("Your look for today")
+    esperarTexto("I'll wear it")
+    tocar("Discover")
+    esperarTexto("What's in style now")
   }
 }

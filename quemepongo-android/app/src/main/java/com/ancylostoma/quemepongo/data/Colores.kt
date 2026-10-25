@@ -6,8 +6,8 @@ import kotlin.math.min
 import kotlin.math.sqrt
 
 data class ColorRopa(
+  /** También es el nombre del recurso de texto: color_<clave>. */
   val clave: String,
-  val etiqueta: String,
   val argb: Long,
   /** Los neutros combinan con todo. */
   val neutro: Boolean,
@@ -21,25 +21,25 @@ object Colores {
   const val ESTAMPADO = "estampado"
 
   val todos = listOf(
-    ColorRopa("negro", "Negro", 0xFF1E1E1E, true),
-    ColorRopa("blanco", "Blanco", 0xFFF5F4EE, true),
-    ColorRopa("gris", "Gris", 0xFF8F8F8F, true),
-    ColorRopa("beige", "Beige", 0xFFD9C8A7, true),
-    ColorRopa("camel", "Camel", 0xFFB8864E, true),
-    ColorRopa("marron", "Marrón", 0xFF6B4A30, true),
-    ColorRopa("marino", "Azul marino", 0xFF1F2B47, true),
-    ColorRopa("denim", "Denim", 0xFF4B6F9C, true),
-    ColorRopa("oliva", "Verde oliva", 0xFF6B6B36, true),
-    ColorRopa("azul", "Azul", 0xFF2F5FCF, false),
-    ColorRopa("celeste", "Celeste", 0xFF9DC6EA, false),
-    ColorRopa("verde", "Verde", 0xFF2E8B57, false),
-    ColorRopa("rojo", "Rojo", 0xFFC62828, false),
-    ColorRopa("borgona", "Borgoña", 0xFF7A1F35, false),
-    ColorRopa("rosa", "Rosa", 0xFFEE9DB8, false),
-    ColorRopa("morado", "Morado", 0xFF6A3D9A, false),
-    ColorRopa("amarillo", "Amarillo", 0xFFF2C94C, false),
-    ColorRopa("naranja", "Naranja", 0xFFE67E22, false),
-    ColorRopa(ESTAMPADO, "Estampado", 0xFFB06AB3, false),
+    ColorRopa("negro", 0xFF1E1E1E, true),
+    ColorRopa("blanco", 0xFFF5F4EE, true),
+    ColorRopa("gris", 0xFF8F8F8F, true),
+    ColorRopa("beige", 0xFFD9C8A7, true),
+    ColorRopa("camel", 0xFFB8864E, true),
+    ColorRopa("marron", 0xFF6B4A30, true),
+    ColorRopa("marino", 0xFF1F2B47, true),
+    ColorRopa("denim", 0xFF4B6F9C, true),
+    ColorRopa("oliva", 0xFF6B6B36, true),
+    ColorRopa("azul", 0xFF2F5FCF, false),
+    ColorRopa("celeste", 0xFF9DC6EA, false),
+    ColorRopa("verde", 0xFF2E8B57, false),
+    ColorRopa("rojo", 0xFFC62828, false),
+    ColorRopa("borgona", 0xFF7A1F35, false),
+    ColorRopa("rosa", 0xFFEE9DB8, false),
+    ColorRopa("morado", 0xFF6A3D9A, false),
+    ColorRopa("amarillo", 0xFFF2C94C, false),
+    ColorRopa("naranja", 0xFFE67E22, false),
+    ColorRopa(ESTAMPADO, 0xFFB06AB3, false),
   )
 
   private val porClave = todos.associateBy { it.clave }

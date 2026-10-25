@@ -82,7 +82,7 @@ fun SelectorColores(elegidos: Set<String>, alCambiar: (String) -> Unit, incluirE
     Colores.todos.filter { incluirEstampado || it.clave != Colores.ESTAMPADO }.forEach { c ->
       Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(56.dp)) {
         MuestraColor(c.clave, 36.dp, c.clave in elegidos) { alCambiar(c.clave) }
-        Text(c.etiqueta, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(t(colorRes(c.clave)), style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
       }
     }
   }
@@ -92,7 +92,7 @@ fun SelectorColores(elegidos: Set<String>, alCambiar: (String) -> Unit, incluirE
 fun SelectorEstilos(elegidos: Set<Estilo>, alCambiar: (Estilo) -> Unit) {
   FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
     Estilo.entries.forEach { s ->
-      FilterChip(selected = s in elegidos, onClick = { alCambiar(s) }, label = { Text(s.etiqueta) })
+      FilterChip(selected = s in elegidos, onClick = { alCambiar(s) }, label = { Text(t(s.res())) })
     }
   }
 }
@@ -101,7 +101,7 @@ fun SelectorEstilos(elegidos: Set<Estilo>, alCambiar: (Estilo) -> Unit) {
 fun SelectorCuerpo(actual: Cuerpo, alElegir: (Cuerpo) -> Unit) {
   FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
     Cuerpo.entries.forEach { c ->
-      FilterChip(selected = c == actual, onClick = { alElegir(c) }, label = { Text(c.etiqueta) })
+      FilterChip(selected = c == actual, onClick = { alElegir(c) }, label = { Text(t(c.res())) })
     }
   }
 }
@@ -125,11 +125,11 @@ fun MiniaturaPrenda(p: Prenda, archivo: File?, tamano: Dp, modifier: Modifier = 
     when {
       archivo != null && recorte -> AsyncImage(
         model = archivo,
-        contentDescription = p.nombre,
+        contentDescription = nombre(p),
         contentScale = ContentScale.Fit,
         modifier = Modifier.size(tamano).padding(tamano * 0.08f),
       )
-      archivo != null -> AsyncImage(model = archivo, contentDescription = p.nombre, contentScale = ContentScale.Crop, modifier = Modifier.size(tamano))
+      archivo != null -> AsyncImage(model = archivo, contentDescription = nombre(p), contentScale = ContentScale.Crop, modifier = Modifier.size(tamano))
       else -> IconoForma(p.subtipo.forma, Color(Colores.de(p.color).argb), Modifier.size(tamano * 0.72f))
     }
   }

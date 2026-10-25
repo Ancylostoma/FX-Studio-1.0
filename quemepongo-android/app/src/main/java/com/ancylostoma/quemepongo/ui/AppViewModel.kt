@@ -4,6 +4,7 @@ import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.ancylostoma.quemepongo.R
 import com.ancylostoma.quemepongo.data.Almacen
 import com.ancylostoma.quemepongo.data.AvisoDiario
 import com.ancylostoma.quemepongo.data.Vista
@@ -138,19 +139,19 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
         } else {
           val l = ServicioClima.ubicacion(app)
           if (l == null) {
-            _estado.update { it.copy(climaCargando = false, climaError = "No pude saber dónde estás. Escribe tu ciudad.") }
+            _estado.update { it.copy(climaCargando = false, climaError = app.getString(R.string.msg_sin_ubicacion)) }
             return@launch
           }
           lat = l.latitude
           lon = l.longitude
-          lugar = ServicioClima.nombreDelLugar(app, lat, lon) ?: "Mi ubicación"
+          lugar = ServicioClima.nombreDelLugar(app, lat, lon) ?: app.getString(R.string.mi_ubicacion)
           cambiarDatos { d -> d.copy(perfil = d.perfil.copy(latitud = lat, longitud = lon, ciudad = lugar)) }
         }
-        val clima = ServicioClima.pronostico(lat, lon, lugar)
+        val clima = ServicioClima.pronostico(lat, lon, lugar, app.cacheDir)
         _estado.update { it.copy(clima = clima, climaCargando = false) }
         recalcular()
       } catch (e: Exception) {
-        _estado.update { it.copy(climaCargando = false, climaError = "Sin conexión con el servicio del tiempo.") }
+        _estado.update { it.copy(climaCargando = false, climaError = app.getString(R.string.msg_sin_conexion)) }
       }
     }
   }
@@ -167,7 +168,7 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
       _estado.update { it.copy(climaCargando = true, climaError = null) }
       val r = ServicioClima.buscarCiudad(app, nombre.trim())
       if (r == null) {
-        _estado.update { it.copy(climaCargando = false, climaError = "No encontré \"$nombre\".") }
+        _estado.update { it.copy(climaCargando = false, climaError = app.getString(R.string.msg_no_encontre, nombre)) }
         return@launch
       }
       cambiarDatos { d -> d.copy(perfil = d.perfil.copy(ciudad = r.first, latitud = r.second, longitud = r.third)) }
@@ -217,13 +218,13 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
 
   fun guardarLook(look: Look) {
     if (_estado.value.estaGuardado(look)) {
-      avisar("Ese look ya está guardado")
+      avisar(app.getString(R.string.msg_ya_guardado))
       return
     }
     val guardado = LookGuardado(look.id, look.prendas, System.currentTimeMillis(), _estado.value.ocasion)
     cambiarDatos { d -> d.copy(looks = listOf(guardado) + d.looks) }
     aprender(look, 1.5)
-    avisar("Guardado en Yo")
+    avisar(app.getString(R.string.msg_guardado))
   }
 
   fun meLoPongo(look: Look) {
@@ -237,7 +238,7 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
       )
     }
     aprender(look, 1.0)
-    avisar("¡Listo! Mañana te sugiero otras prendas")
+    avisar(app.getString(R.string.msg_me_lo_pongo))
   }
 
   fun borrarLook(id: String) = cambiarDatos { d -> d.copy(looks = d.looks.filterNot { it.id == id }) }
@@ -252,7 +253,7 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
   }
 
   fun enlaceTienda(idea: com.ancylostoma.quemepongo.data.IdeaPrenda) =
-    IdeasCompra.enlace(_estado.value.tendencias.tiendaUrl, idea)
+    IdeasCompra.enlace(_estado.value.tendencias.tiendaUrl, app.busqueda(idea))
 
   // ---- Armario ----
 
@@ -267,7 +268,7 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
           nombre to nombre?.let { almacen.foto(it) }?.let { Fotos.colorPrincipal(it) }
         }.getOrNull()
       }
-      if (r?.first == null) avisar("No pude abrir esa foto")
+      if (r?.first == null) avisar(app.getString(R.string.msg_foto_error))
       alTerminar(r?.first, r?.second)
     }
   }
@@ -337,7 +338,7 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
   fun cambiarAvisoDiario(activo: Boolean) {
     cambiarPerfil { it.copy(avisoDiario = activo) }
     runCatching { AvisoDiario.programar(app, activo) }
-    if (activo) avisar("Te aviso cada mañana a las 7:30")
+    if (activo) avisar(app.getString(R.string.msg_aviso_activo))
   }
 
   fun cambiarVista(v: Vista) = cambiarPerfil { it.copy(vista = v) }
@@ -345,6 +346,6 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
   fun reiniciarAprendizaje() {
     cambiarDatos { d -> d.copy(preferencias = Preferencias()) }
     recalcular()
-    avisar("Aprendizaje borrado")
+    avisar(app.getString(R.string.msg_aprendizaje))
   }
 }

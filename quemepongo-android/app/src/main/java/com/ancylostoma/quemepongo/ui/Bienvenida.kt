@@ -59,6 +59,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.ancylostoma.quemepongo.R
 import com.ancylostoma.quemepongo.data.AvisoDiario
 import com.ancylostoma.quemepongo.data.Cuerpo
 import com.ancylostoma.quemepongo.data.Estilo
@@ -68,7 +69,6 @@ import com.ancylostoma.quemepongo.data.Prenda
 import com.ancylostoma.quemepongo.data.ServicioClima
 import com.ancylostoma.quemepongo.data.Subtipo
 import com.ancylostoma.quemepongo.motor.Catalogo
-import kotlin.math.roundToInt
 
 private const val PASOS = 6
 
@@ -85,7 +85,7 @@ fun PantallaBienvenida(e: Estado, vm: AppViewModel, alTerminar: (agregarPrenda: 
   Column(Modifier.fillMaxSize().systemBarsPadding()) {
     Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
       if (paso > 0) {
-        IconButton(onClick = { paso-- }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Atrás") }
+        IconButton(onClick = { paso-- }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, t(R.string.atras)) }
       } else {
         Spacer(Modifier.width(48.dp))
       }
@@ -162,9 +162,9 @@ private fun Paso(
 @Composable
 private fun PasoInicio(e: Estado, vm: AppViewModel, siguiente: () -> Unit) {
   Paso(
-    titulo = "Qué Me Pongo",
-    texto = "Cada mañana te armo el look según el tiempo que hará, la ocasión, lo que está de moda y tu estilo. Y aprendo de lo que te gusta.",
-    principal = "Empezar",
+    titulo = t(R.string.app_name),
+    texto = t(R.string.b_inicio_texto),
+    principal = t(R.string.b_empezar),
     alPrincipal = siguiente,
   ) {
     Maniqui(
@@ -182,16 +182,16 @@ private fun PasoInicio(e: Estado, vm: AppViewModel, siguiente: () -> Unit) {
 private fun PasoCuerpo(e: Estado, vm: AppViewModel, siguiente: () -> Unit) {
   val actual = e.datos.perfil.cuerpo
   Paso(
-    titulo = "Tu maniquí",
-    texto = "Elige la silueta en la que quieres ver tus looks.",
-    principal = "Siguiente",
+    titulo = t(R.string.b_cuerpo_titulo),
+    texto = t(R.string.b_cuerpo_texto),
+    principal = t(R.string.b_siguiente),
     alPrincipal = siguiente,
   ) {
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
       Cuerpo.entries.forEach { c ->
         Tarjeta(elegida = c == actual, modifier = Modifier.weight(1f), alTocar = { vm.cambiarPerfil { it.copy(cuerpo = c) } }) {
           Maniqui(lookDeEstilo(Estilo.CASUAL), c, vm::archivoFoto, Modifier.fillMaxWidth().height(200.dp), claveAnimacion = c, marcarIdeas = false)
-          Text(c.etiqueta, style = MaterialTheme.typography.labelLarge)
+          Text(t(c.res()), style = MaterialTheme.typography.labelLarge)
         }
       }
     }
@@ -202,9 +202,9 @@ private fun PasoCuerpo(e: Estado, vm: AppViewModel, siguiente: () -> Unit) {
 private fun PasoEstilos(e: Estado, vm: AppViewModel, siguiente: () -> Unit) {
   val elegidos = e.datos.perfil.estilos
   Paso(
-    titulo = "¿Qué estilo va contigo?",
-    texto = "Elige todos los que quieras. Los looks se parecerán más a estos.",
-    principal = if (elegidos.isEmpty()) "Saltar" else "Siguiente",
+    titulo = t(R.string.b_estilos_titulo),
+    texto = t(R.string.b_estilos_texto),
+    principal = t(if (elegidos.isEmpty()) R.string.b_saltar else R.string.b_siguiente),
     alPrincipal = siguiente,
   ) {
     Estilo.entries.chunked(2).forEach { fila ->
@@ -216,7 +216,7 @@ private fun PasoEstilos(e: Estado, vm: AppViewModel, siguiente: () -> Unit) {
             alTocar = { vm.cambiarPerfil { it.copy(estilos = if (s in it.estilos) it.estilos - s else it.estilos + s) } },
           ) {
             Maniqui(lookDeEstilo(s), e.datos.perfil.cuerpo, vm::archivoFoto, Modifier.fillMaxWidth().height(170.dp), claveAnimacion = s, marcarIdeas = false)
-            Text(s.etiqueta, style = MaterialTheme.typography.labelLarge)
+            Text(t(s.res()), style = MaterialTheme.typography.labelLarge)
           }
         }
       }
@@ -231,9 +231,9 @@ private fun PasoCiudad(e: Estado, vm: AppViewModel, siguiente: () -> Unit) {
   val permiso = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok -> if (ok) vm.usarUbicacion() }
   val c = e.clima?.para(e.momento)
   Paso(
-    titulo = "¿Dónde estás?",
-    texto = "Para vestirte según el tiempo que hará. Solo se usa para pedir el pronóstico.",
-    principal = if (c != null) "Siguiente" else "Ahora no",
+    titulo = t(R.string.b_ciudad_titulo),
+    texto = t(R.string.b_ciudad_texto),
+    principal = t(if (c != null) R.string.b_siguiente else R.string.b_ahora_no),
     alPrincipal = siguiente,
   ) {
     Dibujo(Icons.Filled.LocationOn)
@@ -241,10 +241,10 @@ private fun PasoCiudad(e: Estado, vm: AppViewModel, siguiente: () -> Unit) {
       e.climaCargando -> Row(verticalAlignment = Alignment.CenterVertically) {
         CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
         Spacer(Modifier.width(10.dp))
-        Text("Consultando el tiempo…")
+        Text(t(R.string.b_consultando))
       }
       c != null -> Text(
-        "✓ ${e.clima?.lugar.orEmpty()}: ${c.temperatura.roundToInt()}°, ${c.descripcion.lowercase()}",
+        "✓ ${e.clima?.lugar.orEmpty()}: ${temperatura(c.temperatura)}, ${t(c.cielo.res()).lowercase(java.util.Locale.getDefault())}",
         style = MaterialTheme.typography.titleMedium,
         color = MaterialTheme.colorScheme.primary,
       )
@@ -253,10 +253,10 @@ private fun PasoCiudad(e: Estado, vm: AppViewModel, siguiente: () -> Unit) {
         FilledTonalButton(
           onClick = { if (ServicioClima.tienePermiso(contexto)) vm.usarUbicacion() else permiso.launch(Manifest.permission.ACCESS_COARSE_LOCATION) },
           modifier = Modifier.fillMaxWidth().height(52.dp),
-        ) { Text("Usar mi ubicación") }
+        ) { Text(t(R.string.contexto_ubicacion)) }
         Row(verticalAlignment = Alignment.CenterVertically) {
-          OutlinedTextField(value = ciudad, onValueChange = { ciudad = it }, label = { Text("O escribe tu ciudad") }, singleLine = true, modifier = Modifier.weight(1f))
-          TextButton(onClick = { vm.buscarCiudad(ciudad) }, enabled = ciudad.isNotBlank()) { Text("Buscar") }
+          OutlinedTextField(value = ciudad, onValueChange = { ciudad = it }, label = { Text(t(R.string.contexto_ciudad)) }, singleLine = true, modifier = Modifier.weight(1f))
+          TextButton(onClick = { vm.buscarCiudad(ciudad) }, enabled = ciudad.isNotBlank()) { Text(t(R.string.buscar)) }
         }
       }
     }
@@ -271,9 +271,9 @@ private fun PasoAviso(vm: AppViewModel, siguiente: () -> Unit) {
     siguiente()
   }
   Paso(
-    titulo = "¿Te aviso cada mañana?",
-    texto = "A las 7:30 te llega tu look del día con el tiempo que hará. Sin más avisos que ese.",
-    principal = "Sí, avísame",
+    titulo = t(R.string.b_aviso_titulo),
+    texto = t(R.string.b_aviso_texto),
+    principal = t(R.string.b_aviso_si),
     alPrincipal = {
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !AvisoDiario.puedeAvisar(contexto)) {
         permiso.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -282,7 +282,7 @@ private fun PasoAviso(vm: AppViewModel, siguiente: () -> Unit) {
         siguiente()
       }
     },
-    secundario = "No, gracias",
+    secundario = t(R.string.b_aviso_no),
     alSecundario = siguiente,
   ) {
     Dibujo(Icons.Filled.NotificationsActive)
@@ -292,11 +292,11 @@ private fun PasoAviso(vm: AppViewModel, siguiente: () -> Unit) {
 @Composable
 private fun PasoPrimeraPrenda(alTerminar: (Boolean) -> Unit) {
   Paso(
-    titulo = "Lo último: tu ropa",
-    texto = "Fotografía 3 prendas que uses mucho. Les quito el fondo y los looks se arman con tu ropa de verdad.",
-    principal = "Agregar mi primera prenda",
+    titulo = t(R.string.b_prenda_titulo),
+    texto = t(R.string.b_prenda_texto),
+    principal = t(R.string.b_prenda_si),
     alPrincipal = { alTerminar(true) },
-    secundario = "Lo haré luego",
+    secundario = t(R.string.b_prenda_luego),
     alSecundario = { alTerminar(false) },
   ) {
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -331,12 +331,12 @@ private fun Dibujo(icono: ImageVector) {
 
 /** Un look de ejemplo para mostrar cada estilo en el maniquí. */
 private fun lookDeEstilo(s: Estilo): List<Prenda> = when (s) {
-  Estilo.CASUAL -> listOf(IdeaPrenda(Subtipo.CAMISETA, "blanco", "Camiseta"), IdeaPrenda(Subtipo.JEANS, "denim", "Jeans"), IdeaPrenda(Subtipo.TENIS, "blanco", "Tenis"))
-  Estilo.ELEGANTE -> listOf(IdeaPrenda(Subtipo.CAMISA, "blanco", "Camisa"), IdeaPrenda(Subtipo.PANTALON_VESTIR, "negro", "Pantalón"), IdeaPrenda(Subtipo.BLAZER, "negro", "Blazer"), IdeaPrenda(Subtipo.ZAPATOS, "negro", "Zapatos"))
-  Estilo.DEPORTIVO -> listOf(IdeaPrenda(Subtipo.SUDADERA, "gris", "Sudadera"), IdeaPrenda(Subtipo.JOGGER, "negro", "Jogger"), IdeaPrenda(Subtipo.TENIS, "blanco", "Tenis"))
-  Estilo.URBANO -> listOf(IdeaPrenda(Subtipo.CAMISETA, "negro", "Camiseta"), IdeaPrenda(Subtipo.JEANS, "negro", "Jeans"), IdeaPrenda(Subtipo.CAZADORA, "negro", "Cazadora"), IdeaPrenda(Subtipo.BOTAS, "negro", "Botas"), IdeaPrenda(Subtipo.GORRA, "negro", "Gorra"))
-  Estilo.CLASICO -> listOf(IdeaPrenda(Subtipo.CAMISA, "celeste", "Camisa"), IdeaPrenda(Subtipo.PANTALON_VESTIR, "beige", "Chino"), IdeaPrenda(Subtipo.CARDIGAN, "marino", "Cárdigan"), IdeaPrenda(Subtipo.ZAPATOS, "marron", "Mocasines"))
-  Estilo.MINIMALISTA -> listOf(IdeaPrenda(Subtipo.SUETER, "gris", "Suéter"), IdeaPrenda(Subtipo.PANTALON_VESTIR, "negro", "Pantalón"), IdeaPrenda(Subtipo.ZAPATOS, "blanco", "Zapatos"))
-  Estilo.BOHEMIO -> listOf(IdeaPrenda(Subtipo.BLUSA, "estampado", "Blusa"), IdeaPrenda(Subtipo.FALDA, "beige", "Falda"), IdeaPrenda(Subtipo.SANDALIAS, "marron", "Sandalias"))
-  Estilo.ROMANTICO -> listOf(IdeaPrenda(Subtipo.VESTIDO, "rosa", "Vestido"), IdeaPrenda(Subtipo.CARDIGAN, "blanco", "Cárdigan"), IdeaPrenda(Subtipo.TACONES, "beige", "Tacones"))
+  Estilo.CASUAL -> listOf(IdeaPrenda(Subtipo.CAMISETA, "blanco"), IdeaPrenda(Subtipo.JEANS, "denim"), IdeaPrenda(Subtipo.TENIS, "blanco"))
+  Estilo.ELEGANTE -> listOf(IdeaPrenda(Subtipo.CAMISA, "blanco"), IdeaPrenda(Subtipo.PANTALON_VESTIR, "negro"), IdeaPrenda(Subtipo.BLAZER, "negro"), IdeaPrenda(Subtipo.ZAPATOS, "negro"))
+  Estilo.DEPORTIVO -> listOf(IdeaPrenda(Subtipo.SUDADERA, "gris"), IdeaPrenda(Subtipo.JOGGER, "negro"), IdeaPrenda(Subtipo.TENIS, "blanco"))
+  Estilo.URBANO -> listOf(IdeaPrenda(Subtipo.CAMISETA, "negro"), IdeaPrenda(Subtipo.JEANS, "negro"), IdeaPrenda(Subtipo.CAZADORA, "negro"), IdeaPrenda(Subtipo.BOTAS, "negro"), IdeaPrenda(Subtipo.GORRA, "negro"))
+  Estilo.CLASICO -> listOf(IdeaPrenda(Subtipo.CAMISA, "celeste"), IdeaPrenda(Subtipo.PANTALON_VESTIR, "beige"), IdeaPrenda(Subtipo.CARDIGAN, "marino"), IdeaPrenda(Subtipo.ZAPATOS, "marron"))
+  Estilo.MINIMALISTA -> listOf(IdeaPrenda(Subtipo.SUETER, "gris"), IdeaPrenda(Subtipo.PANTALON_VESTIR, "negro"), IdeaPrenda(Subtipo.ZAPATOS, "blanco"))
+  Estilo.BOHEMIO -> listOf(IdeaPrenda(Subtipo.BLUSA, "estampado"), IdeaPrenda(Subtipo.FALDA, "beige"), IdeaPrenda(Subtipo.SANDALIAS, "marron"))
+  Estilo.ROMANTICO -> listOf(IdeaPrenda(Subtipo.VESTIDO, "rosa"), IdeaPrenda(Subtipo.CARDIGAN, "blanco"), IdeaPrenda(Subtipo.TACONES, "beige"))
 }.map { Catalogo.desdeIdea(it, "estilo-${s.name}") }

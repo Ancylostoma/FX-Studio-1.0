@@ -4,6 +4,7 @@ import android.content.Context
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -17,8 +18,8 @@ class ServicioTendencias(private val contexto: Context) {
 
   /** Lo que haya en el teléfono: la última descarga o, si no hay, la copia de fábrica. */
   fun local(): CatalogoTendencias {
-    val deFabrica = contexto.assets.open("tendencias.json").bufferedReader().use { Json.tendencias(it.readText()) }
-    val descargado = runCatching { Json.tendencias(cache.readText()) }.getOrNull()
+    val deFabrica = contexto.assets.open("tendencias.json").bufferedReader().use { Json.tendencias(it.readText(), idioma()) }
+    val descargado = runCatching { Json.tendencias(cache.readText(), idioma()) }.getOrNull()
     // Si la app se actualizó y trae un archivo más nuevo que la descarga, gana el de fábrica.
     return if (descargado != null && descargado.version >= deFabrica.version) descargado else deFabrica
   }
@@ -34,7 +35,7 @@ class ServicioTendencias(private val contexto: Context) {
       try {
         if (conexion.responseCode != 200) return@runCatching null
         val texto = conexion.inputStream.bufferedReader().use { it.readText() }
-        val catalogo = Json.tendencias(texto) // Si no se puede leer, no se guarda.
+        val catalogo = Json.tendencias(texto, idioma()) // Si no se puede leer, no se guarda.
         if (catalogo.tendencias.isEmpty()) return@runCatching null
         cache.writeText(texto)
         catalogo
@@ -43,6 +44,8 @@ class ServicioTendencias(private val contexto: Context) {
       }
     }.getOrNull()
   }
+
+  private fun idioma() = Locale.getDefault().language
 
   companion object {
     const val URL_REMOTA =

@@ -71,7 +71,7 @@ fun Collage(prendas: List<Prenda>, foto: (String?) -> File?, modifier: Modifier 
       ) {
         val archivo = foto(p.foto)
         if (archivo != null) {
-          AsyncImage(model = archivo, contentDescription = p.nombre, contentScale = ContentScale.Fit, modifier = Modifier.size(ancho, alto))
+          AsyncImage(model = archivo, contentDescription = nombre(p), contentScale = ContentScale.Fit, modifier = Modifier.size(ancho, alto))
         } else {
           IconoForma(p.subtipo.forma, Color(Colores.de(p.color).argb).copy(alpha = if (p.virtual) 0.75f else 1f), Modifier.size(ancho, alto))
         }

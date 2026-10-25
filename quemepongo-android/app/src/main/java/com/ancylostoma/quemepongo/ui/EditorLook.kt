@@ -38,12 +38,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.ancylostoma.quemepongo.R
 import com.ancylostoma.quemepongo.data.Categoria
 import com.ancylostoma.quemepongo.data.Colores
 import com.ancylostoma.quemepongo.motor.Motor
-import kotlin.math.roundToInt
+import java.util.Locale
 
 /** Cambiar prendas de un look sobre el maniquí (antes "Probador"). */
 @Composable
@@ -57,15 +59,15 @@ fun EditorLook(e: Estado, vm: AppViewModel, alCerrar: () -> Unit) {
 
   Column(Modifier.fillMaxSize()) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-      IconButton(onClick = alCerrar) { Icon(Icons.Filled.Close, "Cerrar") }
-      Text("Editar look", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+      IconButton(onClick = alCerrar) { Icon(Icons.Filled.Close, t(R.string.cerrar)) }
+      Text(t(R.string.editor_titulo), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
       TextButton(
         onClick = {
           vm.puntuarProbador()?.let { vm.guardarLook(it) }
           alCerrar()
         },
         enabled = e.probador.isNotEmpty(),
-      ) { Text("Guardar") }
+      ) { Text(t(R.string.guardar)) }
     }
 
     Column(
@@ -87,28 +89,28 @@ fun EditorLook(e: Estado, vm: AppViewModel, alCerrar: () -> Unit) {
             InputChip(
               selected = false,
               onClick = { vm.quitarDelProbador(p) },
-              label = { Text(p.nombre, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-              trailingIcon = { Icon(Icons.Filled.Close, "Quitar", Modifier.size(16.dp)) },
+              label = { Text(nombre(p), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+              trailingIcon = { Icon(Icons.Filled.Close, t(R.string.editor_quitar), Modifier.size(16.dp)) },
             )
           }
         }
         Valoracion(e, vm)
       }
 
-      Text("Toca una prenda para ponérsela", style = MaterialTheme.typography.titleMedium)
+      Text(t(R.string.editor_toca), style = MaterialTheme.typography.titleMedium)
       LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         items(Categoria.entries) { c ->
           FilterChip(
             selected = c == categoria,
             onClick = { categoria = c },
-            label = { Text(c.etiqueta) },
+            label = { Text(t(c.res())) },
             leadingIcon = { IconoForma(formaDeCategoria(c), MaterialTheme.colorScheme.onSurfaceVariant, Modifier.size(18.dp)) },
           )
         }
       }
       val deCategoria = reales.filter { it.categoria == categoria }
       if (deCategoria.isEmpty()) {
-        Text("No tienes prendas de este tipo todavía.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(t(R.string.editor_sin_prendas), color = MaterialTheme.colorScheme.onSurfaceVariant)
       } else {
         LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
           items(deCategoria, key = { it.id }) { p ->
@@ -127,7 +129,7 @@ fun EditorLook(e: Estado, vm: AppViewModel, alCerrar: () -> Unit) {
             ) {
               MiniaturaPrenda(p, vm.archivoFoto(p.foto), 76.dp)
               Text(
-                (if (p.id in puestas) "✓ " else "") + p.nombre,
+                (if (p.id in puestas) "✓ " else "") + nombre(p),
                 style = MaterialTheme.typography.labelSmall,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
@@ -137,7 +139,7 @@ fun EditorLook(e: Estado, vm: AppViewModel, alCerrar: () -> Unit) {
         }
       }
       if (e.probador.isNotEmpty()) {
-        TextButton(onClick = { vm.vaciarProbador(); ultima = null }) { Text("Quitar todo") }
+        TextButton(onClick = { vm.vaciarProbador(); ultima = null }) { Text(t(R.string.editor_quitar_todo)) }
       }
       Spacer(Modifier.height(16.dp))
     }
@@ -149,7 +151,7 @@ fun EditorLook(e: Estado, vm: AppViewModel, alCerrar: () -> Unit) {
       },
       enabled = e.probador.isNotEmpty(),
       modifier = Modifier.fillMaxWidth().padding(16.dp).height(52.dp),
-    ) { Text("Me lo pongo", style = MaterialTheme.typography.titleMedium) }
+    ) { Text(t(R.string.hoy_me_lo_pongo), style = MaterialTheme.typography.titleMedium) }
   }
 }
 
@@ -160,31 +162,32 @@ private fun Valoracion(e: Estado, vm: AppViewModel) {
   val condicion = e.clima?.para(e.momento)
   val avisos = mutableListOf<Pair<ImageVector, String>>()
   if (condicion != null) {
-    val t = condicion.sensacion.roundToInt()
+    val temp = temperatura(condicion.sensacion)
     val diferencia = Motor.abrigoDelLook(look.prendas) - Motor.abrigoIdeal(condicion.sensacion)
     avisos.add(
       Icons.Filled.Thermostat to when {
-        diferencia > 1.2 -> "Vas demasiado abrigado para $t °C"
-        diferencia < -1.2 -> "Vas a pasar frío con $t °C"
-        else -> "Abrigo justo para $t °C"
+        diferencia > 1.2 -> stringResource(R.string.val_abrigado, temp)
+        diferencia < -1.2 -> stringResource(R.string.val_frio, temp)
+        else -> stringResource(R.string.val_justo, temp)
       },
     )
-    if (condicion.lluvia && look.prendas.none { it.impermeable }) avisos.add(Icons.Filled.Umbrella to "Va a llover y no llevas nada impermeable")
+    if (condicion.lluvia && look.prendas.none { it.impermeable }) avisos.add(Icons.Filled.Umbrella to t(R.string.val_lluvia))
   }
   val armonia = Colores.armonia(look.prendas.map { it.color })
   avisos.add(
     Icons.Filled.Palette to when {
-      armonia >= 1.0 -> "Los colores combinan muy bien"
-      armonia >= 0.0 -> "Los colores van bien"
-      else -> "Demasiados colores fuertes juntos: prueba con un neutro"
+      armonia >= 1.0 -> t(R.string.val_colores_muy)
+      armonia >= 0.0 -> t(R.string.val_colores_bien)
+      else -> t(R.string.val_colores_mal)
     },
   )
   val dif = look.prendas.map { it.formalidad }.average() - e.ocasion.formalidad
+  val ocasion = t(e.ocasion.res()).lowercase(Locale.getDefault())
   avisos.add(
     Icons.Filled.Work to when {
-      dif > 1.2 -> "Muy arreglado para ${e.ocasion.etiqueta.lowercase()}"
-      dif < -1.2 -> "Muy informal para ${e.ocasion.etiqueta.lowercase()}"
-      else -> "Va bien para ${e.ocasion.etiqueta.lowercase()}"
+      dif > 1.2 -> stringResource(R.string.val_muy_arreglado, ocasion)
+      dif < -1.2 -> stringResource(R.string.val_muy_informal, ocasion)
+      else -> stringResource(R.string.val_ocasion_bien, ocasion)
     },
   )
   Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {

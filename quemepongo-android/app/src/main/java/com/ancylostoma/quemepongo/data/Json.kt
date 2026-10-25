@@ -40,7 +40,7 @@ object Json {
     val subtipo = Subtipo.porNombre(o.optString("subtipo")) ?: return null
     return Prenda(
       id = o.getString("id"),
-      nombre = o.optString("nombre", subtipo.etiqueta),
+      nombre = o.optString("nombre", ""),
       subtipo = subtipo,
       color = o.optString("color", "gris"),
       estilos = estilos(o.optJSONArray("estilos")).ifEmpty { subtipo.estilos },
@@ -135,7 +135,19 @@ object Json {
 
   // ---- Tendencias (archivo tendencias.json) ----
 
-  fun tendencias(texto: String): CatalogoTendencias {
+  /**
+   * Un texto que puede venir en un solo idioma ("titulo": "...") o en varios
+   * ("titulo": {"es": "...", "en": "..."}). Si falta el idioma, inglés y luego español.
+   */
+  private fun local(o: JSONObject, clave: String, idioma: String): String {
+    val v = o.opt(clave) ?: return ""
+    if (v !is JSONObject) return v.toString()
+    return listOf(idioma, "en", "es").firstNotNullOfOrNull { v.optString(it).takeIf { t -> t.isNotBlank() } }
+      ?: v.keys().asSequence().firstOrNull()?.let { v.optString(it) }.orEmpty()
+  }
+
+  /** [idioma]: código ISO del teléfono ("es", "en", "pt"...). */
+  fun tendencias(texto: String, idioma: String = "es"): CatalogoTendencias {
     val o = JSONObject(texto)
     val lista = o.optJSONArray("tendencias") ?: JSONArray()
     return CatalogoTendencias(
@@ -147,10 +159,10 @@ object Json {
         val ideas = t.optJSONArray("prendas") ?: JSONArray()
         Tendencia(
           id = t.getString("id"),
-          titulo = t.getString("titulo"),
-          descripcion = t.optString("descripcion"),
+          titulo = local(t, "titulo", idioma),
+          descripcion = local(t, "descripcion", idioma),
           tipo = t.optString("tipo", "temporada"),
-          fuente = t.optString("fuente"),
+          fuente = local(t, "fuente", idioma),
           desde = t.optString("desde"),
           hasta = t.optString("hasta"),
           hemisferio = t.optString("hemisferio", "ambos"),
@@ -160,7 +172,7 @@ object Json {
           prendas = (0 until ideas.length()).mapNotNull { j ->
             val p = ideas.getJSONObject(j)
             val sub = Subtipo.entries.firstOrNull { it.name.equals(p.optString("subtipo"), ignoreCase = true) }
-            sub?.let { IdeaPrenda(it, p.optString("color", "negro"), p.optString("nombre", it.etiqueta)) }
+            sub?.let { IdeaPrenda(it, p.optString("color", "negro"), local(p, "nombre", idioma)) }
           },
           peso = t.optDouble("peso", 1.0),
         )

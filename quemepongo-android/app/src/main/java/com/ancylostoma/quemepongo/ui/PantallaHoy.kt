@@ -77,8 +77,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.ancylostoma.quemepongo.R
 import com.ancylostoma.quemepongo.data.CondicionClima
 import com.ancylostoma.quemepongo.data.Forma
 import com.ancylostoma.quemepongo.data.IdeaPrenda
@@ -89,9 +92,8 @@ import com.ancylostoma.quemepongo.data.Prenda
 import com.ancylostoma.quemepongo.data.ServicioClima
 import com.ancylostoma.quemepongo.data.Vista
 import java.time.LocalDate
-import java.time.format.TextStyle
+import java.time.format.DateTimeFormatter
 import java.util.Locale
-import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
 /**
@@ -113,14 +115,14 @@ fun PantallaHoy(e: Estado, vm: AppViewModel, abrirEditor: (List<Prenda>) -> Unit
     val altoLook = (maxHeight - 290.dp).coerceAtLeast(340.dp)
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(top = 12.dp)) {
       val hoy = LocalDate.now()
-      val es = Locale.forLanguageTag("es")
+      // "domingo, 25 de octubre", "Sunday, October 25", "Sonntag, 25. Oktober"...
+      val patron = android.text.format.DateFormat.getBestDateTimePattern(Locale.getDefault(), "EEEEdMMMM")
       Text(
-        hoy.dayOfWeek.getDisplayName(TextStyle.FULL, es).replaceFirstChar { it.uppercase() } +
-          " ${hoy.dayOfMonth} de " + hoy.month.getDisplayName(TextStyle.FULL, es),
+        hoy.format(DateTimeFormatter.ofPattern(patron, Locale.getDefault())).replaceFirstChar { it.uppercase() },
         style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.primary,
       )
-      Text("Tu look de hoy", style = MaterialTheme.typography.headlineMedium)
+      Text(t(R.string.hoy_titulo), style = MaterialTheme.typography.headlineMedium)
       Spacer(Modifier.height(10.dp))
       BarraContexto(e) { verContexto = true }
       Spacer(Modifier.height(10.dp))
@@ -148,24 +150,24 @@ fun PantallaHoy(e: Estado, vm: AppViewModel, abrirEditor: (List<Prenda>) -> Unit
       if (look != null) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) {
           Text(
-            look.razones.firstOrNull().orEmpty(),
+            look.razones.firstOrNull()?.let { texto(it) }.orEmpty(),
             style = MaterialTheme.typography.bodyMedium,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
           )
-          TextButton(onClick = { detalles = look }) { Text("¿Por qué?") }
+          TextButton(onClick = { detalles = look }) { Text(t(R.string.hoy_por_que)) }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
           OutlinedButton(onClick = { abrirEditor(look.prendas) }, modifier = Modifier.height(52.dp)) {
             Icon(Icons.Filled.Tune, null, Modifier.size(18.dp))
             Spacer(Modifier.width(6.dp))
-            Text("Editar")
+            Text(t(R.string.hoy_editar))
           }
           Button(onClick = { vm.meLoPongo(look) }, modifier = Modifier.weight(1f).height(52.dp)) {
             Icon(Icons.Filled.Check, null, Modifier.size(20.dp))
             Spacer(Modifier.width(8.dp))
-            Text("Me lo pongo", style = MaterialTheme.typography.titleMedium)
+            Text(t(R.string.hoy_me_lo_pongo), style = MaterialTheme.typography.titleMedium)
           }
         }
       } else {
@@ -173,7 +175,7 @@ fun PantallaHoy(e: Estado, vm: AppViewModel, abrirEditor: (List<Prenda>) -> Unit
       }
       if (e.datos.prendas.count { !it.virtual } < 4) {
         TextButton(onClick = alAgregar, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-          Text("Agrega tu ropa para looks con tus prendas →", maxLines = 1, overflow = TextOverflow.Ellipsis)
+          Text(t(R.string.hoy_agrega_ropa), maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
       }
     }
@@ -201,23 +203,23 @@ private fun BarraContexto(e: Estado, alTocar: () -> Unit) {
       c != null -> {
         Icon(iconoClima(c), null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.width(6.dp))
-        Text("${c.temperatura.roundToInt()}°", style = MaterialTheme.typography.titleMedium)
+        Text(temperatura(c.temperatura), style = MaterialTheme.typography.titleMedium)
       }
       else -> Icon(Icons.Filled.LocationOn, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
     }
     Spacer(Modifier.width(10.dp))
     Text(
       listOfNotNull(
-        if (c == null && !e.climaCargando) "Elige tu ciudad" else e.clima?.lugar?.takeIf { it.isNotBlank() },
-        e.ocasion.etiqueta,
-        e.momento.etiqueta,
+        if (c == null && !e.climaCargando) t(R.string.hoy_elige_ciudad) else e.clima?.lugar?.takeIf { it.isNotBlank() },
+        t(e.ocasion.res()),
+        t(e.momento.res()),
       ).joinToString(" · "),
       style = MaterialTheme.typography.bodyMedium,
       maxLines = 1,
       overflow = TextOverflow.Ellipsis,
       modifier = Modifier.weight(1f),
     )
-    Icon(Icons.Filled.ExpandMore, "Cambiar", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+    Icon(Icons.Filled.ExpandMore, t(R.string.hoy_cambiar), tint = MaterialTheme.colorScheme.onSurfaceVariant)
   }
 }
 
@@ -252,7 +254,7 @@ private fun PaginaLook(e: Estado, vm: AppViewModel, look: Look) {
     FilledTonalIconButton(
       onClick = { vm.cambiarVista(if (collage) Vista.MANIQUI else Vista.COLLAGE) },
       modifier = Modifier.align(Alignment.BottomStart).padding(10.dp),
-    ) { Icon(if (collage) Icons.Filled.Accessibility else Icons.Filled.Dashboard, if (collage) "Ver en el maniquí" else "Ver como collage") }
+    ) { Icon(if (collage) Icons.Filled.Accessibility else Icons.Filled.Dashboard, t(if (collage) R.string.hoy_ver_maniqui else R.string.hoy_ver_collage)) }
     look.tendencia?.let { t ->
       Row(
         Modifier
@@ -272,20 +274,20 @@ private fun PaginaLook(e: Estado, vm: AppViewModel, look: Look) {
       val rojo by animateColorAsState(if (guardado) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant, label = "corazon")
       val tamano by animateDpAsState(if (guardado) 26.dp else 22.dp, label = "latido")
       FilledTonalIconButton(onClick = { vm.alternarGuardado(look) }) {
-        Icon(if (guardado) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder, if (guardado) "Quitar de guardados" else "Guardar", tint = rojo, modifier = Modifier.size(tamano))
+        Icon(if (guardado) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder, t(if (guardado) R.string.hoy_quitar_guardado else R.string.hoy_guardar), tint = rojo, modifier = Modifier.size(tamano))
       }
       FilledTonalIconButton(
         onClick = { vm.descartar(look) },
         colors = IconButtonDefaults.filledTonalIconButtonColors(),
-      ) { Icon(Icons.Filled.Close, "No me gusta") }
+      ) { Icon(Icons.Filled.Close, t(R.string.hoy_no_me_gusta)) }
       FilledTonalIconButton(onClick = {
-        alcance.launch { runCatching { Compartir.look(contexto, look.prendas, e.datos.perfil.cuerpo, vm::archivoFoto, "Mi look de hoy") } }
-      }) { Icon(Icons.Filled.Share, "Compartir") }
+        alcance.launch { runCatching { Compartir.look(contexto, look.prendas, e.datos.perfil.cuerpo, vm::archivoFoto, contexto.getString(R.string.compartir_titulo_hoy)) } }
+      }) { Icon(Icons.Filled.Share, t(R.string.hoy_compartir)) }
     }
     val faltan = look.prendas.count { it.virtual }
     if (faltan > 0) {
       Text(
-        if (faltan == 1) "1 pieza es idea de compra" else "$faltan piezas son ideas de compra",
+        pluralStringResource(R.plurals.hoy_ideas_compra, faltan, faltan),
         style = MaterialTheme.typography.labelSmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 22.dp),
@@ -300,7 +302,7 @@ private fun PaginaMasLooks(alPedir: () -> Unit) {
     Modifier.fillMaxSize().clip(RoundedCornerShape(28.dp)).background(MaterialTheme.colorScheme.surfaceContainer),
     contentAlignment = Alignment.Center,
   ) {
-    EstadoVacio(Forma.TOP_MANGA_LARGA, "¿Ninguno te convence?", "Armo otra tanda con lo que aprendí de ti.", "Ver más looks", alPedir)
+    EstadoVacio(Forma.TOP_MANGA_LARGA, t(R.string.hoy_mas_titulo), t(R.string.hoy_mas_texto), t(R.string.hoy_mas_boton), alPedir)
   }
 }
 
@@ -331,11 +333,11 @@ private fun HojaContexto(e: Estado, vm: AppViewModel, alCerrar: () -> Unit) {
       Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).navigationBarsPadding(),
       verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-      Text("¿Dónde?", style = MaterialTheme.typography.titleMedium)
+      Text(t(R.string.contexto_donde), style = MaterialTheme.typography.titleMedium)
       val c = e.clima?.para(e.momento)
       if (c != null) {
         Text(
-          "${e.clima?.lugar.orEmpty()}: ${c.descripcion.ifBlank { "pronóstico" }}, ${c.temperatura.roundToInt()}° (sensación ${c.sensacion.roundToInt()}°)",
+          stringResource(R.string.contexto_pronostico, e.clima?.lugar.orEmpty(), t(c.cielo.res()).lowercase(Locale.getDefault()), temperatura(c.temperatura), temperatura(c.sensacion)),
           style = MaterialTheme.typography.bodyMedium,
         )
       }
@@ -345,32 +347,32 @@ private fun HojaContexto(e: Estado, vm: AppViewModel, alCerrar: () -> Unit) {
       }) {
         Icon(Icons.Filled.LocationOn, null, Modifier.size(18.dp))
         Spacer(Modifier.width(6.dp))
-        Text("Usar mi ubicación")
+        Text(t(R.string.contexto_ubicacion))
       }
       Row(verticalAlignment = Alignment.CenterVertically) {
         OutlinedTextField(
           value = ciudad,
           onValueChange = { ciudad = it },
-          label = { Text("O escribe tu ciudad") },
+          label = { Text(t(R.string.contexto_ciudad)) },
           singleLine = true,
           modifier = Modifier.weight(1f),
         )
-        TextButton(onClick = { vm.buscarCiudad(ciudad); ciudad = "" }, enabled = ciudad.isNotBlank()) { Text("Buscar") }
+        TextButton(onClick = { vm.buscarCiudad(ciudad); ciudad = "" }, enabled = ciudad.isNotBlank()) { Text(t(R.string.buscar)) }
       }
 
-      Text("¿Para cuándo?", style = MaterialTheme.typography.titleMedium)
+      Text(t(R.string.contexto_cuando), style = MaterialTheme.typography.titleMedium)
       Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Momento.entries.forEach { m -> FilterChip(selected = m == e.momento, onClick = { vm.elegirMomento(m) }, label = { Text(m.etiqueta) }) }
+        Momento.entries.forEach { m -> FilterChip(selected = m == e.momento, onClick = { vm.elegirMomento(m) }, label = { Text(t(m.res())) }) }
       }
 
-      Text("¿Para qué?", style = MaterialTheme.typography.titleMedium)
+      Text(t(R.string.contexto_para_que), style = MaterialTheme.typography.titleMedium)
       FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Ocasion.entries.forEach { o -> FilterChip(selected = o == e.ocasion, onClick = { vm.elegirOcasion(o) }, label = { Text(o.etiqueta) }) }
+        Ocasion.entries.forEach { o -> FilterChip(selected = o == e.ocasion, onClick = { vm.elegirOcasion(o) }, label = { Text(t(o.res())) }) }
       }
 
-      Button(onClick = alCerrar, modifier = Modifier.fillMaxWidth().height(50.dp)) { Text("Listo") }
+      Button(onClick = alCerrar, modifier = Modifier.fillMaxWidth().height(50.dp)) { Text(t(R.string.listo)) }
       if (e.clima != null) {
-        Text("Datos del tiempo: MET Norway", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(t(R.string.clima_atribucion), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
       }
       Spacer(Modifier.height(12.dp))
     }
@@ -386,17 +388,17 @@ private fun HojaDetalles(look: Look, vm: AppViewModel, alEditar: () -> Unit, alC
       Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).navigationBarsPadding(),
       verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-      Text("Por qué este look", style = MaterialTheme.typography.titleLarge)
-      ListaRazones(look.razones)
-      Text("Las piezas", style = MaterialTheme.typography.titleMedium)
+      Text(t(R.string.detalles_titulo), style = MaterialTheme.typography.titleLarge)
+      ListaRazones(look.razones.map { texto(it) })
+      Text(t(R.string.piezas), style = MaterialTheme.typography.titleMedium)
       look.prendas.forEach { p ->
         Row(verticalAlignment = Alignment.CenterVertically) {
           MiniaturaPrenda(p, vm.archivoFoto(p.foto), 52.dp)
           Spacer(Modifier.width(12.dp))
           Column(Modifier.weight(1f)) {
-            Text(p.nombre, style = MaterialTheme.typography.bodyLarge)
+            Text(nombre(p), style = MaterialTheme.typography.bodyLarge)
             Text(
-              if (p.virtual) "No la tienes" else p.subtipo.etiqueta,
+              if (p.virtual) t(R.string.detalles_no_la_tienes) else t(p.subtipo.res()),
               style = MaterialTheme.typography.bodySmall,
               color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -404,12 +406,12 @@ private fun HojaDetalles(look: Look, vm: AppViewModel, alEditar: () -> Unit, alC
           if (p.virtual) {
             TextButton(onClick = { enlaces.openUri(vm.enlaceTienda(IdeaPrenda(p.subtipo, p.color, p.nombre))) }) {
               Icon(Icons.Filled.ShoppingCart, null, Modifier.size(16.dp))
-              Text(" Buscar")
+              Text(" " + t(R.string.buscar))
             }
           }
         }
       }
-      OutlinedButton(onClick = alEditar, modifier = Modifier.fillMaxWidth()) { Text("Editar este look") }
+      OutlinedButton(onClick = alEditar, modifier = Modifier.fillMaxWidth()) { Text(t(R.string.detalles_editar)) }
       Spacer(Modifier.height(12.dp))
     }
   }

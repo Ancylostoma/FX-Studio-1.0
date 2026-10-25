@@ -31,6 +31,33 @@ Bienvenida en 6 pasos cortos (maniquí, estilos con looks de ejemplo, ciudad, av
 "Editar" (desde Hoy, un look guardado o una tendencia) abre el maniquí para cambiar prendas
 y te dice si vas abrigado, si combinan los colores y si encaja con la ocasión.
 
+## Idiomas
+
+Inglés (por defecto para el resto del mundo), español, portugués, francés, alemán e italiano.
+
+- **Textos de la app:** todos están en `traducciones/textos.py`. Para cambiar uno o
+  agregar un idioma, edítalo ahí y ejecuta `python3 traducciones/generar.py`: escribe los
+  `strings.xml` y avisa si a un idioma le falta un hueco (`%1$s`).
+- **Tendencias:** cada texto de `tendencias.json` puede ir como `{"es": ..., "en": ...}`;
+  si falta un idioma se usa el inglés.
+- **Ficha de Play** en los 6 idiomas: `play-store/ficha.md`.
+- En Estados Unidos la temperatura sale en °F.
+
+## Con miles de usuarios
+
+La app no tiene servidor propio: cada teléfono funciona solo. Lo único compartido es:
+
+- **El tiempo (MET Norway):** pide como mucho unas 20 peticiones por segundo por app. Por eso
+  el pronóstico se guarda 45 minutos, las coordenadas van con 2 decimales y el aviso de la
+  mañana se reparte entre las 7:30 y las 7:50. Pasados los ~100.000 usuarios conviene
+  escribirles o poner un servidor intermedio.
+- **El archivo de tendencias (GitHub):** se baja cada 12 horas; con más de ~100.000 usuarios,
+  moverlo a GitHub Pages o Cloudflare.
+
+Para probar en muchos teléfonos distintos: el **informe previo al lanzamiento** de Play Console
+(gratis al subir a prueba interna) y Firebase Test Lab. `MotorTest` comprueba que con 1000
+prendas y un año de uso el motor sigue respondiendo rápido.
+
 ## Compilar
 
 GitHub → **Actions** → *Build Qué Me Pongo* → **Run workflow**. Al terminar hay dos archivos:

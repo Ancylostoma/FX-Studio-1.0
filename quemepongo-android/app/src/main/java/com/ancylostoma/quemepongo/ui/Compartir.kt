@@ -40,10 +40,10 @@ object Compartir {
       .putExtra(Intent.EXTRA_STREAM, uri)
       .putExtra(
         Intent.EXTRA_TEXT,
-        "Mi look de hoy, armado con Qué Me Pongo: https://play.google.com/store/apps/details?id=${contexto.packageName}",
+        contexto.getString(R.string.compartir_texto, "https://play.google.com/store/apps/details?id=${contexto.packageName}"),
       )
       .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-    contexto.startActivity(Intent.createChooser(enviar, "Compartir look"))
+    contexto.startActivity(Intent.createChooser(enviar, contexto.getString(R.string.compartir_elegir)))
   }
 
   private fun imagen(contexto: Context, prendas: List<Prenda>, cuerpo: Cuerpo, foto: (String?) -> File?, titulo: String): File {
@@ -71,7 +71,7 @@ object Compartir {
     lienzo.restore()
 
     // Columna de prendas: foto (o color) y nombre.
-    val nombre = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = jost; textSize = 30f; color = tinta }
+    val pincel = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = jost; textSize = 30f; color = tinta }
     val visibles = prendas.take(5)
     val alto = 1050f / visibles.size.coerceAtLeast(1)
     visibles.forEachIndexed { i, p ->
@@ -88,13 +88,13 @@ object Compartir {
         val color = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Colores.de(p.color).argb.toInt() }
         lienzo.drawCircle(caja.centerX(), caja.centerY(), minOf(caja.width(), caja.height()) / 3f, color)
       }
-      lienzo.drawText(recortar(p.nombre, 22), 690f, y + alto - 22f, nombre)
+      lienzo.drawText(recortar(contexto.nombre(p), 22), 690f, y + alto - 22f, pincel)
     }
 
     val pie = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = serif; textSize = 44f; color = 0xFF7A4B36.toInt() }
-    lienzo.drawText("Qué Me Pongo", 70f, 1300f, pie)
+    lienzo.drawText(contexto.getString(R.string.app_name), 70f, 1300f, pie)
     val nota = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = jost; textSize = 28f; color = suave; textAlign = Paint.Align.RIGHT }
-    lienzo.drawText("Tu look según el tiempo y la moda", 1010f, 1298f, nota)
+    lienzo.drawText(contexto.getString(R.string.compartir_lema), 1010f, 1298f, nota)
 
     val carpeta = File(contexto.cacheDir, "compartir").apply { mkdirs() }
     val archivo = File(carpeta, "look.png")

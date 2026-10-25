@@ -38,26 +38,26 @@ class MainActivity : ComponentActivity() {
       setPadding(margen, margen * 3, margen, margen * 3)
     }
     columna.addView(TextView(this).apply {
-      text = "La app se cerró por un error.\nCópialo y envíalo para que lo arreglemos."
+      text = getString(R.string.error_titulo)
       textSize = 18f
     })
     columna.addView(Button(this).apply {
-      text = "Copiar el error"
+      text = getString(R.string.error_copiar)
       setOnClickListener {
         val portapapeles = getSystemService(ClipboardManager::class.java)
-        portapapeles.setPrimaryClip(ClipData.newPlainText("Error de Qué Me Pongo", texto))
-        Toast.makeText(this@MainActivity, "Copiado", Toast.LENGTH_SHORT).show()
+        portapapeles.setPrimaryClip(ClipData.newPlainText("Qué Me Pongo", texto))
+        Toast.makeText(this@MainActivity, R.string.error_copiado, Toast.LENGTH_SHORT).show()
       }
     })
     columna.addView(Button(this).apply {
-      text = "Compartir el error"
+      text = getString(R.string.error_compartir)
       setOnClickListener {
         val enviar = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, texto)
-        startActivity(Intent.createChooser(enviar, "Compartir el error"))
+        startActivity(Intent.createChooser(enviar, getString(R.string.error_compartir)))
       }
     })
     columna.addView(Button(this).apply {
-      text = "Volver a abrir la app"
+      text = getString(R.string.error_reabrir)
       setOnClickListener {
         RegistroErrores.borrar(this@MainActivity)
         recreate()

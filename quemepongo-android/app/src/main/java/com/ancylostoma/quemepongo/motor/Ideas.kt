@@ -1,7 +1,6 @@
 package com.ancylostoma.quemepongo.motor
 
 import com.ancylostoma.quemepongo.data.Categoria
-import com.ancylostoma.quemepongo.data.Colores
 import com.ancylostoma.quemepongo.data.IdeaPrenda
 import com.ancylostoma.quemepongo.data.Preferencias
 import com.ancylostoma.quemepongo.data.Prenda
@@ -10,7 +9,14 @@ import com.ancylostoma.quemepongo.data.Tendencia
 import java.net.URLEncoder
 import java.time.LocalDate
 
-data class IdeaCompra(val idea: IdeaPrenda, val motivo: String, val puntos: Double)
+data class IdeaCompra(val idea: IdeaPrenda, val motivo: Motivo, val puntos: Double)
+
+/** Por qué se sugiere comprar algo (el texto lo pone cada idioma). */
+sealed interface Motivo {
+  data class FaltaCategoria(val categoria: Categoria) : Motivo
+  data class EnTendencia(val titulo: String) : Motivo
+  data object Gusto : Motivo
+}
 
 object Tendencias {
   /** Tendencias vigentes hoy en el hemisferio del usuario. */
@@ -60,16 +66,16 @@ object IdeasCompra {
     for (c in listOf(Categoria.SUPERIOR, Categoria.INFERIOR, Categoria.CALZADO, Categoria.ABRIGO)) {
       if (reales.none { it.categoria == c }) {
         Catalogo.base.firstOrNull { it.subtipo.categoria == c }?.let {
-          ideas.add(IdeaCompra(it, "Tu armario no tiene ${c.etiqueta.lowercase()}", 3.0))
+          ideas.add(IdeaCompra(it, Motivo.FaltaCategoria(c), 3.0))
         }
       }
     }
     for (t in tendencias) for (i in t.prendas) {
-      ideas.add(IdeaCompra(i, "En tendencia: ${t.titulo}", 1.5 * t.peso * (0.5 + perfil.importanciaModa) + gusto(i, perfil, pref)))
+      ideas.add(IdeaCompra(i, Motivo.EnTendencia(t.titulo), 1.5 * t.peso * (0.5 + perfil.importanciaModa) + gusto(i, perfil, pref)))
     }
     for (i in Catalogo.base) {
       val g = gusto(i, perfil, pref)
-      if (g > 0.8) ideas.add(IdeaCompra(i, "Parecida a lo que te gusta", g))
+      if (g > 0.8) ideas.add(IdeaCompra(i, Motivo.Gusto, g))
     }
     return ideas
       .filter { !laTiene(it.idea) && it.idea.color !in perfil.coloresEvitar }
@@ -86,9 +92,6 @@ object IdeasCompra {
     return s
   }
 
-  fun enlace(plantilla: String, idea: IdeaPrenda): String {
-    val color = Colores.de(idea.color).etiqueta
-    val q = if (idea.nombre.contains(color, ignoreCase = true)) idea.nombre else "${idea.nombre} $color"
-    return plantilla.replace("{q}", URLEncoder.encode(q, "UTF-8"))
-  }
+  /** [busqueda]: la prenda escrita en el idioma del usuario. */
+  fun enlace(plantilla: String, busqueda: String): String = plantilla.replace("{q}", URLEncoder.encode(busqueda, "UTF-8"))
 }

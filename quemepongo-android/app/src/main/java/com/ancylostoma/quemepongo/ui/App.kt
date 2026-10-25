@@ -1,6 +1,7 @@
 package com.ancylostoma.quemepongo.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -40,14 +41,15 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ancylostoma.quemepongo.R
 import com.ancylostoma.quemepongo.data.Prenda
 import com.ancylostoma.quemepongo.data.Subtipo
 
-enum class Pestana(val etiqueta: String, val icono: ImageVector) {
-  HOY("Hoy", Icons.Filled.Today),
-  ARMARIO("Armario", Icons.Filled.Checkroom),
-  DESCUBRIR("Descubrir", Icons.Filled.Whatshot),
-  YO("Yo", Icons.Filled.Person),
+enum class Pestana(@StringRes val etiqueta: Int, val icono: ImageVector) {
+  HOY(R.string.tab_hoy, Icons.Filled.Today),
+  ARMARIO(R.string.tab_armario, Icons.Filled.Checkroom),
+  DESCUBRIR(R.string.tab_descubrir, Icons.Filled.Whatshot),
+  YO(R.string.tab_yo, Icons.Filled.Person),
 }
 
 /** Lo que se abre encima de las pestañas, a pantalla completa. */
@@ -105,7 +107,7 @@ fun App(vm: AppViewModel = viewModel()) {
                 contentAlignment = Alignment.Center,
               ) { Icon(Icons.Filled.Add, null, tint = MaterialTheme.colorScheme.onPrimary) }
             },
-            label = { Text("Agregar") },
+            label = { Text(t(R.string.tab_agregar)) },
           )
           ItemPestana(Pestana.DESCUBRIR, pestana) { pestana = it }
           ItemPestana(Pestana.YO, pestana) { pestana = it }
@@ -145,6 +147,6 @@ private fun androidx.compose.foundation.layout.RowScope.ItemPestana(p: Pestana, 
     selected = p == actual,
     onClick = { alElegir(p) },
     icon = { Icon(p.icono, null) },
-    label = { Text(p.etiqueta) },
+    label = { Text(t(p.etiqueta)) },
   )
 }
