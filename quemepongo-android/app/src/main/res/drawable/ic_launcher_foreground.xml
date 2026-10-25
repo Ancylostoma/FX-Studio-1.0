@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Percha con un destello. Zona segura del ícono adaptable: 21 a 87. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M47.5,34.5C47.5,30 50.5,27 54,27C57.5,27 60.5,30 60.5,33.5C60.5,36.5 58,38.5 54,40L54,45"
+        android:strokeWidth="3.6"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M54,45L29.5,62.5C27.6,63.9 28.6,67 31,67L77,67C79.4,67 80.4,63.9 78.5,62.5Z"
+        android:strokeWidth="3.6"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineJoin="round" />
+    <path
+        android:fillColor="#FFF2C94C"
+        android:pathData="M75,28L76.8,33.2L82,35L76.8,36.8L75,42L73.2,36.8L68,35L73.2,33.2Z" />
+    <path
+        android:fillColor="#FFF3DED2"
+        android:pathData="M36,73L72,73C73.1,73 74,73.9 74,75C74,76.1 73.1,77 72,77L36,77C34.9,77 34,76.1 34,75C34,73.9 34.9,73 36,73Z" />
+</vector>

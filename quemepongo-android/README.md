@@ -1,0 +1,74 @@
+# Qué Me Pongo — app Android
+
+Te arma el look del día según:
+
+- **El tiempo**: pronóstico de tu ciudad para la mañana, tarde o noche (MET Norway, gratis
+  también para uso comercial). Lluvia → impermeable y calzado cerrado; calor → sin capas.
+- **La ocasión**: día a día, trabajo, cita, fiesta, evento formal, deporte, viaje.
+- **La moda**: tendencias de temporada, eventos (Halloween, Día de Muertos, fiestas...) y
+  looks inspirados en famosos. Se actualizan solas desde `app/src/main/assets/tendencias.json`.
+- **Tu estilo**: estilos y colores que te gustan, colores que evitas y cuánto te importa la moda.
+- **Lo que aprende de ti**: cada "me gusta", "no me gusta", look guardado o "me lo pongo"
+  ajusta las sugerencias siguientes. No repite la misma ropa días seguidos.
+
+Fotografías tu ropa y el **maniquí** se viste capa por capa con tus prendas. Lo que te
+falte para completar un look aparece con borde punteado y botón para buscarlo en tienda.
+
+## Pantallas
+
+| Pestaña | Qué hace |
+|---|---|
+| Hoy | Tiempo, ocasión y looks sugeridos sobre el maniquí. Me gusta / no / guardar / me lo pongo. |
+| Armario | Tus prendas con foto. El color se detecta solo al hacer la foto. |
+| Probador | Vistes al maniquí a mano y te dice si vas abrigado, si combinan los colores y si encaja con la ocasión. |
+| Tendencias | Lo que está de moda ahora + "Para ti": ideas de compra parecidas a lo que te gusta. |
+| Perfil | Looks guardados, estilo, colores, tipo de maniquí, ciudad, privacidad. |
+
+## Compilar
+
+GitHub → **Actions** → *Build Qué Me Pongo* → **Run workflow**. Al terminar hay dos archivos:
+
+- `quemepongo-apk`: para instalar directamente en el teléfono y probar.
+- `quemepongo-aab`: el que se sube a Google Play.
+
+Cada compilación sube el `versionCode`, así la nueva se instala encima sin perder datos.
+
+## Actualizar tendencias sin publicar otra versión
+
+Edita `app/src/main/assets/tendencias.json` en la rama `main`. Las apps instaladas lo
+descargan en menos de 12 horas. En `tienda_url` puedes poner tu enlace de afiliado
+(por ejemplo Amazon Afiliados), `{q}` se reemplaza por la prenda buscada.
+
+## Publicar en Google Play — lo que falta y solo puedes hacer tú
+
+1. **Cuenta de desarrollador de Google Play** (pago único de 25 USD) en
+   https://play.google.com/console. Comprueba antes que tu país puede recibir pagos de
+   Google: no todos pueden.
+2. **Llave de subida.** Crea una (una sola vez, y guárdala bien):
+
+   ```
+   keytool -genkeypair -v -keystore subida.jks -alias subida -keyalg RSA -keysize 2048 -validity 10000
+   base64 -w0 subida.jks
+   ```
+
+   En GitHub → *Settings → Secrets and variables → Actions* crea:
+   `QMP_KEYSTORE_BASE64` (el texto del base64), `QMP_STORE_PASSWORD`, `QMP_KEY_PASSWORD`
+   y `QMP_KEY_ALIAS` (`subida`). Sin estos secretos el AAB sale firmado con la llave de
+   pruebas y Play lo rechaza.
+3. **AdMob** (https://admob.google.com): crea la app y un bloque de anuncios *banner*.
+   Pon sus IDs en los secretos `QMP_ADMOB_APP_ID` y `QMP_ADMOB_BANNER`. Mientras no
+   estén, la app muestra anuncios de prueba de Google, que no pagan.
+4. **Política de privacidad**: completa tu correo en `PRIVACIDAD.md` y usa esta URL en
+   Play: `https://github.com/Ancylostoma/FX-Studio-1.0/blob/main/quemepongo-android/PRIVACIDAD.md`.
+5. **Ficha de Play**: nombre, descripción, ícono 512×512, al menos 2 capturas de pantalla
+   y la imagen destacada 1024×500. Formulario de *Seguridad de los datos*: ubicación
+   aproximada (no se comparte salvo con el servicio del tiempo, no se guarda en servidores),
+   identificador de publicidad (AdMob), fotos (no salen del teléfono).
+6. **Prueba cerrada**: las cuentas de desarrollador personales nuevas deben tener la app
+   en prueba cerrada con al menos 12 personas durante 14 días antes de poder publicarla
+   para todos.
+
+## Pruebas
+
+`gradle testDebugUnitTest` prueba el motor de sugerencias: calor, frío, lluvia, eventos
+formales, armario vacío, aprendizaje, fechas de tendencias y que `tendencias.json` sea válido.
