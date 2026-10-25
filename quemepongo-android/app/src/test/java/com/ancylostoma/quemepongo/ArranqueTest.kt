@@ -33,7 +33,10 @@ class ArranqueTest {
 
   private fun tocar(texto: String) {
     esperarTexto(texto)
-    app.onAllNodesWithText(texto)[0].performClick()
+    val nodo = app.onAllNodesWithText(texto)[0]
+    // Como una persona: si está más abajo, primero se desplaza (las pestañas no se desplazan).
+    runCatching { nodo.performScrollTo() }
+    nodo.performClick()
     app.waitForIdle()
   }
 
