@@ -38,7 +38,8 @@ class ArranqueTest {
 
     // El formulario de prenda nueva (cámara y galería) también debe abrir.
     app.onNodeWithText("Armario").performClick()
-    app.onNodeWithText("Agregar prenda").performClick()
+    esperarTexto("Agregar prenda")
+    app.onAllNodesWithText("Agregar prenda", useUnmergedTree = true)[0].performClick()
     esperarTexto("Nueva prenda")
   }
 }

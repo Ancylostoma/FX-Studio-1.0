@@ -97,3 +97,11 @@ dependencies {
   // En las pruebas JVM, org.json de Android es un esqueleto vacío; esta es la real.
   testImplementation("org.json:json:20240303")
 }
+
+// Que el registro de GitHub Actions muestre por qué falla una prueba.
+tasks.withType<Test>().configureEach {
+  testLogging {
+    events("failed")
+    exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+  }
+}
