@@ -40,14 +40,14 @@ jobs:
             echo "::warning::Falta el secreto QMP_KEYSTORE_BASE64: la app sale firmada con la llave de pruebas. Sirve para instalarla en el teléfono, no para subirla a Google Play."
           fi
 
-      - name: Pruebas, APK y AAB
+      - name: APK y AAB
         env:
           QMP_STORE_PASSWORD: ${{ secrets.QMP_STORE_PASSWORD }}
           QMP_KEY_PASSWORD: ${{ secrets.QMP_KEY_PASSWORD }}
           QMP_KEY_ALIAS: ${{ secrets.QMP_KEY_ALIAS }}
           QMP_ADMOB_APP_ID: ${{ secrets.QMP_ADMOB_APP_ID }}
           QMP_ADMOB_BANNER: ${{ secrets.QMP_ADMOB_BANNER }}
-        run: gradle testDebugUnitTest assembleRelease bundleRelease --stacktrace
+        run: gradle assembleRelease bundleRelease --stacktrace
 
       - name: Subir APK (para instalar en el teléfono)
         uses: actions/upload-artifact@v4
@@ -60,3 +60,7 @@ jobs:
         with:
           name: quemepongo-aab
           path: quemepongo-android/app/build/outputs/bundle/release/app-release.aab
+
+      # Las pruebas van después de subir la APK: si fallan, igual se puede instalar y probar.
+      - name: Pruebas
+        run: gradle testDebugUnitTest

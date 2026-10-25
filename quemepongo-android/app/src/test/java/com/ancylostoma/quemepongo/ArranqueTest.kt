@@ -1,10 +1,13 @@
 package com.ancylostoma.quemepongo
 
+import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.printToString
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Rule
 import org.junit.Test
@@ -19,8 +22,14 @@ import org.robolectric.annotation.GraphicsMode
 class ArranqueTest {
   @get:Rule val app = createAndroidComposeRule<MainActivity>()
 
-  private fun esperarTexto(texto: String) =
-    app.waitUntil(15_000) { app.onAllNodesWithText(texto).fetchSemanticsNodes().isNotEmpty() }
+  private fun esperarTexto(texto: String) {
+    try {
+      app.waitUntil(15_000) { app.onAllNodesWithText(texto).fetchSemanticsNodes().isNotEmpty() }
+    } catch (e: ComposeTimeoutException) {
+      // Mostrar lo que sí hay en pantalla para saber qué pasó.
+      throw AssertionError("No apareció \"$texto\". En pantalla:\n" + app.onRoot().printToString(maxDepth = 40), e)
+    }
+  }
 
   @Test
   fun abreLaBienvenidaYRecorreLasPestanas() {
