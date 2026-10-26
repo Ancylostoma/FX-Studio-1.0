@@ -11,6 +11,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -22,6 +23,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -32,7 +35,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Luggage
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -60,6 +67,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
@@ -78,7 +89,14 @@ import kotlinx.coroutines.launch
 private const val URL_PRIVACIDAD = "https://github.com/Ancylostoma/FX-Studio-1.0/blob/main/quemepongo-android/PRIVACIDAD.md"
 
 @Composable
-fun PantallaYo(e: Estado, vm: AppViewModel, abrirEditor: (List<Prenda>) -> Unit, abrirAjustes: () -> Unit, irAHoy: () -> Unit) {
+fun PantallaYo(
+  e: Estado,
+  vm: AppViewModel,
+  abrirEditor: (List<Prenda>) -> Unit,
+  abrirAjustes: () -> Unit,
+  irAHoy: () -> Unit,
+  abrirHerramienta: (MotivoPremium) -> Unit,
+) {
   var vista by remember { mutableIntStateOf(0) }
   var elegido by remember { mutableStateOf<LookGuardado?>(null) }
   val contexto = LocalContext.current
@@ -98,6 +116,7 @@ fun PantallaYo(e: Estado, vm: AppViewModel, abrirEditor: (List<Prenda>) -> Unit,
         TituloPantalla(t(R.string.tab_yo), accion = {
           IconButton(onClick = abrirAjustes) { Icon(Icons.Filled.Settings, t(R.string.ajustes)) }
         })
+        Herramientas(e.premium, abrirHerramienta)
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
           listOf(stringResource(R.string.yo_guardados, e.datos.looks.size), stringResource(R.string.yo_puestos, e.datos.historial.size)).forEachIndexed { i, texto ->
             SegmentedButton(
@@ -162,9 +181,67 @@ fun PantallaYo(e: Estado, vm: AppViewModel, abrirEditor: (List<Prenda>) -> Unit,
   }
 }
 
+/** Las funciones Premium, siempre a la vista. Sin Premium, abren la pantalla para pasarse. */
+@Composable
+private fun Herramientas(premium: Boolean, abrir: (MotivoPremium) -> Unit) {
+  Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    if (!premium) {
+      Row(
+        Modifier
+          .fillMaxWidth()
+          .clip(RoundedCornerShape(22.dp))
+          .background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondary)))
+          .clickable { abrir(MotivoPremium.GENERAL) }
+          .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+      ) {
+        Icon(Icons.Filled.WorkspacePremium, null, tint = Color.White, modifier = Modifier.size(36.dp))
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+          Text(t(R.string.yo_hazte), style = MaterialTheme.typography.titleMedium, color = Color.White)
+          Text(t(R.string.yo_hazte_texto), style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.9f))
+        }
+      }
+    }
+    Text(t(R.string.yo_herramientas), style = MaterialTheme.typography.titleMedium)
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+      Herramienta(Icons.Filled.CalendarMonth, t(R.string.yo_semana), premium, Modifier.weight(1f)) { abrir(MotivoPremium.SEMANA) }
+      Herramienta(Icons.Filled.Luggage, t(R.string.maleta_titulo), premium, Modifier.weight(1f)) { abrir(MotivoPremium.MALETA) }
+      Herramienta(Icons.Filled.BarChart, t(R.string.stats_titulo), premium, Modifier.weight(1f)) { abrir(MotivoPremium.ESTADISTICAS) }
+    }
+  }
+}
+
+@Composable
+private fun Herramienta(icono: ImageVector, texto: String, premium: Boolean, modifier: Modifier, alTocar: () -> Unit) {
+  Box(modifier) {
+    Column(
+      Modifier
+        .fillMaxWidth()
+        .clip(RoundedCornerShape(18.dp))
+        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+        .clickable(onClick = alTocar)
+        .padding(vertical = 14.dp, horizontal = 8.dp),
+      horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+      Icon(icono, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
+      Spacer(Modifier.height(6.dp))
+      Text(texto, style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center, maxLines = 2)
+    }
+    if (!premium) {
+      Icon(
+        Icons.Filled.WorkspacePremium,
+        t(R.string.premium_etiqueta),
+        tint = MaterialTheme.colorScheme.secondary,
+        modifier = Modifier.align(Alignment.TopEnd).padding(6.dp).size(16.dp),
+      )
+    }
+  }
+}
+
 /** Todo lo que se configura una vez: estilo, colores, maniquí, ciudad y privacidad. */
 @Composable
-fun PantallaAjustes(e: Estado, vm: AppViewModel, alCerrar: () -> Unit) {
+fun PantallaAjustes(e: Estado, vm: AppViewModel, alCerrar: () -> Unit, abrirPremium: () -> Unit) {
   BackHandler(onBack = alCerrar)
   val perfil = e.datos.perfil
   val enlaces = LocalUriHandler.current
@@ -183,6 +260,14 @@ fun PantallaAjustes(e: Estado, vm: AppViewModel, alCerrar: () -> Unit) {
       Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
       verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+      Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.secondaryContainer).clickable(onClick = abrirPremium).padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+      ) {
+        Icon(Icons.Filled.WorkspacePremium, null, tint = MaterialTheme.colorScheme.secondary)
+        Spacer(Modifier.width(10.dp))
+        Text(t(if (e.premium) R.string.pw_ya_premium else R.string.yo_hazte), style = MaterialTheme.typography.titleMedium)
+      }
       Seccion(t(R.string.aj_estilos)) {
         SelectorEstilos(perfil.estilos) { s -> vm.cambiarPerfil { it.copy(estilos = if (s in it.estilos) it.estilos - s else it.estilos + s) } }
       }
@@ -230,6 +315,23 @@ fun PantallaAjustes(e: Estado, vm: AppViewModel, alCerrar: () -> Unit) {
               vm.cambiarAvisoDiario(activar)
             }
           })
+        }
+      }
+      if (perfil.avisoDiario) {
+        Seccion(t(R.string.aj_hora)) {
+          if (e.premium) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+              listOf("06:30", "07:00", "07:30", "08:00", "08:30", "09:00", "09:30").forEach { h ->
+                FilterChip(selected = perfil.horaAviso == h, onClick = { vm.cambiarHoraAviso(h) }, label = { Text(h) })
+              }
+            }
+          } else {
+            TextButton(onClick = { vm.pedirPremium(MotivoPremium.HORA_AVISO) }) {
+              Icon(Icons.Filled.WorkspacePremium, null, Modifier.size(18.dp))
+              Spacer(Modifier.width(6.dp))
+              Text(stringResource(R.string.aj_hora_premium, perfil.horaAviso))
+            }
+          }
         }
       }
       HorizontalDivider()

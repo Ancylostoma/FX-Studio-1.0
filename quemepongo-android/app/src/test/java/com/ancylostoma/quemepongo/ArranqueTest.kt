@@ -71,6 +71,25 @@ class ArranqueTest {
     esperarTexto("Lo que se lleva ahora")
     tocar("Yo")
     esperarTexto("Aún no guardaste looks")
+
+    // Premium: sin pagar, abre la pantalla de Premium; en la compilación de prueba se activa a mano.
+    tocar("Planear la semana")
+    esperarTexto("Desbloquea todo")
+    tocar("Modo prueba: activar Premium")
+    tocar("Planear la semana")
+    esperarTexto("Rehacer la semana")
+    atras()
+    tocar("Estadísticas del armario")
+    esperarTexto("Veces usadas")
+    atras()
+    tocar("Maleta de viaje")
+    esperarTexto("Armar mi maleta")
+    atras()
+  }
+
+  private fun atras() {
+    app.runOnUiThread { app.activity.onBackPressedDispatcher.onBackPressed() }
+    app.waitForIdle()
   }
 
   /** La misma app en inglés (el idioma por defecto para el resto del mundo). */

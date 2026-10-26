@@ -35,6 +35,7 @@ object Json {
     .put("usos", p.usos)
     .put("ultimoUso", p.ultimoUso)
     .put("virtual", p.virtual)
+    .put("precio", p.precio ?: JSONObject.NULL)
 
   fun prenda(o: JSONObject): Prenda? {
     val subtipo = Subtipo.porNombre(o.optString("subtipo")) ?: return null
@@ -52,6 +53,7 @@ object Json {
       usos = o.optInt("usos"),
       ultimoUso = o.optLong("ultimoUso"),
       virtual = o.optBoolean("virtual"),
+      precio = if (o.isNull("precio") || !o.has("precio")) null else o.optDouble("precio"),
     )
   }
 
@@ -74,6 +76,7 @@ object Json {
     .put("bienvenidaHecha", p.bienvenidaHecha)
     .put("avisoDiario", p.avisoDiario)
     .put("vista", p.vista.name)
+    .put("horaAviso", p.horaAviso)
 
   fun perfil(o: JSONObject): Perfil = Perfil(
     estilos = estilos(o.optJSONArray("estilos")),
@@ -87,6 +90,7 @@ object Json {
     bienvenidaHecha = o.optBoolean("bienvenidaHecha"),
     avisoDiario = o.optBoolean("avisoDiario"),
     vista = Vista.entries.firstOrNull { it.name == o.optString("vista") } ?: Vista.AUTO,
+    horaAviso = o.optString("horaAviso", "07:30").ifBlank { "07:30" },
   )
 
   // ---- Preferencias ----

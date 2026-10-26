@@ -57,6 +57,10 @@ private sealed interface Encima {
   data class EditarPrenda(val prenda: Prenda, val nueva: Boolean) : Encima
   data object Editor : Encima
   data object Ajustes : Encima
+  data class Premium(val motivo: MotivoPremium) : Encima
+  data object Semana : Encima
+  data object Maleta : Encima
+  data object Estadisticas : Encima
 }
 
 @Composable
@@ -77,7 +81,30 @@ fun App(vm: AppViewModel = viewModel()) {
   // Atrás vuelve a "Hoy"; desde "Hoy" sale de la app. Lo que está encima tiene su propio Atrás.
   BackHandler(enabled = pestana != Pestana.HOY && encima == null) { pestana = Pestana.HOY }
 
-  val agregar = { encima = Encima.EditarPrenda(Prenda(id = "nueva-" + vm.nuevoId(), nombre = "", subtipo = Subtipo.CAMISETA, color = "negro"), nueva = true) }
+  // Con el plan gratis, el armario tiene un límite: al pasarlo se ofrece Premium.
+  val agregar = {
+    if (vm.puedeAgregarPrenda()) {
+      encima = Encima.EditarPrenda(Prenda(id = "nueva-" + vm.nuevoId(), nombre = "", subtipo = Subtipo.CAMISETA, color = "negro"), nueva = true)
+    }
+  }
+  // La pantalla de Premium se abre cuando el ViewModel la pide (límite de looks, etc.).
+  LaunchedEffect(e.pedirPremium) {
+    val motivo = e.pedirPremium ?: return@LaunchedEffect
+    encima = Encima.Premium(motivo)
+    vm.premiumMostrado()
+  }
+  val abrirHerramienta = { m: MotivoPremium ->
+    encima = if (!e.premium) {
+      Encima.Premium(m)
+    } else {
+      when (m) {
+        MotivoPremium.SEMANA -> Encima.Semana
+        MotivoPremium.MALETA -> Encima.Maleta
+        MotivoPremium.ESTADISTICAS -> Encima.Estadisticas
+        else -> Encima.Premium(m)
+      }
+    }
+  }
   val editarPrenda = { p: Prenda -> encima = Encima.EditarPrenda(p, nueva = false) }
   val abrirEditor = { prendas: List<Prenda> ->
     vm.probarLook(prendas)
@@ -119,7 +146,7 @@ fun App(vm: AppViewModel = viewModel()) {
           Pestana.HOY -> PantallaHoy(e, vm, abrirEditor = abrirEditor, alAgregar = agregar)
           Pestana.ARMARIO -> PantallaArmario(e, vm, alAgregar = agregar, alEditar = editarPrenda)
           Pestana.DESCUBRIR -> PantallaDescubrir(e, vm, abrirEditor)
-          Pestana.YO -> PantallaYo(e, vm, abrirEditor, abrirAjustes = { encima = Encima.Ajustes }, irAHoy = { pestana = Pestana.HOY })
+          Pestana.YO -> PantallaYo(e, vm, abrirEditor, abrirAjustes = { encima = Encima.Ajustes }, irAHoy = { pestana = Pestana.HOY }, abrirHerramienta = abrirHerramienta)
         }
       }
     }
@@ -131,7 +158,11 @@ fun App(vm: AppViewModel = viewModel()) {
           when (x) {
             is Encima.EditarPrenda -> key(x.prenda.id) { AgregarPrenda(x.prenda, x.nueva, vm, alCerrar = cerrar, alOtra = agregar) }
             Encima.Editor -> EditorLook(e, vm, alCerrar = cerrar)
-            Encima.Ajustes -> PantallaAjustes(e, vm, alCerrar = cerrar)
+            Encima.Ajustes -> PantallaAjustes(e, vm, alCerrar = cerrar, abrirPremium = { encima = Encima.Premium(MotivoPremium.GENERAL) })
+            is Encima.Premium -> PantallaPremium(e, vm, x.motivo, alCerrar = cerrar)
+            Encima.Semana -> PantallaSemana(e, vm, alCerrar = cerrar, abrirEditor = abrirEditor)
+            Encima.Maleta -> PantallaMaleta(e, vm, alCerrar = cerrar)
+            Encima.Estadisticas -> PantallaEstadisticas(e, vm, alCerrar = cerrar)
           }
         }
       }

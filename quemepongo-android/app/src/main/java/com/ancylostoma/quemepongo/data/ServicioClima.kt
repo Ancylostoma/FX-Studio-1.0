@@ -17,6 +17,7 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.util.Locale
 import kotlin.coroutines.resume
@@ -44,9 +45,23 @@ data class Clima(val lugar: String, val puntos: List<PuntoClima>, val obtenidoMs
     val ahora = Instant.ofEpochMilli(ahoraMs).atZone(zona)
     var objetivo = ahora.withHour(momento.hora).withMinute(0).withSecond(0).withNano(0)
     if (objetivo.isBefore(ahora.minusHours(2))) objetivo = objetivo.plusDays(1)
-    val inicio = objetivo.toInstant().toEpochMilli() - 3_600_000L
+    return condicionHacia(objetivo.toInstant().toEpochMilli())
+  }
+
+  /** El tiempo de un día concreto (para planear la semana o un viaje); null si el pronóstico no llega. */
+  fun paraDia(fecha: LocalDate, momento: Momento = Momento.TARDE): CondicionClima? {
+    if (puntos.isEmpty()) return null
+    val objetivo = fecha.atTime(momento.hora, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+    return condicionHacia(objetivo)
+  }
+
+  private fun condicionHacia(objetivoMs: Long): CondicionClima? {
+    val inicio = objetivoMs - 3_600_000L
     val fin = inicio + 4 * 3_600_000L
-    val tramo = puntos.filter { it.horaMs in inicio..fin }.ifEmpty { listOf(puntos.minBy { kotlin.math.abs(it.horaMs - inicio) }) }
+    val cercano = puntos.minBy { kotlin.math.abs(it.horaMs - objetivoMs) }
+    // Más allá del pronóstico (unos 9 días) no se inventa el tiempo.
+    if (kotlin.math.abs(cercano.horaMs - objetivoMs) > 12 * 3_600_000L) return null
+    val tramo = puntos.filter { it.horaMs in inicio..fin }.ifEmpty { listOf(cercano) }
 
     val t = tramo.map { it.temperatura }.average()
     val viento = tramo.map { it.vientoMs }.average()
@@ -109,7 +124,8 @@ object ServicioClima {
    */
   suspend fun pronostico(lat: Double, lon: Double, lugar: String, carpetaCache: File): Clima = withContext(Dispatchers.IO) {
     val clave = String.format(Locale.US, "%.2f,%.2f", lat, lon)
-    val cache = File(carpetaCache, "clima.json")
+    // Un archivo por lugar: así el destino de un viaje no borra el pronóstico de casa.
+    val cache = File(carpetaCache, "clima-${clave.replace(',', '_')}.json")
     val guardado = runCatching { JSONObject(cache.readText()) }.getOrNull()?.takeIf { it.optString("clave") == clave }
     val edad = guardado?.let { System.currentTimeMillis() - it.optLong("hora") } ?: Long.MAX_VALUE
     if (guardado != null && edad < VIGENCIA_MS) return@withContext Clima(lugar, leer(guardado.getString("texto")), guardado.optLong("hora"))
@@ -137,7 +153,8 @@ object ServicioClima {
 
   fun leer(texto: String): List<PuntoClima> {
     val serie = JSONObject(texto).getJSONObject("properties").getJSONArray("timeseries")
-    val limite = System.currentTimeMillis() + 36 * 3_600_000L
+    // MET Norway da unos 9 días: hora a hora los primeros 2 y luego cada 6 horas.
+    val limite = System.currentTimeMillis() + 10 * 24 * 3_600_000L
     val puntos = mutableListOf<PuntoClima>()
     for (i in 0 until serie.length()) {
       val s = serie.getJSONObject(i)

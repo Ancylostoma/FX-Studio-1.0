@@ -36,19 +36,19 @@ import kotlin.random.Random
 object AvisoDiario {
   private const val CANAL = "look-del-dia"
   private const val TRABAJO = "aviso-diario"
-  val HORA: LocalTime = LocalTime.of(7, 30)
-
-  fun programar(contexto: Context, activo: Boolean) {
+  /** [hora]: "HH:mm"; con el plan gratis siempre 07:30. */
+  fun programar(contexto: Context, activo: Boolean, hora: String = "07:30") {
     val wm = WorkManager.getInstance(contexto)
     if (!activo) {
       wm.cancelUniqueWork(TRABAJO)
       return
     }
     val ahora = LocalDateTime.now()
-    var proxima = ahora.toLocalDate().atTime(HORA)
+    val a = runCatching { LocalTime.parse(hora) }.getOrDefault(LocalTime.of(7, 30))
+    var proxima = ahora.toLocalDate().atTime(a)
     if (!proxima.isAfter(ahora)) proxima = proxima.plusDays(1)
-    // Cada teléfono a un minuto distinto entre 7:30 y 7:50: así miles de usuarios no piden
-    // el tiempo en el mismo segundo.
+    // Cada teléfono a un minuto distinto en los 20 minutos siguientes a la hora elegida:
+    // así miles de usuarios no piden el tiempo en el mismo segundo.
     val reparto = Random.nextLong(20 * 60_000L)
     val pedido = PeriodicWorkRequestBuilder<TrabajoAvisoDiario>(1, TimeUnit.DAYS)
       .setInitialDelay(Duration.between(ahora, proxima).toMillis() + reparto, TimeUnit.MILLISECONDS)

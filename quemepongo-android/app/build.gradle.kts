@@ -31,6 +31,8 @@ android {
 
     manifestPlaceholders["admobAppId"] = admobAppId
     buildConfigField("String", "ADMOB_BANNER", "\"$admobBanner\"")
+    // Sin llave de Play la app es de prueba: deja activar Premium sin pagar para probarlo.
+    buildConfigField("boolean", "MODO_PRUEBA", (llaveSubida == null).toString())
   }
 
   signingConfigs {
@@ -89,6 +91,8 @@ dependencies {
   implementation("androidx.work:work-runtime-ktx:2.9.1")
   implementation("com.google.android.gms:play-services-ads:23.6.0")
   implementation("com.google.android.ump:user-messaging-platform:3.1.0")
+  // Suscripción Premium. Play exige la versión 8 o más nueva desde agosto de 2026.
+  implementation("com.android.billingclient:billing:8.0.0")
   // Quita el fondo de las fotos de ropa, en el teléfono.
   implementation("com.google.android.gms:play-services-mlkit-subject-segmentation:16.0.0-beta1")
 

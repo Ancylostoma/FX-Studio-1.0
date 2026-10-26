@@ -11,6 +11,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -57,6 +58,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
@@ -320,6 +322,19 @@ private fun Detalles(p: Prenda, alCambiar: (Prenda) -> Unit) {
       label = { Text(t(R.string.detalle_nombre)) },
       placeholder = { Text(nombre(p.copy(nombre = ""))) },
       singleLine = true,
+      modifier = Modifier.fillMaxWidth(),
+    )
+    // El precio es opcional: sirve para el "costo por uso" de las estadísticas Premium.
+    var textoPrecio by remember { mutableStateOf(p.precio?.let { if (it % 1.0 == 0.0) it.toLong().toString() else it.toString() } ?: "") }
+    OutlinedTextField(
+      value = textoPrecio,
+      onValueChange = { nuevo ->
+        textoPrecio = nuevo.filter { it.isDigit() || it == '.' || it == ',' }
+        alCambiar(p.copy(precio = textoPrecio.replace(',', '.').toDoubleOrNull()))
+      },
+      label = { Text(t(R.string.detalle_precio)) },
+      singleLine = true,
+      keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
       modifier = Modifier.fillMaxWidth(),
     )
     Text(t(R.string.detalle_estilo), style = MaterialTheme.typography.labelLarge)

@@ -110,6 +110,8 @@ data class Prenda(
   val ultimoUso: Long = 0L,
   /** Prenda que el usuario no tiene: idea para completar el look (y comprarla). */
   val virtual: Boolean = false,
+  /** Lo que costó (opcional), para el costo por uso de las estadísticas. */
+  val precio: Double? = null,
 ) {
   val categoria get() = subtipo.categoria
 }
@@ -158,6 +160,8 @@ data class Perfil(
   /** Notificación cada mañana con el look del día. */
   val avisoDiario: Boolean = false,
   val vista: Vista = Vista.AUTO,
+  /** Hora del aviso de la mañana, "HH:mm". Cambiarla es de Premium. */
+  val horaAviso: String = "07:30",
 )
 
 /** Cómo se muestra un look: en el maniquí o como collage de las fotos de las prendas. */

@@ -73,6 +73,29 @@ Edita `app/src/main/assets/tendencias.json` en la rama `main`. Las apps instalad
 descargan en menos de 12 horas. En `tienda_url` puedes poner tu enlace de afiliado
 (por ejemplo Amazon Afiliados), `{q}` se reemplaza por la prenda buscada.
 
+## Premium
+
+| Gratis | Premium |
+|---|---|
+| Look del día, aviso a las 7:30 | Aviso a la hora que elijas |
+| Hasta 30 prendas y 15 looks guardados | Sin límite |
+| Anuncios en Descubrir | Sin anuncios |
+| — | Planear la semana, maleta de viaje, estadísticas y costo por uso |
+
+La pantalla de Premium se abre solo al llegar a un límite o al tocar una función Premium.
+
+**Para cobrar, en Play Console** (cuando la app esté subida, aunque sea en prueba interna):
+*Monetizar → Productos → Suscripciones → Crear* con el id **`premium`** y dos planes base:
+**`mensual`** (1 mes, renovación automática) y **`anual`** (1 año). En el anual agrega una
+oferta de **prueba gratis de 7 días**. Los precios por país los pone Play. Para probar pagos
+sin cobrar, agrega tu correo en *Configuración → Pruebas de licencias*.
+
+**Modo prueba:** mientras la app no tenga tu llave de subida, la pantalla de Premium muestra
+"Modo prueba: activar Premium" para probar todo sin pagar. Con la llave, ese botón desaparece.
+
+La compra se comprueba en el teléfono. Para una app pequeña es suficiente; con muchos
+ingresos conviene verificarla en un servidor (Google Play Developer API).
+
 ## Publicar en Google Play — lo que falta y solo puedes hacer tú
 
 1. **Cuenta de desarrollador de Google Play** (pago único de 25 USD) en

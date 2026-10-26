@@ -95,7 +95,8 @@ fun PantallaDescubrir(e: Estado, vm: AppViewModel, abrirEditor: (List<Prenda>) -
         }
       }
     }
-    item { BannerAnuncio(Modifier.padding(top = 8.dp)) }
+    // Con Premium no hay anuncios.
+    if (!e.premium) item { BannerAnuncio(Modifier.padding(top = 8.dp)) }
   }
 
   abierta?.let { t ->

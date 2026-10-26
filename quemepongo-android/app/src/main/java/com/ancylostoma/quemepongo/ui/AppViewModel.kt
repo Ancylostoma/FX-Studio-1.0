@@ -12,6 +12,9 @@ import com.ancylostoma.quemepongo.data.CatalogoTendencias
 import com.ancylostoma.quemepongo.data.Categoria
 import com.ancylostoma.quemepongo.data.Clima
 import com.ancylostoma.quemepongo.data.Datos
+import com.ancylostoma.quemepongo.data.Facturacion
+import com.ancylostoma.quemepongo.data.PlanPremium
+import com.ancylostoma.quemepongo.data.Viaje
 import com.ancylostoma.quemepongo.data.Fotos
 import com.ancylostoma.quemepongo.data.Look
 import com.ancylostoma.quemepongo.data.LookGuardado
@@ -23,17 +26,23 @@ import com.ancylostoma.quemepongo.data.Prenda
 import com.ancylostoma.quemepongo.data.ServicioClima
 import com.ancylostoma.quemepongo.data.ServicioTendencias
 import com.ancylostoma.quemepongo.data.Tendencia
+import com.ancylostoma.quemepongo.motor.Analisis
 import com.ancylostoma.quemepongo.motor.Contexto
+import com.ancylostoma.quemepongo.motor.DiaPlan
+import com.ancylostoma.quemepongo.motor.Estadisticas
+import com.ancylostoma.quemepongo.motor.Planificador
 import com.ancylostoma.quemepongo.motor.IdeaCompra
 import com.ancylostoma.quemepongo.motor.IdeasCompra
 import com.ancylostoma.quemepongo.motor.Motor
 import com.ancylostoma.quemepongo.motor.Tendencias
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalTime
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -54,22 +63,46 @@ data class Estado(
   /** Lo que lleva puesto el maniquí del probador, en el orden en que se puso. */
   val probador: List<Prenda> = emptyList(),
   val mensaje: String? = null,
+  /** Premium activo (comprado en Play o, en compilaciones de prueba, activado a mano). */
+  val premium: Boolean = false,
+  val planes: List<PlanPremium> = emptyList(),
+  /** Si no es null, hay que mostrar la pantalla de Premium por este motivo. */
+  val pedirPremium: MotivoPremium? = null,
+  val maletaCargando: Boolean = false,
+  val maletaError: String? = null,
 ) {
   val lookActual: Look? get() = sugerencias.getOrNull(indice)
 
   fun estaGuardado(look: Look) = datos.looks.any { it.id == look.id }
+
+  val prendasReales get() = datos.prendas.count { !it.virtual }
   val tendenciasActivas: List<Tendencia>
     get() = Tendencias.activas(tendencias.tendencias, LocalDate.now(), datos.perfil.latitud)
 }
 
+/** Por qué se ofrece Premium: cambia el título de la pantalla de pago. */
+enum class MotivoPremium { GENERAL, PRENDAS, LOOKS, SEMANA, MALETA, ESTADISTICAS, HORA_AVISO }
+
 class AppViewModel(private val app: Application) : AndroidViewModel(app) {
+  companion object {
+    const val LIMITE_PRENDAS = 30
+    const val LIMITE_LOOKS = 15
+  }
+
   private val almacen = Almacen(app)
+  private val facturacion = Facturacion(app)
   private val servicioTendencias = ServicioTendencias(app)
   private val _estado = MutableStateFlow(Estado())
   val estado: StateFlow<Estado> = _estado
   private var semilla = System.currentTimeMillis()
 
   init {
+    facturacion.conectar()
+    viewModelScope.launch {
+      combine(facturacion.comprado, facturacion.prueba, facturacion.planes) { c, p, pl -> Triple(c, p, pl) }.collect { (c, p, pl) ->
+        _estado.update { it.copy(premium = c || p, planes = pl) }
+      }
+    }
     viewModelScope.launch {
       val (datos, tendencias) = withContext(Dispatchers.IO) { almacen.cargar() to servicioTendencias.local() }
       _estado.update { it.copy(cargado = true, datos = datos, tendencias = tendencias) }
@@ -217,7 +250,12 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
   }
 
   fun guardarLook(look: Look) {
-    if (_estado.value.estaGuardado(look)) {
+    val e = _estado.value
+    if (!e.premium && e.datos.looks.size >= LIMITE_LOOKS) {
+      pedirPremium(MotivoPremium.LOOKS)
+      return
+    }
+    if (e.estaGuardado(look)) {
       avisar(app.getString(R.string.msg_ya_guardado))
       return
     }
@@ -328,6 +366,101 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
     )
   }
 
+  // ---- Premium ----
+
+  val modoPrueba get() = Facturacion.MODO_PRUEBA
+  val pruebaActiva get() = facturacion.prueba.value
+
+  fun pedirPremium(motivo: MotivoPremium) = _estado.update { it.copy(pedirPremium = motivo) }
+
+  fun premiumMostrado() = _estado.update { it.copy(pedirPremium = null) }
+
+  /** Con el plan gratis, el armario llega hasta [LIMITE_PRENDAS]. */
+  fun puedeAgregarPrenda(): Boolean {
+    val e = _estado.value
+    if (e.premium || e.prendasReales < LIMITE_PRENDAS) return true
+    pedirPremium(MotivoPremium.PRENDAS)
+    return false
+  }
+
+  fun comprar(actividad: android.app.Activity, plan: PlanPremium) = facturacion.comprar(actividad, plan)
+
+  fun restaurarCompras() {
+    facturacion.conectar()
+    avisar(app.getString(R.string.pw_restaurando))
+  }
+
+  fun cambiarPrueba(activo: Boolean) = facturacion.cambiarPrueba(activo)
+
+  fun cambiarHoraAviso(hora: String) {
+    cambiarPerfil { it.copy(horaAviso = hora) }
+    if (_estado.value.datos.perfil.avisoDiario) runCatching { AvisoDiario.programar(app, true, hora) }
+  }
+
+  // ---- Premium: planear la semana ----
+
+  private fun diasDeLaSemana(): List<LocalDate> = (0L until 7L).map { LocalDate.now().plusDays(it) }
+
+  private fun ocasionPorDefecto(f: LocalDate) =
+    if (f.dayOfWeek == DayOfWeek.SATURDAY || f.dayOfWeek == DayOfWeek.SUNDAY) Ocasion.CASUAL else Ocasion.TRABAJO
+
+  /** Arma (o rehace) los 7 días. Conserva la ocasión que el usuario eligió para cada día. */
+  fun armarSemana(cambiar: Pair<LocalDate, Ocasion>? = null, nuevaSemilla: Boolean = false) {
+    val e = _estado.value
+    val anteriores = e.datos.plan.associateBy { it.id }
+    val dias = diasDeLaSemana().map { f ->
+      val id = "plan-$f"
+      val ocasion = cambiar?.takeIf { it.first == f }?.second ?: anteriores[id]?.ocasion ?: ocasionPorDefecto(f)
+      DiaPlan(f, e.clima?.paraDia(f), ocasion)
+    }
+    val s = if (nuevaSemilla) System.currentTimeMillis() else semilla
+    viewModelScope.launch {
+      val looks = withContext(Dispatchers.Default) {
+        Planificador.semana(e.datos.prendas, dias, e.datos.perfil, e.datos.preferencias, { f -> Tendencias.activas(e.tendencias.tendencias, f, e.datos.perfil.latitud) }, s)
+      }
+      val plan = dias.zip(looks).map { (d, l) -> LookGuardado("plan-${d.fecha}", l.prendas, d.fecha.toEpochDay() * 86_400_000L, d.ocasion) }
+      cambiarDatos { it.copy(plan = plan) }
+    }
+  }
+
+  /** El plan guardado, si es de esta semana; si empezó otro día, se rehace. */
+  fun revisarSemana() {
+    val primero = _estado.value.datos.plan.firstOrNull()?.id
+    if (primero != "plan-${LocalDate.now()}") armarSemana()
+  }
+
+  // ---- Premium: maleta de viaje ----
+
+  fun armarMaleta(destino: String, desde: LocalDate, dias: Int, ocasion: Ocasion) {
+    if (destino.isBlank()) return
+    viewModelScope.launch {
+      _estado.update { it.copy(maletaCargando = true, maletaError = null) }
+      val lugar = ServicioClima.buscarCiudad(app, destino.trim())
+      if (lugar == null) {
+        _estado.update { it.copy(maletaCargando = false, maletaError = app.getString(R.string.maleta_no_encontre)) }
+        return@launch
+      }
+      val clima = runCatching { ServicioClima.pronostico(lugar.second, lugar.third, lugar.first, app.cacheDir) }.getOrNull()
+      val e = _estado.value
+      val plan = (0 until dias).map { i ->
+        val f = desde.plusDays(i.toLong())
+        DiaPlan(f, clima?.paraDia(f), ocasion)
+      }
+      val m = withContext(Dispatchers.Default) {
+        Planificador.maleta(e.datos.prendas, plan, e.datos.perfil, e.datos.preferencias, { f -> Tendencias.activas(e.tendencias.tendencias, f, lugar.second) })
+      }
+      val looks = plan.zip(m.looks).map { (d, l) -> LookGuardado("viaje-${d.fecha}", l.prendas, d.fecha.toEpochDay() * 86_400_000L, d.ocasion) }
+      cambiarDatos { it.copy(viaje = Viaje(lugar.first, desde.toString(), dias, looks, m.prendas, m.faltan)) }
+      _estado.update { it.copy(maletaCargando = false) }
+    }
+  }
+
+  fun borrarViaje() = cambiarDatos { it.copy(viaje = null) }
+
+  // ---- Premium: estadísticas ----
+
+  fun estadisticas(): Estadisticas = _estado.value.datos.let { Analisis.estadisticas(it.prendas, it.historial, System.currentTimeMillis()) }
+
   // ---- Perfil ----
 
   fun cambiarPerfil(f: (Perfil) -> Perfil) {
@@ -337,7 +470,7 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
 
   fun cambiarAvisoDiario(activo: Boolean) {
     cambiarPerfil { it.copy(avisoDiario = activo) }
-    runCatching { AvisoDiario.programar(app, activo) }
+    runCatching { AvisoDiario.programar(app, activo, _estado.value.datos.perfil.horaAviso) }
     if (activo) avisar(app.getString(R.string.msg_aviso_activo))
   }
 
