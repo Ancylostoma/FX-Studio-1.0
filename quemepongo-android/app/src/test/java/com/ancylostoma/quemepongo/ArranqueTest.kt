@@ -1,11 +1,15 @@
 package com.ancylostoma.quemepongo
 
 import androidx.compose.ui.test.ComposeTimeoutException
+import androidx.compose.ui.test.hasAnyDescendant
+import androidx.compose.ui.test.hasScrollToNodeAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.printToString
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Rule
@@ -83,6 +87,10 @@ class ArranqueTest {
     esperarTexto("Veces usadas")
     atras()
     tocar("Maleta de viaje")
+    esperarTexto("Ciudad de destino")
+    // En una pantalla chica el botón queda debajo: la lista se desplaza hasta él.
+    app.onNode(hasScrollToNodeAction() and hasAnyDescendant(hasText("Ciudad de destino")))
+      .performScrollToNode(hasText("Armar mi maleta"))
     esperarTexto("Armar mi maleta")
     atras()
   }
