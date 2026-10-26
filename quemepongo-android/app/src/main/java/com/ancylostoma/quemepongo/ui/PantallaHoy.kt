@@ -239,6 +239,7 @@ private fun PaginaLook(e: Estado, vm: AppViewModel, look: Look) {
   val contexto = LocalContext.current
   val alcance = rememberCoroutineScope()
   val collage = usarCollage(look.prendas, e.datos.perfil.vista)
+  val faltan = look.prendas.count { it.virtual }
   Box(Modifier.fillMaxSize().escenario()) {
     VistaLook(
       prendas = look.prendas,
@@ -246,7 +247,8 @@ private fun PaginaLook(e: Estado, vm: AppViewModel, look: Look) {
       vista = e.datos.perfil.vista,
       foto = vm::archivoFoto,
       claveAnimacion = look.id,
-      modifier = Modifier.fillMaxSize().padding(vertical = 16.dp, horizontal = if (collage) 12.dp else 24.dp),
+      // Con ideas de compra, abajo queda sitio para el aviso sin tapar los pies.
+      modifier = Modifier.fillMaxSize().padding(top = 16.dp, bottom = if (faltan > 0) 46.dp else 16.dp, start = if (collage) 12.dp else 24.dp, end = if (collage) 12.dp else 24.dp),
     )
     // Cambiar entre maniquí y collage de fotos.
     BotonFlotante(
@@ -279,11 +281,10 @@ private fun PaginaLook(e: Estado, vm: AppViewModel, look: Look) {
         alcance.launch { runCatching { Compartir.look(contexto, look.prendas, e.datos.perfil.cuerpo, vm::archivoFoto, contexto.getString(R.string.compartir_titulo_hoy)) } }
       }) { Icon(Icons.Filled.Share, t(R.string.hoy_compartir)) }
     }
-    val faltan = look.prendas.count { it.virtual }
     if (faltan > 0) {
       Text(
         pluralStringResource(R.plurals.hoy_ideas_compra, faltan, faltan),
-        style = MaterialTheme.typography.labelSmall,
+        style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 22.dp),
       )

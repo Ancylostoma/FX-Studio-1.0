@@ -472,6 +472,6 @@ private fun MuestraPaleta(p: Paleta, elegida: Boolean, alTocar: () -> Unit) {
       if (elegida) Icon(Icons.Filled.Check, null, tint = if (LocalOscuro.current) Color.Black else Color.White, modifier = Modifier.size(20.dp))
     }
     Spacer(Modifier.height(4.dp))
-    Text(nombre, style = MaterialTheme.typography.labelSmall, maxLines = 1, textAlign = TextAlign.Center)
+    Text(nombre, style = MaterialTheme.typography.labelSmall, maxLines = 2, textAlign = TextAlign.Center)
   }
 }

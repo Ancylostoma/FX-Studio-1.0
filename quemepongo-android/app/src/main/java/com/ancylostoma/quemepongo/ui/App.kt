@@ -310,7 +310,7 @@ private fun RowScope.BotonAgregar(alAgregar: () -> Unit) {
       style = MaterialTheme.typography.labelMedium,
       color = esquema.onSurfaceVariant,
       maxLines = 1,
-      modifier = Modifier.offset(y = (-4).dp),
+      modifier = Modifier.offset(y = (-9).dp),
     )
   }
 }
