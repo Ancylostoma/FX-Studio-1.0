@@ -72,3 +72,14 @@ jobs:
           name: capturas
           path: quemepongo-android/app/build/capturas/
           if-no-files-found: ignore
+
+      # Copia pequeña de algunas capturas en el registro, para revisarlas sin descargar nada.
+      - name: Capturas en el registro
+        if: always()
+        run: |
+          cd quemepongo-android/app/build/capturas 2>/dev/null || exit 0
+          ls -la
+          for f in 02-hoy-claro 02-hoy-oscuro 05-yo-oscuro 06-ajustes-claro; do
+            [ -f "$f.png" ] || continue
+            convert "$f.png" -resize 320x -quality 70 jpg:- | base64 -w 3000 | sed "s/^/CAPTURA $f /"
+          done

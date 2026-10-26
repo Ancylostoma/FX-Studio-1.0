@@ -109,7 +109,7 @@ dependencies {
 // Que el registro de GitHub Actions muestre por qué falla una prueba.
 tasks.withType<Test>().configureEach {
   testLogging {
-    events("failed")
+    events("failed", "standard_error")
     exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
   }
 }

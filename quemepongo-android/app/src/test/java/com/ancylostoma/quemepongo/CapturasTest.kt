@@ -1,6 +1,7 @@
 package com.ancylostoma.quemepongo
 
 import android.graphics.Bitmap
+import android.graphics.Canvas
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -45,10 +46,23 @@ class CapturasTest {
     // Que terminen de vestirse los maniquíes.
     app.mainClock.advanceTimeBy(3_000)
     app.waitForIdle()
-    runCatching {
-      val imagen = app.onRoot().captureToImage().asAndroidBitmap()
-      File(carpeta, "$nombre.png").outputStream().use { imagen.compress(Bitmap.CompressFormat.PNG, 100, it) }
-    }.onFailure { println("No se pudo guardar la captura $nombre: $it") }
+    runCatching { app.onRoot().captureToImage().asAndroidBitmap() }
+      .recoverCatching { e ->
+        System.err.println("captureToImage no funcionó ($e); se dibuja la ventana")
+        dibujarVentana()
+      }
+      .onSuccess { imagen -> File(carpeta, "$nombre.png").outputStream().use { imagen.compress(Bitmap.CompressFormat.PNG, 100, it) } }
+      .onFailure { System.err.println("No se pudo guardar la captura $nombre: $it") }
+  }
+
+  /** Otra forma de sacar la foto: pedirle a la ventana que se dibuje en un bitmap. */
+  private fun dibujarVentana(): Bitmap {
+    var imagen: Bitmap? = null
+    app.runOnUiThread {
+      val vista = app.activity.window.decorView
+      imagen = Bitmap.createBitmap(vista.width, vista.height, Bitmap.Config.ARGB_8888).also { vista.draw(Canvas(it)) }
+    }
+    return imagen!!
   }
 
   private fun recorrer(sufijo: String) {
@@ -85,6 +99,6 @@ class CapturasTest {
   fun claro() = recorrer("claro")
 
   @Test
-  @Config(qualifiers = "es-w393dp-h852dp-xhdpi-night")
+  @Config(qualifiers = "es-w393dp-h852dp-night-xhdpi")
   fun oscuro() = recorrer("oscuro")
 }
