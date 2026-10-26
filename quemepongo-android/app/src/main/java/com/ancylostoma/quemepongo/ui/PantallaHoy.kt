@@ -9,6 +9,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,25 +36,24 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AcUnit
 import androidx.compose.material.icons.filled.Accessibility
-import androidx.compose.material.icons.filled.Dashboard
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Umbrella
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.filled.Whatshot
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
@@ -74,6 +74,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -159,12 +161,12 @@ fun PantallaHoy(e: Estado, vm: AppViewModel, abrirEditor: (List<Prenda>) -> Unit
           TextButton(onClick = { detalles = look }) { Text(t(R.string.hoy_por_que)) }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-          OutlinedButton(onClick = { abrirEditor(look.prendas) }, modifier = Modifier.height(52.dp)) {
+          FilledTonalButton(onClick = { abrirEditor(look.prendas) }, modifier = Modifier.height(52.dp)) {
             Icon(Icons.Filled.Tune, null, Modifier.size(18.dp))
             Spacer(Modifier.width(6.dp))
             Text(t(R.string.hoy_editar))
           }
-          Button(onClick = { vm.meLoPongo(look) }, modifier = Modifier.weight(1f).height(52.dp)) {
+          BotonPrincipal(onClick = { vm.meLoPongo(look) }, modifier = Modifier.weight(1f).height(52.dp)) {
             Icon(Icons.Filled.Check, null, Modifier.size(20.dp))
             Spacer(Modifier.width(8.dp))
             Text(t(R.string.hoy_me_lo_pongo), style = MaterialTheme.typography.titleMedium)
@@ -194,6 +196,7 @@ private fun BarraContexto(e: Estado, alTocar: () -> Unit) {
       .fillMaxWidth()
       .clip(RoundedCornerShape(50))
       .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+      .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(50))
       .clickable(onClick = alTocar)
       .padding(horizontal = 16.dp, vertical = 10.dp),
     verticalAlignment = Alignment.CenterVertically,
@@ -236,12 +239,7 @@ private fun PaginaLook(e: Estado, vm: AppViewModel, look: Look) {
   val contexto = LocalContext.current
   val alcance = rememberCoroutineScope()
   val collage = usarCollage(look.prendas, e.datos.perfil.vista)
-  Box(
-    Modifier
-      .fillMaxSize()
-      .clip(RoundedCornerShape(28.dp))
-      .background(MaterialTheme.colorScheme.surfaceContainer),
-  ) {
+  Box(Modifier.fillMaxSize().escenario()) {
     VistaLook(
       prendas = look.prendas,
       cuerpo = e.datos.perfil.cuerpo,
@@ -251,7 +249,7 @@ private fun PaginaLook(e: Estado, vm: AppViewModel, look: Look) {
       modifier = Modifier.fillMaxSize().padding(vertical = 16.dp, horizontal = if (collage) 12.dp else 24.dp),
     )
     // Cambiar entre maniquí y collage de fotos.
-    FilledTonalIconButton(
+    BotonFlotante(
       onClick = { vm.cambiarVista(if (collage) Vista.MANIQUI else Vista.COLLAGE) },
       modifier = Modifier.align(Alignment.BottomStart).padding(10.dp),
     ) { Icon(if (collage) Icons.Filled.Accessibility else Icons.Filled.Dashboard, t(if (collage) R.string.hoy_ver_maniqui else R.string.hoy_ver_collage)) }
@@ -271,16 +269,13 @@ private fun PaginaLook(e: Estado, vm: AppViewModel, look: Look) {
       }
     }
     Column(Modifier.align(Alignment.TopEnd).padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-      val rojo by animateColorAsState(if (guardado) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant, label = "corazon")
+      val rojo by animateColorAsState(if (guardado) Color(0xFFE53958) else MaterialTheme.colorScheme.onSurfaceVariant, label = "corazon")
       val tamano by animateDpAsState(if (guardado) 26.dp else 22.dp, label = "latido")
-      FilledTonalIconButton(onClick = { vm.alternarGuardado(look) }) {
+      BotonFlotante(onClick = { vm.alternarGuardado(look) }) {
         Icon(if (guardado) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder, t(if (guardado) R.string.hoy_quitar_guardado else R.string.hoy_guardar), tint = rojo, modifier = Modifier.size(tamano))
       }
-      FilledTonalIconButton(
-        onClick = { vm.descartar(look) },
-        colors = IconButtonDefaults.filledTonalIconButtonColors(),
-      ) { Icon(Icons.Filled.Close, t(R.string.hoy_no_me_gusta)) }
-      FilledTonalIconButton(onClick = {
+      BotonFlotante(onClick = { vm.descartar(look) }) { Icon(Icons.Filled.Close, t(R.string.hoy_no_me_gusta)) }
+      BotonFlotante(onClick = {
         alcance.launch { runCatching { Compartir.look(contexto, look.prendas, e.datos.perfil.cuerpo, vm::archivoFoto, contexto.getString(R.string.compartir_titulo_hoy)) } }
       }) { Icon(Icons.Filled.Share, t(R.string.hoy_compartir)) }
     }
@@ -299,7 +294,7 @@ private fun PaginaLook(e: Estado, vm: AppViewModel, look: Look) {
 @Composable
 private fun PaginaMasLooks(alPedir: () -> Unit) {
   Box(
-    Modifier.fillMaxSize().clip(RoundedCornerShape(28.dp)).background(MaterialTheme.colorScheme.surfaceContainer),
+    Modifier.fillMaxSize().escenario(),
     contentAlignment = Alignment.Center,
   ) {
     EstadoVacio(Forma.TOP_MANGA_LARGA, t(R.string.hoy_mas_titulo), t(R.string.hoy_mas_texto), t(R.string.hoy_mas_boton), alPedir)
@@ -370,7 +365,7 @@ private fun HojaContexto(e: Estado, vm: AppViewModel, alCerrar: () -> Unit) {
         Ocasion.entries.forEach { o -> FilterChip(selected = o == e.ocasion, onClick = { vm.elegirOcasion(o) }, label = { Text(t(o.res())) }) }
       }
 
-      Button(onClick = alCerrar, modifier = Modifier.fillMaxWidth().height(50.dp)) { Text(t(R.string.listo)) }
+      BotonPrincipal(onClick = alCerrar, modifier = Modifier.fillMaxWidth().height(50.dp)) { Text(t(R.string.listo)) }
       if (e.clima != null) {
         Text(t(R.string.clima_atribucion), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
       }
@@ -415,4 +410,17 @@ private fun HojaDetalles(look: Look, vm: AppViewModel, alEditar: () -> Unit, alC
       Spacer(Modifier.height(12.dp))
     }
   }
+}
+
+/** Botón redondo sobre el escenario del look: claro con sombra, para que se vea encima de cualquier prenda. */
+@Composable
+private fun BotonFlotante(onClick: () -> Unit, modifier: Modifier = Modifier, contenido: @Composable () -> Unit) {
+  val esquema = MaterialTheme.colorScheme
+  val fondo = if (LocalOscuro.current) esquema.surfaceContainerHighest else esquema.surfaceContainerLowest
+  FilledIconButton(
+    onClick = onClick,
+    modifier = modifier.shadow(4.dp, CircleShape),
+    colors = IconButtonDefaults.filledIconButtonColors(containerColor = fondo, contentColor = esquema.onSurface),
+    content = contenido,
+  )
 }

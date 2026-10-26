@@ -22,7 +22,6 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Thermostat
 import androidx.compose.material.icons.filled.Umbrella
 import androidx.compose.material.icons.filled.Work
-import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -80,7 +79,7 @@ fun EditorLook(e: Estado, vm: AppViewModel, alCerrar: () -> Unit) {
         foto = vm::archivoFoto,
         claveAnimacion = ultima ?: "inicio",
         animarSolo = ultima,
-        modifier = Modifier.fillMaxWidth().height(380.dp),
+        modifier = Modifier.fillMaxWidth().height(380.dp).escenario().padding(vertical = 16.dp),
       )
 
       if (e.probador.isNotEmpty()) {
@@ -144,7 +143,7 @@ fun EditorLook(e: Estado, vm: AppViewModel, alCerrar: () -> Unit) {
       Spacer(Modifier.height(16.dp))
     }
 
-    Button(
+    BotonPrincipal(
       onClick = {
         vm.puntuarProbador()?.let { vm.meLoPongo(it) }
         alCerrar()

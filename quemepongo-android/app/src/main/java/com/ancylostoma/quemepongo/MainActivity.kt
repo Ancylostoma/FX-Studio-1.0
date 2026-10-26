@@ -15,7 +15,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.ancylostoma.quemepongo.ui.Anuncios
 import com.ancylostoma.quemepongo.ui.App
-import com.ancylostoma.quemepongo.ui.TemaQueMePongo
 
 class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -27,7 +26,8 @@ class MainActivity : ComponentActivity() {
     }
     enableEdgeToEdge()
     Anuncios.preparar(this)
-    setContent { TemaQueMePongo { App() } }
+    // El tema (claro, oscuro y paleta) lo pone App según lo que eligió el usuario.
+    setContent { App() }
   }
 
   /** Pantalla hecha con vistas simples de Android: tiene que funcionar aunque falle todo lo demás. */

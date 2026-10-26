@@ -64,3 +64,11 @@ jobs:
       # Las pruebas van después de subir la APK: si fallan, igual se puede instalar y probar.
       - name: Pruebas
         run: gradle testDebugUnitTest
+
+      - name: Subir capturas de pantalla (claro y oscuro)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: capturas
+          path: quemepongo-android/app/build/capturas/
+          if-no-files-found: ignore

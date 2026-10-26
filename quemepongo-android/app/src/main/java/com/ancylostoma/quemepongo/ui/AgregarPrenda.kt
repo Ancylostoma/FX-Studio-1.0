@@ -34,7 +34,6 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -223,7 +222,7 @@ fun AgregarPrenda(inicial: Prenda, esNueva: Boolean, vm: AppViewModel, alCerrar:
       } else {
         TextButton(onClick = { confirmarBorrado = true }) { Text(t(R.string.borrar), color = MaterialTheme.colorScheme.error) }
       }
-      Button(
+      BotonPrincipal(
         onClick = { guardar(); alCerrar() },
         enabled = eligioTipo && !procesando,
         modifier = Modifier.weight(1f).height(52.dp),
@@ -284,7 +283,7 @@ private fun BotonGrande(icono: ImageVector, texto: String, principal: Boolean, a
     Text(texto, style = MaterialTheme.typography.titleMedium)
   }
   if (principal) {
-    Button(onClick = alTocar, modifier = Modifier.fillMaxWidth().height(56.dp)) { contenido() }
+    BotonPrincipal(onClick = alTocar, modifier = Modifier.fillMaxWidth().height(56.dp)) { contenido() }
   } else {
     OutlinedButton(onClick = alTocar, modifier = Modifier.fillMaxWidth().height(56.dp)) { contenido() }
   }

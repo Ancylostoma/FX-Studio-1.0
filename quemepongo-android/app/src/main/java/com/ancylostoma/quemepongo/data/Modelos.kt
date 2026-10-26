@@ -162,7 +162,15 @@ data class Perfil(
   val vista: Vista = Vista.AUTO,
   /** Hora del aviso de la mañana, "HH:mm". Cambiarla es de Premium. */
   val horaAviso: String = "07:30",
+  /** Claro, oscuro o como esté el teléfono. */
+  val modo: Modo = Modo.SISTEMA,
+  val paleta: Paleta = Paleta.CORAL,
 )
+
+enum class Modo { SISTEMA, CLARO, OSCURO }
+
+/** Color principal de la app, para botones, pestañas y detalles. */
+enum class Paleta { CORAL, ROSA, LAVANDA, OCEANO, TERRACOTA, MONOCROMO }
 
 /** Cómo se muestra un look: en el maniquí o como collage de las fotos de las prendas. */
 enum class Vista { AUTO, MANIQUI, COLLAGE }

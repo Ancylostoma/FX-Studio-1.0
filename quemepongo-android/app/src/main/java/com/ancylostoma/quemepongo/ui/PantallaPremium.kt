@@ -34,7 +34,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Luggage
 import androidx.compose.material.icons.filled.NotInterested
 import androidx.compose.material.icons.filled.WorkspacePremium
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -94,16 +93,16 @@ fun PantallaPremium(e: Estado, vm: AppViewModel, motivo: MotivoPremium, alCerrar
         .padding(bottom = 28.dp),
     ) {
       IconButton(onClick = alCerrar, modifier = Modifier.align(Alignment.TopEnd)) {
-        Icon(Icons.Filled.Close, t(R.string.cerrar), tint = Color.White)
+        Icon(Icons.Filled.Close, t(R.string.cerrar), tint = MaterialTheme.colorScheme.onPrimary)
       }
       Column(Modifier.fillMaxWidth().padding(top = 40.dp, start = 24.dp, end = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.size(84.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
-          Icon(Icons.Filled.WorkspacePremium, null, tint = Color.White, modifier = Modifier.size(52.dp))
+        Box(Modifier.size(84.dp).clip(CircleShape).background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
+          Icon(Icons.Filled.WorkspacePremium, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(52.dp))
         }
         Spacer(Modifier.height(14.dp))
-        Text(t(R.string.premium_nombre).uppercase(), style = MaterialTheme.typography.labelLarge, color = Color.White.copy(alpha = 0.85f))
-        Text(t(R.string.pw_titulo), style = MaterialTheme.typography.headlineMedium, color = Color.White, textAlign = TextAlign.Center)
-        Text(t(R.string.pw_sub), style = MaterialTheme.typography.bodyLarge, color = Color.White.copy(alpha = 0.9f), textAlign = TextAlign.Center)
+        Text(t(R.string.premium_nombre).uppercase(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f))
+        Text(t(R.string.pw_titulo), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onPrimary, textAlign = TextAlign.Center)
+        Text(t(R.string.pw_sub), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f), textAlign = TextAlign.Center)
       }
     }
 
@@ -168,7 +167,7 @@ fun PantallaPremium(e: Estado, vm: AppViewModel, motivo: MotivoPremium, alCerrar
             modifier = Modifier.fillMaxWidth(),
           )
         }
-        Button(
+        BotonPrincipal(
           onClick = { if (actividad != null && plan != null) vm.comprar(actividad, plan) },
           enabled = plan != null,
           modifier = Modifier.fillMaxWidth().height(56.dp),

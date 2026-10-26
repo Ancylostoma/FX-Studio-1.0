@@ -24,7 +24,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -114,8 +113,7 @@ private fun TarjetaTendencia(e: Estado, vm: AppViewModel, t: Tendencia, alTocar:
   Column(
     Modifier
       .width(250.dp)
-      .clip(RoundedCornerShape(24.dp))
-      .background(MaterialTheme.colorScheme.surfaceContainer)
+      .escenario(RoundedCornerShape(24.dp))
       .clickable(onClick = alTocar)
       .padding(14.dp),
     verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -155,7 +153,7 @@ private fun HojaTendencia(t: Tendencia, vm: AppViewModel, alProbar: () -> Unit, 
           TextButton(onClick = { enlaces.openUri(vm.enlaceTienda(idea)) }) { Text(t(R.string.comprar)) }
         }
       }
-      Button(onClick = alProbar, modifier = Modifier.fillMaxWidth().height(50.dp)) { Text(t(R.string.probar_look)) }
+      BotonPrincipal(onClick = alProbar, modifier = Modifier.fillMaxWidth().height(50.dp)) { Text(t(R.string.probar_look)) }
       OutlinedButton(onClick = alCerrar, modifier = Modifier.fillMaxWidth()) { Text(t(R.string.cerrar)) }
       Spacer(Modifier.height(12.dp))
     }

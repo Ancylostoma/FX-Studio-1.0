@@ -35,7 +35,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.NotificationsActive
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -151,7 +150,7 @@ private fun Paso(
       Spacer(Modifier.height(8.dp))
     }
     Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-      Button(onClick = alPrincipal, enabled = principalActivo, modifier = Modifier.fillMaxWidth().height(54.dp)) {
+      BotonPrincipal(onClick = alPrincipal, enabled = principalActivo, modifier = Modifier.fillMaxWidth().height(54.dp)) {
         Text(principal, style = MaterialTheme.typography.titleMedium)
       }
       if (secundario != null) TextButton(onClick = alSecundario) { Text(secundario) }
@@ -173,7 +172,7 @@ private fun PasoInicio(e: Estado, vm: AppViewModel, siguiente: () -> Unit) {
       foto = vm::archivoFoto,
       claveAnimacion = "inicio",
       marcarIdeas = false,
-      modifier = Modifier.fillMaxWidth().height(320.dp),
+      modifier = Modifier.fillMaxWidth().height(320.dp).escenario().padding(vertical = 14.dp),
     )
   }
 }

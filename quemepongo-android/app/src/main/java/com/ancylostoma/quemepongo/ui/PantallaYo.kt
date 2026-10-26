@@ -5,10 +5,12 @@ package com.ancylostoma.quemepongo.ui
 import android.Manifest
 import android.app.Activity
 import android.os.Build
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.compose.BackHandler
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,25 +26,31 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.BrightnessAuto
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Luggage
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -52,7 +60,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -70,18 +77,21 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.ancylostoma.quemepongo.BuildConfig
 import com.ancylostoma.quemepongo.R
 import com.ancylostoma.quemepongo.data.AvisoDiario
 import com.ancylostoma.quemepongo.data.Forma
-import com.ancylostoma.quemepongo.data.Vista
 import com.ancylostoma.quemepongo.data.LookGuardado
+import com.ancylostoma.quemepongo.data.Modo
+import com.ancylostoma.quemepongo.data.Paleta
 import com.ancylostoma.quemepongo.data.Prenda
+import com.ancylostoma.quemepongo.data.Vista
 import java.text.DateFormat
 import java.util.Date
 import kotlinx.coroutines.launch
@@ -113,8 +123,15 @@ fun PantallaYo(
   ) {
     item(span = { GridItemSpan(maxLineSpan) }) {
       Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        val oscuro = LocalOscuro.current
         TituloPantalla(t(R.string.tab_yo), accion = {
-          IconButton(onClick = abrirAjustes) { Icon(Icons.Filled.Settings, t(R.string.ajustes)) }
+          Row {
+            // Atajo para cambiar entre claro y oscuro sin entrar a Ajustes.
+            IconButton(onClick = { vm.cambiarPerfil { it.copy(modo = if (oscuro) Modo.CLARO else Modo.OSCURO) } }) {
+              Icon(if (oscuro) Icons.Filled.LightMode else Icons.Filled.DarkMode, t(if (oscuro) R.string.modo_claro else R.string.modo_oscuro))
+            }
+            IconButton(onClick = abrirAjustes) { Icon(Icons.Filled.Settings, t(R.string.ajustes)) }
+          }
         })
         Herramientas(e.premium, abrirHerramienta)
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
@@ -140,8 +157,7 @@ fun PantallaYo(
     items(lista, key = { it.id }) { l ->
       Column(
         Modifier
-          .clip(RoundedCornerShape(22.dp))
-          .background(MaterialTheme.colorScheme.surfaceContainer)
+          .escenario(RoundedCornerShape(22.dp))
           .clickable { elegido = l }
           .padding(10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -162,7 +178,7 @@ fun PantallaYo(
       Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).navigationBarsPadding(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(t(l.ocasion.res()), style = MaterialTheme.typography.titleLarge)
         Text(l.prendas.joinToString(" · ") { contexto.nombre(it) }, style = MaterialTheme.typography.bodyMedium)
-        Button(onClick = {
+        BotonPrincipal(onClick = {
           elegido = null
           abrirEditor(actuales(l))
         }, modifier = Modifier.fillMaxWidth().height(50.dp)) { Text(t(R.string.yo_ponermelo)) }
@@ -195,11 +211,11 @@ private fun Herramientas(premium: Boolean, abrir: (MotivoPremium) -> Unit) {
           .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
       ) {
-        Icon(Icons.Filled.WorkspacePremium, null, tint = Color.White, modifier = Modifier.size(36.dp))
+        Icon(Icons.Filled.WorkspacePremium, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(36.dp))
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-          Text(t(R.string.yo_hazte), style = MaterialTheme.typography.titleMedium, color = Color.White)
-          Text(t(R.string.yo_hazte_texto), style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.9f))
+          Text(t(R.string.yo_hazte), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimary)
+          Text(t(R.string.yo_hazte_texto), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f))
         }
       }
     }
@@ -268,6 +284,29 @@ fun PantallaAjustes(e: Estado, vm: AppViewModel, alCerrar: () -> Unit, abrirPrem
         Spacer(Modifier.width(10.dp))
         Text(t(if (e.premium) R.string.pw_ya_premium else R.string.yo_hazte), style = MaterialTheme.typography.titleMedium)
       }
+      Seccion(t(R.string.aj_apariencia)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+          listOf(
+            Triple(Modo.SISTEMA, R.string.modo_sistema, Icons.Filled.BrightnessAuto),
+            Triple(Modo.CLARO, R.string.modo_claro, Icons.Filled.LightMode),
+            Triple(Modo.OSCURO, R.string.modo_oscuro, Icons.Filled.DarkMode),
+          ).forEach { (m, texto, icono) ->
+            FilterChip(
+              selected = perfil.modo == m,
+              onClick = { vm.cambiarPerfil { it.copy(modo = m) } },
+              label = { Text(t(texto)) },
+              leadingIcon = { Icon(icono, null, Modifier.size(18.dp)) },
+            )
+          }
+        }
+        Text(t(R.string.aj_paleta), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+          Paleta.entries.forEach { p ->
+            MuestraPaleta(p, elegida = perfil.paleta == p) { vm.cambiarPerfil { it.copy(paleta = p) } }
+          }
+        }
+      }
+      HorizontalDivider()
       Seccion(t(R.string.aj_estilos)) {
         SelectorEstilos(perfil.estilos) { s -> vm.cambiarPerfil { it.copy(estilos = if (s in it.estilos) it.estilos - s else it.estilos + s) } }
       }
@@ -400,4 +439,39 @@ fun DialogoCiudad(alCerrar: () -> Unit, alBuscar: (String) -> Unit) {
     },
     dismissButton = { TextButton(onClick = alCerrar) { Text(t(R.string.cancelar)) } },
   )
+}
+
+@StringRes
+private fun Paleta.res(): Int = when (this) {
+  Paleta.CORAL -> R.string.paleta_coral
+  Paleta.ROSA -> R.string.paleta_rosa
+  Paleta.LAVANDA -> R.string.paleta_lavanda
+  Paleta.OCEANO -> R.string.paleta_oceano
+  Paleta.TERRACOTA -> R.string.paleta_terracota
+  Paleta.MONOCROMO -> R.string.paleta_monocromo
+}
+
+/** Un círculo con los dos tonos de la paleta y su nombre. */
+@Composable
+private fun MuestraPaleta(p: Paleta, elegida: Boolean, alTocar: () -> Unit) {
+  val esquema = MaterialTheme.colorScheme
+  val nombre = t(p.res())
+  Column(
+    Modifier.width(66.dp).clip(RoundedCornerShape(14.dp)).selectable(selected = elegida, onClick = alTocar, role = Role.RadioButton).padding(vertical = 4.dp),
+    horizontalAlignment = Alignment.CenterHorizontally,
+  ) {
+    Box(
+      Modifier
+        .size(46.dp)
+        .border(if (elegida) 3.dp else 1.dp, if (elegida) esquema.onSurface else esquema.outlineVariant, CircleShape)
+        .padding(if (elegida) 5.dp else 2.dp)
+        .clip(CircleShape)
+        .background(Brush.linearGradient(p.muestra(LocalOscuro.current))),
+      contentAlignment = Alignment.Center,
+    ) {
+      if (elegida) Icon(Icons.Filled.Check, null, tint = if (LocalOscuro.current) Color.Black else Color.White, modifier = Modifier.size(20.dp))
+    }
+    Spacer(Modifier.height(4.dp))
+    Text(nombre, style = MaterialTheme.typography.labelSmall, maxLines = 1, textAlign = TextAlign.Center)
+  }
 }

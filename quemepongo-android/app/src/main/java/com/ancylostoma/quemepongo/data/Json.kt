@@ -77,6 +77,8 @@ object Json {
     .put("avisoDiario", p.avisoDiario)
     .put("vista", p.vista.name)
     .put("horaAviso", p.horaAviso)
+    .put("modo", p.modo.name)
+    .put("paleta", p.paleta.name)
 
   fun perfil(o: JSONObject): Perfil = Perfil(
     estilos = estilos(o.optJSONArray("estilos")),
@@ -91,6 +93,8 @@ object Json {
     avisoDiario = o.optBoolean("avisoDiario"),
     vista = Vista.entries.firstOrNull { it.name == o.optString("vista") } ?: Vista.AUTO,
     horaAviso = o.optString("horaAviso", "07:30").ifBlank { "07:30" },
+    modo = Modo.entries.firstOrNull { it.name == o.optString("modo") } ?: Modo.SISTEMA,
+    paleta = Paleta.entries.firstOrNull { it.name == o.optString("paleta") } ?: Paleta.CORAL,
   )
 
   // ---- Preferencias ----

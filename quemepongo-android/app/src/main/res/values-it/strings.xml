@@ -363,6 +363,17 @@
     <string name="yo_semana">Pianifica la settimana</string>
     <string name="yo_hazte">Passa a Premium</string>
     <string name="yo_hazte_texto">Senza pubblicità, armadio illimitato, piano settimanale e altro.</string>
+    <string name="aj_apariencia">Aspetto</string>
+    <string name="modo_sistema">Come il telefono</string>
+    <string name="modo_claro">Chiaro</string>
+    <string name="modo_oscuro">Scuro</string>
+    <string name="aj_paleta">Colore dell\'app</string>
+    <string name="paleta_coral">Corallo</string>
+    <string name="paleta_rosa">Rosa</string>
+    <string name="paleta_lavanda">Lavanda</string>
+    <string name="paleta_oceano">Oceano</string>
+    <string name="paleta_terracota">Terracotta</string>
+    <string name="paleta_monocromo">Bianco e nero</string>
     <plurals name="armario_prendas">
         <item quantity="one">%d capo</item>
         <item quantity="other">%d capi</item>

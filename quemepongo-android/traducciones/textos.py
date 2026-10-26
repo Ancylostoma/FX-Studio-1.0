@@ -410,6 +410,18 @@ T = {
     "yo_semana": ["Plan the week", "Planear la semana", "Planejar a semana", "Planifier la semaine", "Woche planen", "Pianifica la settimana"],
     "yo_hazte": ["Go Premium", "Hazte Premium", "Seja Premium", "Passe à Premium", "Premium holen", "Passa a Premium"],
     "yo_hazte_texto": ["No ads, unlimited closet, weekly plan and more.", "Sin anuncios, armario sin límite, plan semanal y más.", "Sem anúncios, armário sem limite, plano semanal e mais.", "Sans pub, dressing illimité, planning de la semaine et plus.", "Ohne Werbung, unbegrenzter Schrank, Wochenplan und mehr.", "Senza pubblicità, armadio illimitato, piano settimanale e altro."],
+    # ---- Apariencia ----
+    "aj_apariencia": ["Appearance", "Apariencia", "Aparência", "Apparence", "Darstellung", "Aspetto"],
+    "modo_sistema": ["Like my phone", "Como el teléfono", "Como o celular", "Comme le téléphone", "Wie das Handy", "Come il telefono"],
+    "modo_claro": ["Light", "Claro", "Claro", "Clair", "Hell", "Chiaro"],
+    "modo_oscuro": ["Dark", "Oscuro", "Escuro", "Sombre", "Dunkel", "Scuro"],
+    "aj_paleta": ["App color", "Color de la app", "Cor do app", "Couleur de l'app", "App-Farbe", "Colore dell'app"],
+    "paleta_coral": ["Coral", "Coral", "Coral", "Corail", "Koralle", "Corallo"],
+    "paleta_rosa": ["Pink", "Rosa", "Rosa", "Rose", "Rosa", "Rosa"],
+    "paleta_lavanda": ["Lavender", "Lavanda", "Lavanda", "Lavande", "Lavendel", "Lavanda"],
+    "paleta_oceano": ["Ocean", "Océano", "Oceano", "Océan", "Ozean", "Oceano"],
+    "paleta_terracota": ["Terracotta", "Terracota", "Terracota", "Terre cuite", "Terrakotta", "Terracotta"],
+    "paleta_monocromo": ["Black & white", "Blanco y negro", "Preto e branco", "Noir et blanc", "Schwarz-Weiß", "Bianco e nero"],
 }
 
 # Plurales: cada idioma con su forma de "uno" y "varios".

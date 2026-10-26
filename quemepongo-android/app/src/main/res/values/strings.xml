@@ -365,6 +365,17 @@
     <string name="yo_semana">Plan the week</string>
     <string name="yo_hazte">Go Premium</string>
     <string name="yo_hazte_texto">No ads, unlimited closet, weekly plan and more.</string>
+    <string name="aj_apariencia">Appearance</string>
+    <string name="modo_sistema">Like my phone</string>
+    <string name="modo_claro">Light</string>
+    <string name="modo_oscuro">Dark</string>
+    <string name="aj_paleta">App color</string>
+    <string name="paleta_coral">Coral</string>
+    <string name="paleta_rosa">Pink</string>
+    <string name="paleta_lavanda">Lavender</string>
+    <string name="paleta_oceano">Ocean</string>
+    <string name="paleta_terracota">Terracotta</string>
+    <string name="paleta_monocromo">Black &amp; white</string>
     <plurals name="armario_prendas">
         <item quantity="one">%d item</item>
         <item quantity="other">%d items</item>

@@ -26,7 +26,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -227,7 +226,7 @@ private fun FormularioViaje(e: Estado, vm: AppViewModel, alArmar: () -> Unit) {
           Text(t(R.string.maleta_buscando))
         }
       }
-      Button(
+      BotonPrincipal(
         onClick = {
           armando = true
           vm.armarMaleta(destino, desde, dias.roundToInt(), ocasion)
@@ -300,8 +299,7 @@ private fun ResultadoViaje(e: Estado, vm: AppViewModel, v: com.ancylostoma.queme
           Column(
             Modifier
               .width(160.dp)
-              .clip(RoundedCornerShape(20.dp))
-              .background(MaterialTheme.colorScheme.surfaceContainer)
+              .escenario(RoundedCornerShape(20.dp))
               .padding(10.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
           ) {

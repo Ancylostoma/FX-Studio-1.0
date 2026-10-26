@@ -79,11 +79,12 @@ fun Maniqui(
     progreso.animateTo(meta, tween(durationMillis = ms, easing = LinearEasing))
   }
 
+  val tonos = if (LocalOscuro.current) TonosManiqui.Oscuro else TonosManiqui.Claro
   Canvas(modifier) {
     cargadas.intValue // Volver a dibujar cuando llegue una foto.
     val k = min(size.width / 100f, size.height / 200f)
     val g = Geometria(cuerpo, (size.width - 100f * k) / 2f, (size.height - 200f * k) / 2f, k)
-    dibujarCuerpo(g)
+    dibujarCuerpo(g, tonos)
     // Al terminar la animación se ve todo, aunque luego se agreguen prendas.
     val terminado = !progreso.isRunning && progreso.value > 0f
     capas.forEachIndexed { i, p ->
@@ -97,7 +98,7 @@ fun Maniqui(
       if (alfa <= 0f) return@forEachIndexed
       val imagen = p.foto?.let { CacheImagenes.mapa.get(it) }
       translate(top = (1f - alfa) * -10f * k) {
-        dibujarPrenda(g, p, imagen, alfa, marcarIdeas)
+        dibujarPrenda(g, p, imagen, alfa, tonos, marcarIdeas)
       }
     }
   }
@@ -110,8 +111,8 @@ fun Maniqui(
 fun DrawScope.dibujarManiqui(prendas: List<Prenda>, cuerpo: Cuerpo, imagenes: Map<String, ImageBitmap>) {
   val k = min(size.width / 100f, size.height / 200f)
   val g = Geometria(cuerpo, (size.width - 100f * k) / 2f, (size.height - 200f * k) / 2f, k)
-  dibujarCuerpo(g)
-  prendas.sortedBy { it.subtipo.forma.capa }.forEach { p -> dibujarPrenda(g, p, p.foto?.let { imagenes[it] }, 1f, marcarIdeas = false) }
+  dibujarCuerpo(g, TonosManiqui.Claro)
+  prendas.sortedBy { it.subtipo.forma.capa }.forEach { p -> dibujarPrenda(g, p, p.foto?.let { imagenes[it] }, 1f, TonosManiqui.Claro, marcarIdeas = false) }
 }
 
 /** Coordenadas del maniquí en una caja de 100 x 200 unidades. */
@@ -193,12 +194,17 @@ private class Geometria(cuerpo: Cuerpo, val ox: Float, val oy: Float, val k: Flo
 private fun unir(vararg caminos: Path): Path =
   caminos.reduce { acc, c -> Path().apply { op(acc, c, PathOperation.Union) } }
 
-private val ColorPiel = Color(0xFFE9DFD6)
-private val ColorBorde = Color(0xFFB9A89B)
+/** Colores del maniquí. En modo claro, más oscuro que el fondo; en modo oscuro, más claro. */
+class TonosManiqui(val piel: Color, val borde: Color, val bordePrenda: Color, val sombra: Color) {
+  companion object {
+    val Claro = TonosManiqui(Color(0xFFD5C3B3), Color(0xFF6E5A4B), Color.Black.copy(alpha = 0.55f), Color.Black.copy(alpha = 0.16f))
+    val Oscuro = TonosManiqui(Color(0xFFE4D6CA), Color(0xFF2B231D), Color.White.copy(alpha = 0.55f), Color.Black.copy(alpha = 0.45f))
+  }
+}
 
-private fun DrawScope.dibujarCuerpo(g: Geometria) {
+private fun DrawScope.dibujarCuerpo(g: Geometria, tonos: TonosManiqui) {
   // Sombra en el suelo.
-  drawOval(Color.Black.copy(alpha = 0.10f), topLeft = g.p(26f, 189f), size = androidx.compose.ui.geometry.Size(48f * g.k, 7f * g.k))
+  drawOval(tonos.sombra, topLeft = g.p(26f, 189f), size = androidx.compose.ui.geometry.Size(48f * g.k, 7f * g.k))
 
   val torso = g.simetrica(
     listOf(46f to 30f, 46f to 39f, 50f - g.hombro + 1f to 41f, 50f - g.hombro + 4f to 56f, 50f - g.cintura to 84f, 50f - g.cadera to 100f, 49f to 108f),
@@ -216,7 +222,7 @@ private fun DrawScope.dibujarCuerpo(g: Geometria) {
     g.forma(listOf(10.5f to 177f, 3f to 177f, 2.5f to 186f, 4f to 191f, 11f to 191f, 12f to 186f).map { (50f + lado * it.first) to it.second }, 0.3f)
   }
   val cuerpo = unir(torso, piernaIzq, piernaDer, cabeza, g.brazo(-1, 104f), g.brazo(1, 104f), manoIzq, manoDer, pies[0], pies[1])
-  drawPath(cuerpo, ColorPiel)
+  drawPath(cuerpo, tonos.piel)
   val b = cuerpo.getBounds()
   drawPath(
     cuerpo,
@@ -226,7 +232,7 @@ private fun DrawScope.dibujarCuerpo(g: Geometria) {
       endX = b.right,
     ),
   )
-  drawPath(cuerpo, ColorBorde, style = Stroke(width = 1.1f * density, join = StrokeJoin.Round))
+  drawPath(cuerpo, tonos.borde, style = Stroke(width = 1.4f * density, join = StrokeJoin.Round))
 }
 
 /** Silueta de cada tipo de prenda. */
@@ -326,7 +332,7 @@ private fun formaDe(g: Geometria, f: Forma): List<Path> {
   }
 }
 
-private fun DrawScope.dibujarPrenda(g: Geometria, p: Prenda, imagen: ImageBitmap?, alfa: Float, marcarIdeas: Boolean = true) {
+private fun DrawScope.dibujarPrenda(g: Geometria, p: Prenda, imagen: ImageBitmap?, alfa: Float, tonos: TonosManiqui, marcarIdeas: Boolean = true) {
   val color = Color(Colores.de(p.color).argb)
   if (p.subtipo.forma == Forma.BOLSO) {
     // Correa cruzada.
@@ -378,12 +384,12 @@ private fun DrawScope.dibujarPrenda(g: Geometria, p: Prenda, imagen: ImageBitmap
       // Las ideas de compra se ven con borde punteado para distinguirlas de lo que ya tienes.
       drawPath(
         camino,
-        Color.White.copy(alpha = 0.9f),
+        tonos.bordePrenda.copy(alpha = 0.9f),
         alpha = alfa,
-        style = Stroke(width = 1.4f * density, pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(6f * density, 4f * density))),
+        style = Stroke(width = 1.6f * density, pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(6f * density, 4f * density))),
       )
     } else {
-      drawPath(camino, Color.Black.copy(alpha = 0.45f), alpha = alfa, style = Stroke(width = 1.1f * density, join = StrokeJoin.Round))
+      drawPath(camino, tonos.bordePrenda, alpha = alfa, style = Stroke(width = 1.3f * density, join = StrokeJoin.Round))
     }
   }
 }
@@ -412,7 +418,13 @@ private fun DrawScope.dibujarEstampado(camino: Path, b: Rect, alfa: Float, k: Fl
  * botones, íconos y pantallas vacías.
  */
 @Composable
-fun IconoForma(forma: Forma, color: Color, modifier: Modifier = Modifier, borde: Color = Color.Black.copy(alpha = 0.35f)) {
+fun IconoForma(
+  forma: Forma,
+  color: Color,
+  modifier: Modifier = Modifier,
+  // El borde contrasta con el fondo: así una prenda negra se ve en modo oscuro y una blanca en el claro.
+  borde: Color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+) {
   Canvas(modifier) {
     val g = Geometria(Cuerpo.NEUTRO, 0f, 0f, 1f)
     val caminos = formaDe(g, forma)
