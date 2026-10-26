@@ -10,6 +10,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Para guardar las capturas de pantalla en la rama.
+    permissions:
+      contents: write
     defaults:
       run:
         working-directory: quemepongo-android
@@ -73,13 +76,17 @@ jobs:
           path: quemepongo-android/app/build/capturas/*.png
           if-no-files-found: ignore
 
-      # Copia pequeña de algunas capturas en el registro, para revisarlas sin descargar nada.
-      - name: Capturas en el registro
-        if: always()
+      # Las capturas quedan en el repositorio: sirven para la ficha de Google Play
+      # y para revisar el diseño. Un push hecho con GITHUB_TOKEN no vuelve a lanzar este workflow.
+      - name: Guardar capturas en play-store/capturas
+        if: success() && github.event_name == 'push'
         run: |
-          cd app/build/capturas 2>/dev/null || exit 0
-          ls -la
-          for f in 02-hoy-claro 02-hoy-oscuro 05-yo-oscuro 06-ajustes-claro; do
-            [ -f "$f.jpg" ] || continue
-            base64 -w 3000 "$f.jpg" | sed "s/^/CAPTURA $f /"
-          done
+          ls app/build/capturas/*.png >/dev/null 2>&1 || exit 0
+          mkdir -p play-store/capturas
+          cp app/build/capturas/*.png play-store/capturas/
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add play-store/capturas
+          git diff --cached --quiet && exit 0
+          git commit -m "Capturas de pantalla actualizadas"
+          git push origin "HEAD:${GITHUB_REF_NAME}" || echo "::warning::No se pudieron guardar las capturas (la rama cambió mientras tanto)"

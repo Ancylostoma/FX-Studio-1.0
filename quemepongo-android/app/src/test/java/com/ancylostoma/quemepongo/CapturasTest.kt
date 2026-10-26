@@ -17,8 +17,8 @@ import org.robolectric.annotation.GraphicsMode
 
 /**
  * Fotos de las pantallas principales en modo claro y oscuro, en un teléfono de
- * tamaño normal. GitHub Actions las sube como "capturas" para revisar el diseño
- * sin instalar la app.
+ * tamaño normal. GitHub Actions las guarda en play-store/capturas: sirven para
+ * la ficha de Google Play y para revisar el diseño sin instalar la app.
  */
 @RunWith(AndroidJUnit4::class)
 @Config(sdk = [36])
@@ -45,12 +45,7 @@ class CapturasTest {
     app.waitForIdle()
     // captureToImage no termina en Robolectric: se le pide a la ventana que se dibuje.
     runCatching { dibujarVentana() }
-      .onSuccess { imagen ->
-        File(carpeta, "$nombre.png").outputStream().use { imagen.compress(Bitmap.CompressFormat.PNG, 100, it) }
-        // Copia chica para el registro de GitHub Actions.
-        val chica = Bitmap.createScaledBitmap(imagen, 320, imagen.height * 320 / imagen.width, true)
-        File(carpeta, "$nombre.jpg").outputStream().use { chica.compress(Bitmap.CompressFormat.JPEG, 70, it) }
-      }
+      .onSuccess { imagen -> File(carpeta, "$nombre.png").outputStream().use { imagen.compress(Bitmap.CompressFormat.PNG, 100, it) } }
       .onFailure { System.err.println("No se pudo guardar la captura $nombre: $it") }
   }
 
