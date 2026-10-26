@@ -2,12 +2,9 @@ package com.ancylostoma.quemepongo
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import androidx.compose.ui.graphics.asAndroidBitmap
-import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -46,16 +43,13 @@ class CapturasTest {
     // Que terminen de vestirse los maniquíes.
     app.mainClock.advanceTimeBy(3_000)
     app.waitForIdle()
-    runCatching { app.onRoot().captureToImage().asAndroidBitmap() }
-      .recoverCatching { e ->
-        System.err.println("captureToImage no funcionó ($e); se dibuja la ventana")
-        dibujarVentana()
-      }
+    // captureToImage no termina en Robolectric: se le pide a la ventana que se dibuje.
+    runCatching { dibujarVentana() }
       .onSuccess { imagen -> File(carpeta, "$nombre.png").outputStream().use { imagen.compress(Bitmap.CompressFormat.PNG, 100, it) } }
       .onFailure { System.err.println("No se pudo guardar la captura $nombre: $it") }
   }
 
-  /** Otra forma de sacar la foto: pedirle a la ventana que se dibuje en un bitmap. */
+  /** La pantalla tal como se ve, dibujada en un bitmap. */
   private fun dibujarVentana(): Bitmap {
     var imagen: Bitmap? = null
     app.runOnUiThread {

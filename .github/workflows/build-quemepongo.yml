@@ -77,7 +77,7 @@ jobs:
       - name: Capturas en el registro
         if: always()
         run: |
-          cd quemepongo-android/app/build/capturas 2>/dev/null || exit 0
+          cd app/build/capturas 2>/dev/null || exit 0
           ls -la
           for f in 02-hoy-claro 02-hoy-oscuro 05-yo-oscuro 06-ajustes-claro; do
             [ -f "$f.png" ] || continue
