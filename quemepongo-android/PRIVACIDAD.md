@@ -13,7 +13,8 @@ las tendencias y tu estilo.
 | Tu armario, perfil de estilo, looks guardados y "me gusta" | Armar y mejorar las sugerencias | Solo en tu teléfono. |
 | Ubicación aproximada (opcional) | Pedir el pronóstico del tiempo de tu zona | Las coordenadas (redondeadas) se envían al Instituto Meteorológico de Noruega (api.met.no) para obtener el pronóstico. La app guarda en el teléfono el nombre de tu ciudad. |
 | Aviso de cada mañana (opcional) | Recordarte tu look del día | Se prepara en el teléfono; para el tiempo se consulta MET Norway igual que al abrir la app. |
-| Ciudad escrita a mano (opcional) | Lo mismo que la ubicación | Se convierte en coordenadas con el servicio de geocodificación del propio Android. |
+| Ciudad escrita a mano (opcional) | Lo mismo que la ubicación | Se convierte en coordenadas con el servicio de geocodificación del propio Android. Si el teléfono no tiene ese servicio, el nombre escrito se envía a Photon (photon.komoot.io, de komoot GmbH), que busca en los datos de OpenStreetMap. |
+| Nombre del lugar donde estás (opcional) | Mostrar tu ciudad junto al tiempo | Lo da el servicio del propio Android; si no está disponible, se envían a Photon las coordenadas redondeadas a unos 100 m. |
 
 La app descarga cada día un archivo público de tendencias desde GitHub
 (raw.githubusercontent.com). Esa descarga no lleva datos tuyos.

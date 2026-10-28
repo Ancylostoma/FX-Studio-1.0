@@ -4,7 +4,6 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
-import android.location.Geocoder
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
@@ -13,6 +12,7 @@ import android.os.Bundle
 import android.os.CancellationSignal
 import android.os.Looper
 import androidx.core.content.ContextCompat
+import androidx.core.location.LocationManagerCompat
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -110,7 +110,7 @@ data class Clima(val lugar: String, val puntos: List<PuntoClima>, val obtenidoMs
  * también para apps comerciales, con atribución y un User-Agent que identifique la app.
  */
 object ServicioClima {
-  private const val AGENTE = "QueMePongo/1.0 github.com/Ancylostoma/FX-Studio-1.0"
+  const val AGENTE = "QueMePongo/1.0 github.com/Ancylostoma/FX-Studio-1.0"
 
   private const val VIGENCIA_MS = 45 * 60_000L
   private const val VIGENCIA_SIN_RED_MS = 6 * 3_600_000L
@@ -177,6 +177,10 @@ object ServicioClima {
     return puntos
   }
 
+  /** false si el usuario apagó la ubicación del teléfono. */
+  fun ubicacionActiva(contexto: Context): Boolean =
+    runCatching { LocationManagerCompat.isLocationEnabled(contexto.getSystemService(Context.LOCATION_SERVICE) as LocationManager) }.getOrDefault(true)
+
   fun tienePermiso(contexto: Context) =
     ContextCompat.checkSelfPermission(contexto, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
@@ -185,8 +189,13 @@ object ServicioClima {
   suspend fun ubicacion(contexto: Context): Location? {
     if (!tienePermiso(contexto)) return null
     val lm = contexto.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-    val proveedores = listOf(LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER, LocationManager.PASSIVE_PROVIDER)
-      .filter { runCatching { lm.isProviderEnabled(it) }.getOrDefault(false) }
+    // Con permiso aproximado, antes de Android 12 el GPS no se puede usar: solo la red.
+    val candidatos = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+      listOf(LocationManager.NETWORK_PROVIDER, LocationManager.FUSED_PROVIDER, LocationManager.GPS_PROVIDER, LocationManager.PASSIVE_PROVIDER)
+    } else {
+      listOf(LocationManager.NETWORK_PROVIDER, LocationManager.PASSIVE_PROVIDER)
+    }
+    val proveedores = candidatos.filter { runCatching { lm.isProviderEnabled(it) }.getOrDefault(false) }
     val reciente = proveedores.mapNotNull { runCatching { lm.getLastKnownLocation(it) }.getOrNull() }
       .maxByOrNull { it.time }
     if (reciente != null && System.currentTimeMillis() - reciente.time < 6 * 3_600_000L) return reciente
@@ -196,9 +205,11 @@ object ServicioClima {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
           val cancelar = CancellationSignal()
           cont.invokeOnCancellation { cancelar.cancel() }
-          lm.getCurrentLocation(proveedor, cancelar, ContextCompat.getMainExecutor(contexto)) { l ->
-            if (cont.isActive) cont.resume(l)
-          }
+          runCatching {
+            lm.getCurrentLocation(proveedor, cancelar, ContextCompat.getMainExecutor(contexto)) { l ->
+              if (cont.isActive) cont.resume(l)
+            }
+          }.onFailure { if (cont.isActive) cont.resume(null) }
         } else {
           // Objeto completo: antes de Android 11 la interfaz no tenía métodos por defecto
           // y una lambda haría fallar la app cuando el sistema llamara a los otros.
@@ -216,29 +227,11 @@ object ServicioClima {
           }
           cont.invokeOnCancellation { lm.removeUpdates(oyente) }
           @Suppress("DEPRECATION")
-          lm.requestSingleUpdate(proveedor, oyente, Looper.getMainLooper())
+          runCatching { lm.requestSingleUpdate(proveedor, oyente, Looper.getMainLooper()) }
+            .onFailure { if (cont.isActive) cont.resume(null) }
         }
       }
     }
     return nueva ?: reciente
-  }
-
-  @Suppress("DEPRECATION")
-  suspend fun nombreDelLugar(contexto: Context, lat: Double, lon: Double): String? = withContext(Dispatchers.IO) {
-    if (!Geocoder.isPresent()) return@withContext null
-    runCatching {
-      Geocoder(contexto, Locale.getDefault()).getFromLocation(lat, lon, 1)?.firstOrNull()?.let { it.locality ?: it.subAdminArea ?: it.adminArea }
-    }.getOrNull()
-  }
-
-  /** Busca una ciudad escrita a mano. Devuelve (nombre, latitud, longitud). */
-  @Suppress("DEPRECATION")
-  suspend fun buscarCiudad(contexto: Context, nombre: String): Triple<String, Double, Double>? = withContext(Dispatchers.IO) {
-    if (!Geocoder.isPresent()) return@withContext null
-    runCatching {
-      Geocoder(contexto, Locale.getDefault()).getFromLocationName(nombre, 1)?.firstOrNull()?.let {
-        Triple(it.locality ?: it.featureName ?: nombre, it.latitude, it.longitude)
-      }
-    }.getOrNull()
   }
 }

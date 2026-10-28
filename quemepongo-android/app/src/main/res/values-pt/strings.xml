@@ -374,6 +374,16 @@
     <string name="paleta_oceano">Oceano</string>
     <string name="paleta_terracota">Terracota</string>
     <string name="paleta_monocromo">Preto e branco</string>
+    <string name="msg_ubicacion_apagada">A localização do celular está desligada. Ative-a ou digite sua cidade.</string>
+    <string name="ciudad_elige">Qual é a sua?</string>
+    <string name="descubrir_buscar">Buscar roupas nas lojas</string>
+    <string name="etiqueta_tendencia">Tendência</string>
+    <string name="etiqueta_te_falta">Falta</string>
+    <string name="etiqueta_para_ti">Para você</string>
+    <string name="ver_tienda">Ver na loja</string>
+    <string name="ver_look">Ver o look</string>
+    <string name="descubrir_categorias">Comprar por categoria</string>
+    <string name="descubrir_sin_ideas">Nada por aqui por enquanto: seu armário já tem isso.</string>
     <plurals name="armario_prendas">
         <item quantity="one">%d peça</item>
         <item quantity="other">%d peças</item>

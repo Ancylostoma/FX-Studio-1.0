@@ -225,9 +225,6 @@ private fun PasoEstilos(e: Estado, vm: AppViewModel, siguiente: () -> Unit) {
 
 @Composable
 private fun PasoCiudad(e: Estado, vm: AppViewModel, siguiente: () -> Unit) {
-  val contexto = LocalContext.current
-  var ciudad by remember { mutableStateOf("") }
-  val permiso = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok -> if (ok) vm.usarUbicacion() }
   val c = e.clima?.para(e.momento)
   Paso(
     titulo = t(R.string.b_ciudad_titulo),
@@ -247,17 +244,7 @@ private fun PasoCiudad(e: Estado, vm: AppViewModel, siguiente: () -> Unit) {
         style = MaterialTheme.typography.titleMedium,
         color = MaterialTheme.colorScheme.primary,
       )
-      else -> {
-        e.climaError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        FilledTonalButton(
-          onClick = { if (ServicioClima.tienePermiso(contexto)) vm.usarUbicacion() else permiso.launch(Manifest.permission.ACCESS_COARSE_LOCATION) },
-          modifier = Modifier.fillMaxWidth().height(52.dp),
-        ) { Text(t(R.string.contexto_ubicacion)) }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-          OutlinedTextField(value = ciudad, onValueChange = { ciudad = it }, label = { Text(t(R.string.contexto_ciudad)) }, singleLine = true, modifier = Modifier.weight(1f))
-          TextButton(onClick = { vm.buscarCiudad(ciudad) }, enabled = ciudad.isNotBlank()) { Text(t(R.string.buscar)) }
-        }
-      }
+      else -> BuscadorCiudad(e, vm)
     }
   }
 }

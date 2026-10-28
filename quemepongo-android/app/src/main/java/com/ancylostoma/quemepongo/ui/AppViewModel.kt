@@ -17,6 +17,8 @@ import com.ancylostoma.quemepongo.data.PlanPremium
 import com.ancylostoma.quemepongo.data.Viaje
 import com.ancylostoma.quemepongo.data.Fotos
 import com.ancylostoma.quemepongo.data.Look
+import com.ancylostoma.quemepongo.data.Lugar
+import com.ancylostoma.quemepongo.data.Lugares
 import com.ancylostoma.quemepongo.data.LookGuardado
 import com.ancylostoma.quemepongo.data.Momento
 import com.ancylostoma.quemepongo.data.Ocasion
@@ -54,6 +56,8 @@ data class Estado(
   val clima: Clima? = null,
   val climaCargando: Boolean = false,
   val climaError: String? = null,
+  /** Ciudades encontradas al buscar, para que el usuario elija la suya. */
+  val ciudades: List<Lugar> = emptyList(),
   val ocasion: Ocasion = Ocasion.CASUAL,
   val momento: Momento = Momento.deHora(LocalTime.now().hour),
   val sugerencias: List<Look> = emptyList(),
@@ -172,12 +176,13 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
         } else {
           val l = ServicioClima.ubicacion(app)
           if (l == null) {
-            _estado.update { it.copy(climaCargando = false, climaError = app.getString(R.string.msg_sin_ubicacion)) }
+            val mensaje = if (!ServicioClima.ubicacionActiva(app)) R.string.msg_ubicacion_apagada else R.string.msg_sin_ubicacion
+            _estado.update { it.copy(climaCargando = false, climaError = app.getString(mensaje)) }
             return@launch
           }
           lat = l.latitude
           lon = l.longitude
-          lugar = ServicioClima.nombreDelLugar(app, lat, lon) ?: app.getString(R.string.mi_ubicacion)
+          lugar = Lugares.nombreDe(app, lat, lon) ?: app.getString(R.string.mi_ubicacion)
           cambiarDatos { d -> d.copy(perfil = d.perfil.copy(latitud = lat, longitud = lon, ciudad = lugar)) }
         }
         val clima = ServicioClima.pronostico(lat, lon, lugar, app.cacheDir)
@@ -191,6 +196,7 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
 
   /** Tras conceder el permiso: olvida la ciudad guardada y usa la ubicación real. */
   fun usarUbicacion() {
+    _estado.update { it.copy(ciudades = emptyList()) }
     cambiarDatos { d -> d.copy(perfil = d.perfil.copy(latitud = null, longitud = null, ciudad = null)) }
     cargarClima()
   }
@@ -198,15 +204,23 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
   fun buscarCiudad(nombre: String) {
     if (nombre.isBlank()) return
     viewModelScope.launch {
-      _estado.update { it.copy(climaCargando = true, climaError = null) }
-      val r = ServicioClima.buscarCiudad(app, nombre.trim())
-      if (r == null) {
-        _estado.update { it.copy(climaCargando = false, climaError = app.getString(R.string.msg_no_encontre, nombre)) }
-        return@launch
+      _estado.update { it.copy(climaCargando = true, climaError = null, ciudades = emptyList()) }
+      val r = Lugares.buscar(app, nombre)
+      _estado.update {
+        if (r.isEmpty()) {
+          it.copy(climaCargando = false, climaError = app.getString(R.string.msg_no_encontre, nombre.trim()))
+        } else {
+          it.copy(climaCargando = false, ciudades = r)
+        }
       }
-      cambiarDatos { d -> d.copy(perfil = d.perfil.copy(ciudad = r.first, latitud = r.second, longitud = r.third)) }
-      cargarClima()
     }
+  }
+
+  /** La ciudad que el usuario eligió de la lista de resultados. */
+  fun elegirCiudad(l: Lugar) {
+    _estado.update { it.copy(ciudades = emptyList()) }
+    cambiarDatos { d -> d.copy(perfil = d.perfil.copy(ciudad = l.nombre, latitud = l.latitud, longitud = l.longitud)) }
+    cargarClima()
   }
 
   // ---- Sugerencias ----
@@ -285,10 +299,13 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
 
   fun lookDeTendencia(t: Tendencia): Look = Motor.lookDeTendencia(t, _estado.value.datos.prendas, contexto())
 
-  fun ideasDeCompra(): List<IdeaCompra> {
+  fun ideasDeCompra(max: Int = 8): List<IdeaCompra> {
     val e = _estado.value
-    return IdeasCompra.sugerir(e.datos.prendas, e.datos.perfil, e.datos.preferencias, e.tendenciasActivas)
+    return IdeasCompra.sugerir(e.datos.prendas, e.datos.perfil, e.datos.preferencias, e.tendenciasActivas, max)
   }
+
+  /** Lo que el usuario escribió en el buscador de Descubrir, en la tienda configurada. */
+  fun enlaceBusqueda(texto: String) = IdeasCompra.enlace(_estado.value.tendencias.tiendaUrl, texto.trim())
 
   fun enlaceTienda(idea: com.ancylostoma.quemepongo.data.IdeaPrenda) =
     IdeasCompra.enlace(_estado.value.tendencias.tiendaUrl, app.busqueda(idea))
@@ -435,22 +452,22 @@ class AppViewModel(private val app: Application) : AndroidViewModel(app) {
     if (destino.isBlank()) return
     viewModelScope.launch {
       _estado.update { it.copy(maletaCargando = true, maletaError = null) }
-      val lugar = ServicioClima.buscarCiudad(app, destino.trim())
+      val lugar = Lugares.buscar(app, destino, max = 1).firstOrNull()
       if (lugar == null) {
         _estado.update { it.copy(maletaCargando = false, maletaError = app.getString(R.string.maleta_no_encontre)) }
         return@launch
       }
-      val clima = runCatching { ServicioClima.pronostico(lugar.second, lugar.third, lugar.first, app.cacheDir) }.getOrNull()
+      val clima = runCatching { ServicioClima.pronostico(lugar.latitud, lugar.longitud, lugar.nombre, app.cacheDir) }.getOrNull()
       val e = _estado.value
       val plan = (0 until dias).map { i ->
         val f = desde.plusDays(i.toLong())
         DiaPlan(f, clima?.paraDia(f), ocasion)
       }
       val m = withContext(Dispatchers.Default) {
-        Planificador.maleta(e.datos.prendas, plan, e.datos.perfil, e.datos.preferencias, { f -> Tendencias.activas(e.tendencias.tendencias, f, lugar.second) })
+        Planificador.maleta(e.datos.prendas, plan, e.datos.perfil, e.datos.preferencias, { f -> Tendencias.activas(e.tendencias.tendencias, f, lugar.latitud) })
       }
       val looks = plan.zip(m.looks).map { (d, l) -> LookGuardado("viaje-${d.fecha}", l.prendas, d.fecha.toEpochDay() * 86_400_000L, d.ocasion) }
-      cambiarDatos { it.copy(viaje = Viaje(lugar.first, desde.toString(), dias, looks, m.prendas, m.faltan)) }
+      cambiarDatos { it.copy(viaje = Viaje(lugar.nombre, desde.toString(), dias, looks, m.prendas, m.faltan)) }
       _estado.update { it.copy(maletaCargando = false) }
     }
   }

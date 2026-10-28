@@ -321,9 +321,6 @@ private fun Puntos(total: Int, actual: Int) {
 /** Cambiar dónde, cuándo y para qué. */
 @Composable
 private fun HojaContexto(e: Estado, vm: AppViewModel, alCerrar: () -> Unit) {
-  val contexto = LocalContext.current
-  var ciudad by remember { mutableStateOf("") }
-  val permiso = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok -> if (ok) vm.usarUbicacion() }
   ModalBottomSheet(onDismissRequest = alCerrar, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
     Column(
       Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).navigationBarsPadding(),
@@ -337,24 +334,7 @@ private fun HojaContexto(e: Estado, vm: AppViewModel, alCerrar: () -> Unit) {
           style = MaterialTheme.typography.bodyMedium,
         )
       }
-      e.climaError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-      FilledTonalButton(onClick = {
-        if (ServicioClima.tienePermiso(contexto)) vm.usarUbicacion() else permiso.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
-      }) {
-        Icon(Icons.Filled.LocationOn, null, Modifier.size(18.dp))
-        Spacer(Modifier.width(6.dp))
-        Text(t(R.string.contexto_ubicacion))
-      }
-      Row(verticalAlignment = Alignment.CenterVertically) {
-        OutlinedTextField(
-          value = ciudad,
-          onValueChange = { ciudad = it },
-          label = { Text(t(R.string.contexto_ciudad)) },
-          singleLine = true,
-          modifier = Modifier.weight(1f),
-        )
-        TextButton(onClick = { vm.buscarCiudad(ciudad); ciudad = "" }, enabled = ciudad.isNotBlank()) { Text(t(R.string.buscar)) }
-      }
+      BuscadorCiudad(e, vm)
 
       Text(t(R.string.contexto_cuando), style = MaterialTheme.typography.titleMedium)
       Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

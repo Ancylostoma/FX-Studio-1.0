@@ -422,6 +422,17 @@ T = {
     "paleta_oceano": ["Ocean", "Océano", "Oceano", "Océan", "Ozean", "Oceano"],
     "paleta_terracota": ["Terracotta", "Terracota", "Terracota", "Terre cuite", "Terrakotta", "Terracotta"],
     "paleta_monocromo": ["Black & white", "Blanco y negro", "Preto e branco", "Noir et blanc", "Schwarz-Weiß", "Bianco e nero"],
+    "msg_ubicacion_apagada": ["Your phone's location is off. Turn it on or type your city.", "La ubicación del teléfono está apagada. Actívala o escribe tu ciudad.", "A localização do celular está desligada. Ative-a ou digite sua cidade.", "La localisation du téléphone est désactivée. Active-la ou écris ta ville.", "Der Standort des Handys ist aus. Schalte ihn ein oder gib deine Stadt ein.", "La posizione del telefono è disattivata. Attivala o scrivi la tua città."],
+    "ciudad_elige": ["Which one is yours?", "¿Cuál es la tuya?", "Qual é a sua?", "Laquelle est la tienne ?", "Welche ist deine?", "Qual è la tua?"],
+    # ---- Descubrir (tienda) ----
+    "descubrir_buscar": ["Search clothes in stores", "Buscar ropa en tiendas", "Buscar roupas nas lojas", "Chercher des vêtements en boutique", "Kleidung in Shops suchen", "Cerca vestiti nei negozi"],
+    "etiqueta_tendencia": ["Trending", "Tendencia", "Tendência", "Tendance", "Im Trend", "Di tendenza"],
+    "etiqueta_te_falta": ["Missing", "Te falta", "Falta", "Il te manque", "Fehlt dir", "Ti manca"],
+    "etiqueta_para_ti": ["For you", "Para ti", "Para você", "Pour toi", "Für dich", "Per te"],
+    "ver_tienda": ["See in store", "Ver en tienda", "Ver na loja", "Voir en boutique", "Im Shop ansehen", "Vedi nel negozio"],
+    "ver_look": ["See the look", "Ver el look", "Ver o look", "Voir le look", "Look ansehen", "Vedi il look"],
+    "descubrir_categorias": ["Shop by category", "Comprar por categoría", "Comprar por categoria", "Acheter par catégorie", "Nach Kategorie shoppen", "Acquista per categoria"],
+    "descubrir_sin_ideas": ["Nothing here for now: your closet already has this covered.", "Por ahora nada aquí: tu armario ya lo tiene cubierto.", "Nada por aqui por enquanto: seu armário já tem isso.", "Rien pour l'instant : ton dressing est déjà bien fourni.", "Hier gerade nichts: Dein Schrank hat das schon.", "Per ora niente: il tuo armadio è già a posto."],
 }
 
 # Plurales: cada idioma con su forma de "uno" y "varios".

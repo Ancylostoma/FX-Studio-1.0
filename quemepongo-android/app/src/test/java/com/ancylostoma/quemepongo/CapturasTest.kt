@@ -2,11 +2,18 @@ package com.ancylostoma.quemepongo
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import androidx.compose.ui.test.hasAnyDescendant
+import androidx.compose.ui.test.hasScrollToNodeAction
+import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import java.io.File
 import org.junit.Rule
@@ -28,7 +35,7 @@ class CapturasTest {
 
   private val carpeta = File("build/capturas").apply { mkdirs() }
 
-  private fun hay(texto: String) = app.onAllNodesWithText(texto).fetchSemanticsNodes().isNotEmpty()
+  private fun hay(texto: String, sub: Boolean = false) = app.onAllNodesWithText(texto, substring = sub).fetchSemanticsNodes().isNotEmpty()
 
   private fun tocar(texto: String) {
     app.waitUntil(15_000) { hay(texto) }
@@ -60,6 +67,7 @@ class CapturasTest {
   }
 
   private fun recorrer(sufijo: String) {
+    sufijoActual = sufijo
     app.waitUntil(15_000) { hay("Empezar") || hay("Tu look de hoy") }
     if (hay("Empezar")) {
       foto("01-bienvenida-$sufijo")
@@ -72,10 +80,17 @@ class CapturasTest {
     }
     app.waitUntil(15_000) { hay("Me lo pongo") }
     foto("02-hoy-$sufijo")
+    if (sufijo == "claro") buscarCiudad()
     tocar("Armario")
     foto("03-armario-$sufijo")
     tocar("Descubrir")
     foto("04-descubrir-$sufijo")
+    // Más abajo: categorías y la cuadrícula de prendas.
+    runCatching {
+      app.onNode(hasScrollToNodeAction() and hasAnyDescendant(hasText("Lo que se lleva ahora")))
+        .performScrollToNode(hasText("Para ti"))
+      foto("04b-tienda-$sufijo")
+    }
     tocar("Yo")
     foto("05-yo-$sufijo")
     // El botón de Ajustes es un ícono: se busca por su descripción.
@@ -87,6 +102,30 @@ class CapturasTest {
     // Premium, o la semana si otra prueba ya activó el modo prueba.
     foto("07-semana-$sufijo")
   }
+
+  /**
+   * La búsqueda de verdad (en GitHub Actions hay internet): si el teléfono no
+   * tiene geocodificador, responde Photon. No falla si no hay red; solo saca la foto.
+   */
+  private fun buscarCiudad() = runCatching {
+    app.onAllNodesWithText("Elige tu ciudad", substring = true)[0].performClick()
+    app.waitForIdle()
+    app.onAllNodes(hasSetTextAction())[0].performTextInput("Valencia")
+    app.onAllNodes(hasSetTextAction())[0].performImeAction()
+    runCatching { app.waitUntil(25_000) { hay("¿Cuál es la tuya?") || hay("No encontré", sub = true) } }
+    val resultados = app.onAllNodesWithText("Valencia").fetchSemanticsNodes().size - 1
+    System.err.println("Búsqueda de ciudades: $resultados resultados")
+    if (resultados > 0) {
+      // El primero es el campo de texto; después vienen los resultados.
+      app.onAllNodesWithText("Valencia")[1].performClick()
+      app.waitForIdle()
+    }
+    tocar("Listo")
+    runCatching { app.waitUntil(20_000) { !hay("Consultando", sub = true) } }
+    foto("08-ciudad-$sufijoActual")
+  }.onFailure { System.err.println("Búsqueda de ciudades: la prueba no pudo seguir ($it)") }
+
+  private var sufijoActual = ""
 
   @Test
   @Config(qualifiers = "es-w393dp-h852dp-xhdpi")

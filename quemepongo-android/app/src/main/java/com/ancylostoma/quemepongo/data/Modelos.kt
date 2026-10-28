@@ -217,6 +217,8 @@ data class Tendencia(
   val estilos: Set<Estilo>,
   val prendas: List<IdeaPrenda>,
   val peso: Double,
+  /** Foto opcional para el carrusel de Descubrir (URL). Vacía: se dibuja con el maniquí. */
+  val imagen: String = "",
 )
 
 data class CatalogoTendencias(

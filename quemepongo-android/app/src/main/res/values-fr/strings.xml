@@ -374,6 +374,16 @@
     <string name="paleta_oceano">Océan</string>
     <string name="paleta_terracota">Terre cuite</string>
     <string name="paleta_monocromo">Noir et blanc</string>
+    <string name="msg_ubicacion_apagada">La localisation du téléphone est désactivée. Active-la ou écris ta ville.</string>
+    <string name="ciudad_elige">Laquelle est la tienne ?</string>
+    <string name="descubrir_buscar">Chercher des vêtements en boutique</string>
+    <string name="etiqueta_tendencia">Tendance</string>
+    <string name="etiqueta_te_falta">Il te manque</string>
+    <string name="etiqueta_para_ti">Pour toi</string>
+    <string name="ver_tienda">Voir en boutique</string>
+    <string name="ver_look">Voir le look</string>
+    <string name="descubrir_categorias">Acheter par catégorie</string>
+    <string name="descubrir_sin_ideas">Rien pour l\'instant : ton dressing est déjà bien fourni.</string>
     <plurals name="armario_prendas">
         <item quantity="one">%d pièce</item>
         <item quantity="other">%d pièces</item>

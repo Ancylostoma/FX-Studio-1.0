@@ -65,6 +65,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -406,7 +407,7 @@ fun PantallaAjustes(e: Estado, vm: AppViewModel, alCerrar: () -> Unit, abrirPrem
     }
   }
 
-  if (pidiendoCiudad) DialogoCiudad(alCerrar = { pidiendoCiudad = false }) { vm.buscarCiudad(it) }
+  if (pidiendoCiudad) HojaCiudad(e, vm) { pidiendoCiudad = false }
   if (confirmarReinicio) {
     AlertDialog(
       onDismissRequest = { confirmarReinicio = false },
@@ -425,20 +426,24 @@ fun PantallaAjustes(e: Estado, vm: AppViewModel, alCerrar: () -> Unit, abrirPrem
 
 internal fun alternar(s: Set<String>, c: String) = if (c in s) s - c else s + c
 
+/** Cambiar la ciudad desde Ajustes. Se cierra sola al elegir una. */
 @Composable
-fun DialogoCiudad(alCerrar: () -> Unit, alBuscar: (String) -> Unit) {
-  var texto by remember { mutableStateOf("") }
-  AlertDialog(
-    onDismissRequest = alCerrar,
-    title = { Text(t(R.string.ciudad_titulo)) },
-    text = {
-      androidx.compose.material3.OutlinedTextField(value = texto, onValueChange = { texto = it }, singleLine = true, label = { Text(t(R.string.ciudad_campo)) })
-    },
-    confirmButton = {
-      TextButton(onClick = { alBuscar(texto); alCerrar() }, enabled = texto.isNotBlank()) { Text(t(R.string.buscar)) }
-    },
-    dismissButton = { TextButton(onClick = alCerrar) { Text(t(R.string.cancelar)) } },
-  )
+private fun HojaCiudad(e: Estado, vm: AppViewModel, alCerrar: () -> Unit) {
+  val perfil = e.datos.perfil
+  val inicial = remember { Triple(perfil.ciudad, perfil.latitud, perfil.longitud) }
+  LaunchedEffect(perfil.ciudad, perfil.latitud, perfil.longitud) {
+    if (perfil.latitud != null && Triple(perfil.ciudad, perfil.latitud, perfil.longitud) != inicial) alCerrar()
+  }
+  ModalBottomSheet(onDismissRequest = alCerrar) {
+    Column(
+      Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).navigationBarsPadding(),
+      verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+      Text(t(R.string.ciudad_titulo), style = MaterialTheme.typography.titleLarge)
+      BuscadorCiudad(e, vm)
+      Spacer(Modifier.height(16.dp))
+    }
+  }
 }
 
 @StringRes

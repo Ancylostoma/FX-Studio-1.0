@@ -183,6 +183,7 @@ object Json {
             sub?.let { IdeaPrenda(it, p.optString("color", "negro"), local(p, "nombre", idioma)) }
           },
           peso = t.optDouble("peso", 1.0),
+          imagen = t.optString("imagen"),
         )
       },
     )

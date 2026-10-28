@@ -376,6 +376,16 @@
     <string name="paleta_oceano">Ocean</string>
     <string name="paleta_terracota">Terracotta</string>
     <string name="paleta_monocromo">Black &amp; white</string>
+    <string name="msg_ubicacion_apagada">Your phone\'s location is off. Turn it on or type your city.</string>
+    <string name="ciudad_elige">Which one is yours?</string>
+    <string name="descubrir_buscar">Search clothes in stores</string>
+    <string name="etiqueta_tendencia">Trending</string>
+    <string name="etiqueta_te_falta">Missing</string>
+    <string name="etiqueta_para_ti">For you</string>
+    <string name="ver_tienda">See in store</string>
+    <string name="ver_look">See the look</string>
+    <string name="descubrir_categorias">Shop by category</string>
+    <string name="descubrir_sin_ideas">Nothing here for now: your closet already has this covered.</string>
     <plurals name="armario_prendas">
         <item quantity="one">%d item</item>
         <item quantity="other">%d items</item>
