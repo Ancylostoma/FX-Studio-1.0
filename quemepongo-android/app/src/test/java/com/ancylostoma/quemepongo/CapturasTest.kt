@@ -121,7 +121,8 @@ class CapturasTest {
       app.waitForIdle()
     }
     tocar("Listo")
-    runCatching { app.waitUntil(20_000) { !hay("Consultando", sub = true) } }
+    // El tiempo de la ciudad elegida aparece con su temperatura ("°").
+    runCatching { app.waitUntil(20_000) { hay("°", sub = true) } }
     foto("08-ciudad-$sufijoActual")
   }.onFailure { System.err.println("Búsqueda de ciudades: la prueba no pudo seguir ($it)") }
 

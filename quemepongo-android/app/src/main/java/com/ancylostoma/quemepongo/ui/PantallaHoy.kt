@@ -213,7 +213,8 @@ private fun BarraContexto(e: Estado, alTocar: () -> Unit) {
     Spacer(Modifier.width(10.dp))
     Text(
       listOfNotNull(
-        if (c == null && !e.climaCargando) t(R.string.hoy_elige_ciudad) else e.clima?.lugar?.takeIf { it.isNotBlank() },
+        // Mientras carga el tiempo de una ciudad nueva, ya se ve su nombre.
+        (e.clima?.lugar ?: e.datos.perfil.ciudad)?.takeIf { it.isNotBlank() } ?: t(R.string.hoy_elige_ciudad).takeIf { c == null && !e.climaCargando },
         t(e.ocasion.res()),
         t(e.momento.res()),
       ).joinToString(" · "),
