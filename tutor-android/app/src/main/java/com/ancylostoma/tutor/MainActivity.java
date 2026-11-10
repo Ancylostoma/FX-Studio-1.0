@@ -3,8 +3,10 @@ package com.ancylostoma.tutor;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Base64;
 import android.webkit.JavascriptInterface;
@@ -18,6 +20,7 @@ import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 
+import androidx.core.app.NotificationManagerCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
@@ -38,6 +41,7 @@ public class MainActivity extends Activity {
   private static final int THEME_COLOR = Color.parseColor("#1F3A5F");
   private static final int REQ_PICK_FILE = 1;
   private static final int REQ_SAVE_FILE = 2;
+  private static final int REQ_NOTIFICACIONES = 3;
 
   private WebView webView;
   private ValueCallback<Uri[]> pendingFileCallback;
@@ -135,6 +139,26 @@ public class MainActivity extends Activity {
   }
 
   private class Bridge {
+    /** Datos para el aviso diario (ver Recordatorio). */
+    @JavascriptInterface
+    public void setRecordatorio(String json) {
+      Recordatorio.guardar(getApplicationContext(), json);
+    }
+
+    /** Android 13+ exige pedir permiso para mostrar notificaciones. */
+    @JavascriptInterface
+    public void pedirPermisoNotificaciones() {
+      runOnUiThread(() -> {
+        if (Build.VERSION.SDK_INT >= 33
+            && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
+          requestPermissions(new String[] {"android.permission.POST_NOTIFICATIONS"}, REQ_NOTIFICACIONES);
+        } else if (!NotificationManagerCompat.from(MainActivity.this).areNotificationsEnabled()) {
+          Toast.makeText(MainActivity.this,
+              "Las notificaciones de Mis Alumnos están apagadas en los ajustes del teléfono", Toast.LENGTH_LONG).show();
+        }
+      });
+    }
+
     @JavascriptInterface
     public void saveFile(String name, String mime, String base64) {
       byte[] bytes = Base64.decode(base64, Base64.DEFAULT);

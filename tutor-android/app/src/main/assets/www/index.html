@@ -43,7 +43,7 @@ main{padding:0 14px 110px;max-width:720px;margin:0 auto}
 
 /* Pestañas */
 .pestanas{display:flex;background:#DDE5EF;border-radius:14px;padding:4px;margin:16px 0 12px}
-.pestanas button{flex:1;padding:9px 6px;border-radius:11px;font-weight:600;font-size:14.5px;color:var(--suave);display:flex;gap:7px;align-items:center;justify-content:center;transition:all .15s}
+.pestanas button{flex:1;padding:9px 4px;border-radius:11px;font-weight:600;font-size:14.5px;color:var(--suave);display:flex;gap:7px;align-items:center;justify-content:center;transition:all .15s}
 .pestanas button.on{background:#fff;color:var(--azul);box-shadow:0 1px 3px rgba(15,27,45,.12)}
 .globo{background:var(--azul2);color:#fff;border-radius:99px;font-size:11.5px;padding:1px 7px;min-width:20px}
 .pestanas button:not(.on) .globo{background:var(--tenue)}
@@ -109,6 +109,26 @@ h3.seccion .globo{background:#D5DEEA;color:var(--suave)}
 .nota{font-size:13px;color:var(--suave);margin-top:2px;overflow-wrap:anywhere;white-space:pre-wrap}
 .pildora{margin-top:7px;font-size:13px;font-weight:600;padding:6px 10px 6px 10px;border-radius:99px;display:inline-flex;align-items:center;gap:6px;max-width:100%;text-align:left}
 .pildora:active{filter:brightness(.95)}
+.fila-p{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:7px}
+.fila-p .pildora{margin-top:0}
+.fecha{font-size:12px;font-weight:600;padding:4px 9px;border-radius:99px;background:var(--gris-f);color:var(--gris);display:inline-flex;gap:5px;align-items:center;white-space:nowrap;flex:none}
+.fecha.pronto{background:var(--ambar-f);color:var(--ambar)}
+.fecha.vencida{background:var(--rojo-f);color:var(--rojo)}
+.punto{width:8px;height:8px;border-radius:50%;background:var(--ambar-p)}
+.punto.p-atrasado{background:#EF4444}
+.veredicto{border-radius:18px;padding:16px;color:#fff;box-shadow:var(--sombra);margin-bottom:4px}
+.v-bien{background:linear-gradient(135deg,#15803D,#22A35A)}
+.v-riesgo{background:linear-gradient(135deg,#B45309,#DD8A0E)}
+.v-atrasado{background:linear-gradient(135deg,#B91C1C,#DC4444)}
+.veredicto .vt{display:flex;gap:9px;align-items:center;font-size:19px;font-weight:700}
+.veredicto p{margin:6px 0 14px;font-size:14.5px;opacity:.95}
+.vn{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.vn div{background:rgba(255,255,255,.17);border-radius:12px;padding:9px 4px;text-align:center}
+.vn b{display:block;font-size:20px}
+.vn span{font-size:11px;opacity:.9;display:block;line-height:1.2}
+.pend.ritmo{width:100%;text-align:left;align-items:center}
+.pend.ritmo b{display:block;font-weight:600;overflow-wrap:anywhere}
+.pend.ritmo small{color:var(--suave);font-size:13px}
 .nueva{display:flex;gap:8px;margin-top:4px;padding-top:12px;border-top:1px solid var(--linea)}
 .nueva input{flex:1;min-width:0;padding:11px 13px;border:1px solid var(--linea);border-radius:12px;background:var(--gris-f);outline:0}
 .nueva input:focus{background:#fff;border-color:var(--acento)}
@@ -192,17 +212,21 @@ function normalizar(d) {
   d.ajustes = d.ajustes || {};
   if (!(d.ajustes.umbral > 0)) d.ajustes.umbral = 10;
   if (d.ajustes.contar !== "hechas") d.ajustes.contar = "completadas";
+  if (!(d.ajustes.capacidad > 0)) d.ajustes.capacidad = 2;
+  d.ajustes.recordar = !!d.ajustes.recordar;
+  if (!/^\d\d:\d\d$/.test(d.ajustes.hora || "")) d.ajustes.hora = "08:00";
   d.alumnos.forEach(function (a) {
     a.id = a.id || uid(); a.nombre = String(a.nombre || "Sin nombre"); a.avisado = a.avisado || 0;
     a.cursos = Array.isArray(a.cursos) ? a.cursos : [];
     a.cursos.forEach(function (c) {
       c.id = c.id || uid(); c.nombre = String(c.nombre || "Curso");
       if (!TIPO_TITULO[c.tipo]) c.tipo = "abierto";
+      c.fin = fechaValida(c.fin);
       c.actividades = Array.isArray(c.actividades) ? c.actividades : [];
       c.actividades.forEach(function (t) {
         t.id = t.id || uid(); t.nombre = String(t.nombre || "Actividad");
         if (!ESTADO_NOMBRE[t.estado]) t.estado = "pendiente";
-        t.nota = String(t.nota || "");
+        t.nota = String(t.nota || ""); t.fecha = fechaValida(t.fecha);
       });
     });
   });
@@ -211,6 +235,7 @@ function normalizar(d) {
 function guardar() {
   try { localStorage.setItem(CLAVE, JSON.stringify(datos)); }
   catch (e) { toast("No se pudo guardar: " + e.message); }
+  syncNativo();
 }
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
 function alumno(id) { return datos.alumnos.filter(function (a) { return a.id === id; })[0]; }
@@ -255,6 +280,7 @@ var ICONOS = {
   abajo: '<path d="M6 9l6 6 6-6"/>',
   lupa: '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
   doc: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h6"/>',
+  reloj: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   campana: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/>',
   check: '<path d="M20 6L9 17l-5-5"/>',
   gente: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/>',
@@ -315,19 +341,20 @@ function pintar() {
   document.getElementById("app").innerHTML = a ? vistaAlumno(a) : vistaInicio();
 }
 function vistaInicio() {
-  var tot = { ab: 0, comp: 0, act: 0 }, pen = pendientes();
+  var tot = { ab: 0, comp: 0, act: 0 }, pen = pendientes(), plan = planificar();
   datos.alumnos.forEach(function (a) {
     var c = cuenta(a); tot.ab += c.abierto; tot.comp += c.completado; tot.act += c.estados.completada;
   });
   var s = '<div class="heroe"><div class="barra-sup"><span class="hueco"></span><button class="ico" data-a="ajustes" aria-label="Ajustes">' + ic("ajustes") + "</button></div>" +
-    "<h1>Mis Alumnos</h1><div class=\"sub\">" + (pen.length ? plural(pen.length, "actividad pendiente", "actividades pendientes") : "Todo al día") + "</div></div><main>";
+    "<h1>Mis Alumnos</h1><div class=\"sub\">" + (plan.vencidas ? plural(plan.vencidas, "actividad vencida", "actividades vencidas") + " · " : "") + (pen.length ? plural(pen.length, "pendiente", "pendientes") + (plan.hoy ? " · " + plan.hoy + " para hoy" : "") : "Todo al día") + "</div></div><main>";
   s += '<div class="cifras">' + cifra(datos.alumnos.length, "Alumnos") + cifra(tot.ab, "Cursos abiertos") +
     cifra(tot.comp, "Cursos completados") + cifra(tot.act, "Actividades completadas") + "</div>";
   s += avisoRespaldo();
   s += '<div class="pestanas"><button data-a="pestana" data-p="alumnos" class="' + (pestana === "alumnos" ? "on" : "") + '">Alumnos</button>' +
     '<button data-a="pestana" data-p="pendientes" class="' + (pestana === "pendientes" ? "on" : "") + '">Pendientes' +
-    (pen.length ? ' <span class="globo num">' + pen.length + "</span>" : "") + "</button></div>";
-  s += pestana === "pendientes" ? listaPendientes(pen) : listaAlumnos();
+    (pen.length ? ' <span class="globo num">' + pen.length + "</span>" : "") + "</button>" +
+    '<button data-a="pestana" data-p="plan" class="' + (pestana === "plan" ? "on" : "") + '">Plan' + (plan.estado !== "bien" ? ' <span class="punto p-' + plan.estado + '"></span>' : "") + "</button></div>";
+  s += pestana === "pendientes" ? listaPendientes(pen) : pestana === "plan" ? vistaPlan() : listaAlumnos();
   return s + "</main>" + (pestana === "alumnos" ? '<button class="fab" data-a="nuevo-alumno">' + ic("mas", 20) + "Alumno</button>" : "");
 }
 function avisoRespaldo() {
@@ -372,7 +399,7 @@ function listaPendientes(pen) {
     g.forEach(function (p) {
       var ids = ' data-al="' + p.a.id + '" data-cu="' + p.c.id + '" data-ac="' + p.t.id + '"';
       s += '<div class="pend">' + avatar(p.a.nombre, "p") + '<div class="medio"><button class="ir" data-a="ir"' + ids + "><b>" + h(p.t.nombre) + "</b><small>" +
-        h(p.a.nombre) + " · " + h(p.c.nombre) + "</small></button>" + (p.t.nota ? '<div class="nota">' + h(p.t.nota) + "</div>" : "") + pildora(p.t, ids) + "</div></div>";
+        h(p.a.nombre) + " · " + h(p.c.nombre) + "</small></button>" + (p.t.nota ? '<div class="nota">' + h(p.t.nota) + "</div>" : "") + '<div class="fila-p">' + pildora(p.t, ids) + chipFecha(p.t.fecha, true) + "</div></div></div>";
     });
     s += "</div>";
   });
@@ -405,7 +432,7 @@ function vistaAlumno(a) {
 function tarjetaCurso(a, cu) {
   var k = cuentaCurso(cu), ids = ' data-al="' + a.id + '" data-cu="' + cu.id + '"', ab = !!desplegados[cu.id];
   var s = '<div class="tarjeta' + (ab ? " abierto" : "") + '" id="c-' + cu.id + '"><button class="curso-cab" data-a="desplegar"' + ids + ' aria-expanded="' + ab + '">' + anillo(k.ok, k.total, 42) +
-    '<span class="titulo"><b>' + h(cu.nombre) + "</b><small>" + (k.total ? k.ok + " de " + plural(k.total, "actividad completada", "actividades completadas") : "Sin actividades") +
+    '<span class="titulo"><b>' + h(cu.nombre) + "</b><small>" + (k.total ? k.ok + " de " + plural(k.total, "actividad completada", "actividades completadas") : "Sin actividades") + (cu.fin && cu.tipo !== "completado" ? " · cierra " + fechaCorta(cu.fin) : "") +
     '</small></span><span class="flecha">' + ic("abajo", 20) + "</span></button>";
   if (!ab) return s + "</div>";
   s += '<div class="cuerpo' + (recienAbierto === cu.id ? " recien" : "") + '"><div class="segmento"><div class="tipos">' + TIPOS_CURSO.map(function (tp) {
@@ -416,7 +443,7 @@ function tarjetaCurso(a, cu) {
   cu.actividades.forEach(function (t, i) {
     var it = ids + ' data-ac="' + t.id + '"';
     s += '<div class="act' + (t.estado === "completada" ? " ok" : "") + '" id="a-' + t.id + '"><span class="n num">' + (t.estado === "completada" ? ic("check", 13) : i + 1) + '</span><div class="medio">' +
-      '<button class="nombre" data-a="editar-act"' + it + ">" + h(t.nombre) + "</button>" + (t.nota ? '<div class="nota">' + h(t.nota) + "</div>" : "") + pildora(t, it) + "</div>" +
+      '<button class="nombre" data-a="editar-act"' + it + ">" + h(t.nombre) + "</button>" + (t.nota ? '<div class="nota">' + h(t.nota) + "</div>" : "") + '<div class="fila-p">' + pildora(t, it) + (t.estado === "completada" ? "" : chipFecha(t.fecha, true)) + "</div></div>" +
       '<button class="cuadro" style="background:none" data-a="editar-act"' + it + ' aria-label="Editar actividad">' + ic("lapiz", 16) + "</button></div>";
   });
   s += '<form class="nueva" data-f="nueva-act"' + ids + '><input name="nombre" placeholder="Nueva actividad…" autocomplete="off" enterkeyhint="done">' +
@@ -427,6 +454,135 @@ function opciones(lista, actual) {
   return lista.map(function (o) {
     return '<option value="' + o[0] + '"' + (o[0] === actual ? " selected" : "") + ">" + o[1] + "</option>";
   }).join("");
+}
+
+/* ============ Fechas y plan de trabajo (todo sin conexión) ============ */
+function iso(d) { return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); }
+function hoyISO() { return iso(new Date()); }
+function aFecha(s) { var p = s.split("-"); return new Date(+p[0], p[1] - 1, +p[2], 12); }
+function sumarDias(s, n) { var d = aFecha(s); d.setDate(d.getDate() + n); return iso(d); }
+function diasEntre(a, b) { return Math.round((aFecha(b) - aFecha(a)) / 864e5); }
+function fechaCorta(s) { return aFecha(s).toLocaleDateString("es", { day: "numeric", month: "short" }).replace(".", ""); }
+function fechaValida(s) { return /^\d{4}-\d{2}-\d{2}$/.test(s || "") ? s : ""; }
+function diaTitulo(s) {
+  var d = diasEntre(hoyISO(), s);
+  var nombre = d === 0 ? "Hoy" : d === 1 ? "Mañana" : aFecha(s).toLocaleDateString("es", { weekday: "long" });
+  return nombre.charAt(0).toUpperCase() + nombre.slice(1) + " · " + fechaCorta(s);
+}
+/* Etiqueta de vencimiento. real = fecha puesta por ti; si no, es la meta que calcula el plan. */
+function chipFecha(lim, real) {
+  if (!lim) return "";
+  var d = diasEntre(hoyISO(), lim), cl = d < 0 ? "vencida" : d <= 1 ? "pronto" : "";
+  var t = d < 0 ? (real ? "Venció hace " : "Meta pasada hace ") + plural(-d, "día", "días")
+    : (real ? "Vence " : "Meta ") + (d === 0 ? "hoy" : d === 1 ? "mañana" : fechaCorta(lim));
+  return '<span class="fecha ' + cl + '">' + ic("reloj", 12) + t + "</span>";
+}
+/*
+ * Reparte lo que falta en días, empezando por lo que vence antes y sin pasar de tu
+ * capacidad diaria. Una actividad por hacer pesa 1; una ya hecha a la que solo le
+ * falta revisar, humanizar o entregar pesa 0.5.
+ * Las actividades sin fecha de un curso con fecha límite reciben metas repartidas
+ * de forma pareja hasta esa fecha, para llegar sin apuros al final.
+ */
+function planificar() {
+  var hoy = hoyISO(), cap = datos.ajustes.capacidad, items = [], orden = 0;
+  datos.alumnos.forEach(function (a) {
+    a.cursos.forEach(function (c) {
+      var sinFecha = [];
+      c.actividades.forEach(function (t) {
+        if (t.estado === "completada") return;
+        if (c.tipo !== "abierto" && t.estado === "pendiente" && !t.fecha) return;
+        var it = { a: a, c: c, t: t, lim: t.fecha, real: !!t.fecha, peso: t.estado === "pendiente" ? 1 : 0.5, orden: orden++ };
+        if (!t.fecha) sinFecha.push(it);
+        items.push(it);
+      });
+      if (c.fin) {
+        var resto = Math.max(diasEntre(hoy, c.fin), 0);
+        sinFecha.forEach(function (it, i) {
+          it.lim = diasEntre(hoy, c.fin) < 0 ? c.fin : sumarDias(hoy, Math.round(resto * (i + 1) / sinFecha.length));
+        });
+      }
+    });
+  });
+  items.sort(function (x, y) {
+    if (x.lim !== y.lim) return !x.lim ? 1 : !y.lim ? -1 : x.lim < y.lim ? -1 : 1;
+    return x.orden - y.orden;
+  });
+  var dia = 0, usado = 0, acum = 0, r = { items: items, vencidas: 0, tarde: 0, necesario: 0, peso: 0, cap: cap };
+  items.forEach(function (it) {
+    if (usado > 0 && usado + it.peso > cap + 1e-9) { dia++; usado = 0; }
+    it.plan = sumarDias(hoy, dia); usado += it.peso; r.peso += it.peso;
+    if (it.lim) {
+      acum += it.peso;
+      it.vencida = it.lim < hoy;
+      it.tarde = !it.vencida && it.plan > it.lim;
+      if (it.vencida) r.vencidas++;
+      if (it.tarde) r.tarde++;
+      r.necesario = Math.max(r.necesario, acum / (Math.max(diasEntre(hoy, it.lim), 0) + 1));
+    }
+  });
+  r.necesario = Math.ceil(r.necesario * 2 - 1e-9) / 2;
+  r.fin = items.length ? items[items.length - 1].plan : "";
+  r.hoy = items.filter(function (it) { return it.plan === hoy; }).length;
+  r.estado = r.vencidas ? "atrasado" : r.tarde ? "riesgo" : "bien";
+  return r;
+}
+function num(n) { return String(n).replace(".", ","); }
+function vistaPlan() {
+  var p = planificar(), hoy = hoyISO(), s = "";
+  if (!p.items.length) return '<div class="vacio"><div class="dib">' + ic("check", 36) + "</div><b>Nada que planificar</b>No hay actividades pendientes en los cursos abiertos.</div>";
+  var conFecha = p.items.filter(function (it) { return it.lim; }).length;
+  var titulo = { atrasado: "Vas atrasado", riesgo: "Vas justo de tiempo", bien: "Vas a buen ritmo" }[p.estado], texto;
+  if (p.estado === "atrasado") texto = "Hay " + plural(p.vencidas, "actividad vencida", "actividades vencidas") + ". Empieza hoy por " + (p.vencidas === 1 ? "ella" : "ellas") +
+    (p.tarde ? "; además, con tu ritmo actual otras " + p.tarde + " llegarían tarde." : ".");
+  else if (p.estado === "riesgo") texto = "Con " + num(p.cap) + " por día, " + plural(p.tarde, "actividad llegaría tarde", "actividades llegarían tarde") + ". Para cumplir todo necesitas hacer " + num(p.necesario) + " por día.";
+  else texto = conFecha ? "Con " + num(p.cap) + " por día cumples todas las fechas. Si sigues el plan, terminas el " + fechaCorta(p.fin) + "."
+    : "Ninguna actividad tiene fecha todavía. Ponles fecha (o fecha límite al curso) y aquí verás si vas a tiempo.";
+  s += '<div class="veredicto v-' + p.estado + '"><div class="vt">' + ic(p.estado === "bien" ? "check" : "reloj", 22) + titulo + "</div><p>" + texto + "</p>" +
+    '<div class="vn"><div><b class="num">' + p.hoy + "</b><span>para hoy</span></div><div><b class=\"num\">" + num(p.necesario || 0) + "</b><span>por día necesitas</span></div>" +
+    '<div><b class="num">' + num(p.cap) + '</b><span>por día haces</span></div></div></div>';
+
+  var ritmos = "";
+  datos.alumnos.forEach(function (a) {
+    a.cursos.forEach(function (c) {
+      var faltan = c.actividades.filter(function (t) { return t.estado !== "completada"; }).length;
+      if (!c.fin || !faltan || c.tipo === "completado") return;
+      var d = diasEntre(hoy, c.fin);
+      ritmos += '<button class="pend ritmo" data-a="ir" data-al="' + a.id + '" data-cu="' + c.id + '">' + avatar(a.nombre, "p") + '<span class="medio"><b>' + h(c.nombre) + "</b><small>" + h(a.nombre) +
+        " · faltan " + faltan + "</small></span>" + '<span class="fecha ' + (d < 0 ? "vencida" : d < faltan ? "pronto" : "") + '">' +
+        (d < 0 ? "Cerró hace " + plural(-d, "día", "días") : d === 0 ? "Cierra hoy" : d >= faltan ? "1 cada " + plural(Math.floor(d / faltan), "día", "días") : num(Math.ceil(faltan / d * 2) / 2) + " por día") + "</span></button>";
+    });
+  });
+  if (ritmos) s += '<h3 class="seccion">Ritmo por curso</h3><div class="tarjeta">' + ritmos + "</div>";
+
+  var dias = [], porDia = {};
+  p.items.forEach(function (it) { if (!porDia[it.plan]) { porDia[it.plan] = []; dias.push(it.plan); } porDia[it.plan].push(it); });
+  dias.slice(0, 10).forEach(function (d) {
+    s += '<h3 class="seccion">' + diaTitulo(d) + ' <span class="globo num">' + porDia[d].length + '</span></h3><div class="tarjeta">';
+    porDia[d].forEach(function (it) {
+      var ids = ' data-al="' + it.a.id + '" data-cu="' + it.c.id + '" data-ac="' + it.t.id + '"';
+      s += '<div class="pend">' + avatar(it.a.nombre, "p") + '<div class="medio"><button class="ir" data-a="ir"' + ids + "><b>" + h(it.t.nombre) + "</b><small>" +
+        h(it.a.nombre) + " · " + h(it.c.nombre) + "</small></button>" + (it.t.nota ? '<div class="nota">' + h(it.t.nota) + "</div>" : "") +
+        '<div class="fila-p">' + pildora(it.t, ids) + chipFecha(it.lim, it.real) + (it.tarde ? '<span class="fecha vencida">Llegaría tarde</span>' : "") + "</div></div></div>";
+    });
+    s += "</div>";
+  });
+  if (dias.length > 10) {
+    var resto = 0; dias.slice(10).forEach(function (d) { resto += porDia[d].length; });
+    s += '<div class="vacio" style="padding:18px">Y ' + plural(resto, "actividad más", "actividades más") + " después, hasta el " + fechaCorta(p.fin) + ".</div>";
+  }
+  return s;
+}
+/* Entrega a Android lo necesario para el aviso diario (funciona con la app cerrada). */
+function syncNativo() {
+  if (!window.AndroidBridge || !AndroidBridge.setRecordatorio) return;
+  try {
+    var hm = datos.ajustes.hora.split(":");
+    AndroidBridge.setRecordatorio(JSON.stringify({
+      activo: datos.ajustes.recordar, hora: +hm[0], minuto: +hm[1],
+      items: planificar().items.map(function (it) { return { t: it.t.nombre, a: it.a.nombre, f: it.t.fecha || "", p: it.plan }; })
+    }));
+  } catch (e) {}
 }
 
 /* ============ Ventanas ============ */
@@ -457,7 +613,7 @@ function formulario(titulo, campos, alGuardar, borrar, alBorrar, textoGuardar) {
     if (c.tipo === "marca") s += '<label class="marca"><input type="checkbox" name="' + c.n + '"' + (c.v ? " checked" : "") + "><span>" + h(c.t) + "</span></label>";
     else if (c.tipo === "lista") s += '<label class="campo"><span>' + h(c.t) + '</span><select name="' + c.n + '">' + opciones(c.ops, c.v) + "</select></label>";
     else if (c.tipo === "area") s += '<label class="campo"><span>' + h(c.t) + '</span><textarea name="' + c.n + '" rows="' + (c.filas || 4) + '" placeholder="' + h(c.p || "") + '">' + h(c.v || "") + "</textarea></label>";
-    else s += '<label class="campo"><span>' + h(c.t) + '</span><input type="' + (c.tipo || "text") + '" name="' + c.n + '" value="' + h(c.v == null ? "" : c.v) + '" placeholder="' + h(c.p || "") + '" autocomplete="off"' + (c.tipo === "number" ? ' min="1" inputmode="numeric"' : "") + "></label>";
+    else s += '<label class="campo"><span>' + h(c.t) + '</span><input type="' + (c.tipo || "text") + '" name="' + c.n + '" value="' + h(c.v == null ? "" : c.v) + '" placeholder="' + h(c.p || "") + '" autocomplete="off"' + (c.tipo === "number" ?  ' min="' + (c.paso || 1) + '" step="' + (c.paso || 1) + '" inputmode="decimal"' : "") + "></label>";
   });
   s += '<div class="pie">' + (borrar ? '<button type="button" class="btn rojo" data-a="borrar-modal" style="margin-right:auto">' + h(borrar) + "</button>" : "") +
     '<button type="button" class="btn sec" data-a="cerrar">Cancelar</button><button class="btn" type="submit">' + (textoGuardar || "Guardar") + "</button></div></form>";
@@ -480,7 +636,7 @@ var ACCION = {
   abrir: function (d) { location.hash = "#/alumno/" + d.al; },
   ir: function (d) {
     desplegados[d.cu] = true; location.hash = "#/alumno/" + d.al;
-    setTimeout(function () { var e = document.getElementById("a-" + d.ac); if (e) e.scrollIntoView({ block: "center" }); }, 60);
+    setTimeout(function () { var e = document.getElementById("a-" + d.ac) || document.getElementById("c-" + d.cu); if (e) e.scrollIntoView({ block: d.ac ? "center" : "start" }); }, 60);
   },
   pestana: function (d) { pestana = d.p; pintar(); },
   filtro: function (d) { filtroEstado = d.e; pintar(); },
@@ -526,13 +682,14 @@ var ACCION = {
     formulario("Nuevo curso", [
       { n: "nombre", t: "Nombre del curso", p: "Ej. NURS-FPX4010" },
       { n: "tipo", t: "Estado del curso", tipo: "lista", ops: TIPOS_CURSO, v: "abierto" },
+      { n: "fin", t: "Fecha límite del curso (opcional)", tipo: "date" },
       { n: "acts", t: "Actividades (opcional, una por línea)", tipo: "area", p: "Assessment 1\nAssessment 2\nAssessment 3" }
     ], function (v) {
       if (!v.nombre) return toast("Escribe el nombre del curso");
-      var c = { id: uid(), nombre: v.nombre, tipo: v.tipo, actividades: [] };
+      var c = { id: uid(), nombre: v.nombre, tipo: v.tipo, fin: fechaValida(v.fin), actividades: [] };
       v.acts.split("\n").forEach(function (l) {
         l = l.trim();
-        if (l) c.actividades.push({ id: uid(), nombre: l, nota: "", estado: v.tipo === "completado" ? "completada" : "pendiente" });
+        if (l) c.actividades.push({ id: uid(), nombre: l, nota: "", fecha: "", estado: v.tipo === "completado" ? "completada" : "pendiente" });
       });
       a.cursos.push(c); desplegados[c.id] = true; listo(); revisarAviso(a);
     });
@@ -541,10 +698,11 @@ var ACCION = {
     var a = alumno(d.al), c = curso(a, d.cu);
     formulario("Editar curso", [
       { n: "nombre", t: "Nombre del curso", v: c.nombre },
-      { n: "tipo", t: "Estado del curso", tipo: "lista", ops: TIPOS_CURSO, v: c.tipo }
+      { n: "tipo", t: "Estado del curso", tipo: "lista", ops: TIPOS_CURSO, v: c.tipo },
+      { n: "fin", t: "Fecha límite del curso (opcional)", tipo: "date", v: c.fin }
     ], function (v) {
       if (!v.nombre) return toast("Escribe el nombre del curso");
-      c.nombre = v.nombre; c.tipo = v.tipo; listo();
+      c.nombre = v.nombre; c.tipo = v.tipo; c.fin = fechaValida(v.fin); listo();
     }, "Borrar curso", function () {
       confirmar("Se borrará el curso " + c.nombre + " con sus " + plural(c.actividades.length, "actividad", "actividades") + ".", function () {
         a.cursos = a.cursos.filter(function (x) { return x !== c; });
@@ -557,11 +715,12 @@ var ACCION = {
     formulario("Editar actividad", [
       { n: "nombre", t: "Nombre de la actividad", v: t.nombre },
       { n: "estado", t: "Estado", tipo: "lista", ops: ESTADOS, v: t.estado },
-      { n: "nota", t: "Nota (opcional): qué falta, fecha de entrega…", tipo: "area", filas: 2, v: t.nota },
+      { n: "fecha", t: "Fecha de entrega (opcional)", tipo: "date", v: t.fecha },
+      { n: "nota", t: "Nota (opcional): qué falta", tipo: "area", filas: 2, v: t.nota },
       { n: "pos", t: "Posición en la lista (1 a " + c.actividades.length + ")", tipo: "number", v: c.actividades.indexOf(t) + 1 }
     ], function (v) {
       if (!v.nombre) return toast("Escribe el nombre");
-      t.nombre = v.nombre; t.estado = v.estado; t.nota = v.nota;
+      t.nombre = v.nombre; t.estado = v.estado; t.nota = v.nota; t.fecha = fechaValida(v.fecha);
       var p = Math.min(Math.max(parseInt(v.pos, 10) || 1, 1), c.actividades.length) - 1;
       c.actividades.splice(c.actividades.indexOf(t), 1); c.actividades.splice(p, 0, t);
       listo(); revisarAviso(a);
@@ -590,8 +749,18 @@ var ACCION = {
   ajustes: function () {
     formulario("Ajustes", [
       { n: "umbral", t: "Avisarme cada cuántas actividades por alumno", tipo: "number", v: datos.ajustes.umbral },
-      { n: "contar", t: "Qué actividades cuentan para el aviso", tipo: "lista", v: datos.ajustes.contar, ops: [["completadas", "Solo las completadas"], ["hechas", "Todas las hechas (aunque falte revisar o entregar)"]] }
+      { n: "contar", t: "Qué actividades cuentan para el aviso", tipo: "lista", v: datos.ajustes.contar, ops: [["completadas", "Solo las completadas"], ["hechas", "Todas las hechas (aunque falte revisar o entregar)"]] },
+      { n: "capacidad", t: "Cuántas actividades puedes hacer por día (para el plan)", tipo: "number", paso: 0.5, v: datos.ajustes.capacidad },
+      { n: "recordar", t: "Aviso diario con lo que toca y lo vencido", tipo: "marca", v: datos.ajustes.recordar },
+      { n: "hora", t: "Hora del aviso diario", tipo: "time", v: datos.ajustes.hora }
     ], function (v) {
+      datos.ajustes.capacidad = Math.max(0.5, parseFloat(v.capacidad.replace(",", ".")) || 2);
+      datos.ajustes.recordar = v.recordar;
+      if (/^\d\d:\d\d/.test(v.hora)) datos.ajustes.hora = v.hora.slice(0, 5);
+      if (v.recordar) {
+        if (window.AndroidBridge && AndroidBridge.pedirPermisoNotificaciones) AndroidBridge.pedirPermisoNotificaciones();
+        else toast("El aviso diario solo funciona en la app instalada");
+      }
       datos.ajustes.umbral = Math.max(1, parseInt(v.umbral, 10) || 10);
       datos.ajustes.contar = v.contar;
       datos.alumnos.forEach(function (a) { a.avisado = Math.floor(cuenta(a).paraAviso / datos.ajustes.umbral); });
@@ -638,7 +807,7 @@ document.addEventListener("submit", function (ev) {
   else if (f.dataset.f === "nueva-act") {
     if (!v.nombre) return;
     var a = alumno(f.dataset.al), cid = f.dataset.cu;
-    curso(a, cid).actividades.push({ id: uid(), nombre: v.nombre, nota: "", estado: "pendiente" });
+    curso(a, cid).actividades.push({ id: uid(), nombre: v.nombre, nota: "", fecha: "", estado: "pendiente" });
     guardar(); pintar();
     var nuevo = document.querySelector('form[data-cu="' + cid + '"] input');
     if (nuevo) nuevo.focus();
@@ -750,6 +919,7 @@ function zip(archivos) {
   return out;
 }
 
+syncNativo();
 pintar();
 </script>
 </body>
