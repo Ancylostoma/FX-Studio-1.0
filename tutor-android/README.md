@@ -1,4 +1,4 @@
-# Mis Alumnos
+# Mis Tutorías
 
 App Android (WebView, sin internet) para llevar el control de alumnos, sus cursos y las actividades de cada curso.
 
@@ -14,5 +14,5 @@ App Android (WebView, sin internet) para llevar el control de alumnos, sus curso
 
 ## Compilar
 
-GitHub → Actions → **Build Mis Alumnos APK** → descargar el artefacto `mis-alumnos-apk`.
+GitHub → Actions → **Build Mis Tutorías APK** → descargar el artefacto `mis-tutorias-apk`.
 Toda la pantalla está en `app/src/main/assets/www/index.html`.

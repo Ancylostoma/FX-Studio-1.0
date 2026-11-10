@@ -31,7 +31,7 @@ import androidx.webkit.WebViewAssetLoader;
 import java.io.OutputStream;
 
 /**
- * Contenedor nativo de Mis Alumnos: la app corre en su propio WebView
+ * Contenedor nativo de Mis Tutorías: la app corre en su propio WebView
  * con los archivos dentro de la APK (sin Chrome y sin internet).
  */
 public class MainActivity extends Activity {
@@ -154,7 +154,7 @@ public class MainActivity extends Activity {
           requestPermissions(new String[] {"android.permission.POST_NOTIFICATIONS"}, REQ_NOTIFICACIONES);
         } else if (!NotificationManagerCompat.from(MainActivity.this).areNotificationsEnabled()) {
           Toast.makeText(MainActivity.this,
-              "Las notificaciones de Mis Alumnos están apagadas en los ajustes del teléfono", Toast.LENGTH_LONG).show();
+              "Las notificaciones de Mis Tutorías están apagadas en los ajustes del teléfono", Toast.LENGTH_LONG).show();
         }
       });
     }

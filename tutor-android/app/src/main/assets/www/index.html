@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Mis Alumnos</title>
+<title>Mis Tutorías</title>
 <style>
 :root{
   --azul:#1F3A5F; --azul2:#2F5D9B; --acento:#3B82F6; --fondo:#EEF2F7; --tarjeta:#fff; --linea:#E2E8F0;
@@ -346,7 +346,7 @@ function vistaInicio() {
     var c = cuenta(a); tot.ab += c.abierto; tot.comp += c.completado; tot.act += c.estados.completada;
   });
   var s = '<div class="heroe"><div class="barra-sup"><span class="hueco"></span><button class="ico" data-a="ajustes" aria-label="Ajustes">' + ic("ajustes") + "</button></div>" +
-    "<h1>Mis Alumnos</h1><div class=\"sub\">" + (plan.vencidas ? plural(plan.vencidas, "actividad vencida", "actividades vencidas") + " · " : "") + (pen.length ? plural(pen.length, "pendiente", "pendientes") + (plan.hoy ? " · " + plan.hoy + " para hoy" : "") : "Todo al día") + "</div></div><main>";
+    "<h1>Mis Tutorías</h1><div class=\"sub\">" + (plan.vencidas ? plural(plan.vencidas, "actividad vencida", "actividades vencidas") + " · " : "") + (pen.length ? plural(pen.length, "pendiente", "pendientes") + (plan.hoy ? " · " + plan.hoy + " para hoy" : "") : "Todo al día") + "</div></div><main>";
   s += '<div class="cifras">' + cifra(datos.alumnos.length, "Alumnos") + cifra(tot.ab, "Cursos abiertos") +
     cifra(tot.comp, "Cursos completados") + cifra(tot.act, "Actividades completadas") + "</div>";
   s += avisoRespaldo();
@@ -774,7 +774,7 @@ var ACCION = {
   exportar: function () {
     var hoy = new Date().toISOString().slice(0, 10);
     datos.ajustes.respaldo = Date.now(); guardar();
-    entregar("mis-alumnos-" + hoy + ".json", "application/json", new TextEncoder().encode(JSON.stringify(datos, null, 1)));
+    entregar("mis-tutorias-" + hoy + ".json", "application/json", new TextEncoder().encode(JSON.stringify(datos, null, 1)));
     window.cerrarModal(); pintar();
   },
   importar: function () { document.getElementById("archivo").click(); }
