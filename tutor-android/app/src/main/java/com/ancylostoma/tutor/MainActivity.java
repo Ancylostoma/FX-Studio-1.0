@@ -55,7 +55,7 @@ public class MainActivity extends Activity {
     FrameLayout root = new FrameLayout(this);
     root.setBackgroundColor(THEME_COLOR);
     webView = new WebView(this);
-    webView.setBackgroundColor(Color.parseColor("#F4F6FA"));
+    webView.setBackgroundColor(Color.parseColor("#EEF2F7"));
     root.addView(webView, new FrameLayout.LayoutParams(
         FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
     setContentView(root);
