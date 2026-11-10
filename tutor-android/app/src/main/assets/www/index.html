@@ -1,0 +1,569 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mis Alumnos</title>
+<style>
+:root{
+  --azul:#1F3A5F; --azul2:#2C5282; --fondo:#F4F6FA; --tarjeta:#fff; --linea:#DDE3EC;
+  --texto:#1B2533; --suave:#64748B;
+  --verde:#1E8E5A; --verde-f:#E3F5EC;
+  --ambar:#B7791F; --ambar-f:#FCF3DC;
+  --morado:#6B46C1; --morado-f:#EEE8FB;
+  --celeste:#2B6CB0; --celeste-f:#E1EEFB;
+  --gris:#5A6678; --gris-f:#E9EDF2;
+  --rojo:#C53030;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--fondo);color:var(--texto);font-size:16px;line-height:1.35}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+header{position:sticky;top:0;z-index:5;background:var(--azul);color:#fff;display:flex;align-items:center;gap:8px;padding:12px 14px;min-height:56px}
+header h1{font-size:19px;margin:0;flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ico{background:transparent;border:0;color:inherit;width:40px;height:40px;border-radius:50%;font-size:20px;display:grid;place-items:center;flex:none}
+.ico:active{background:rgba(127,127,127,.25)}
+main{padding:14px 14px 96px;max-width:760px;margin:0 auto}
+.resumen{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.dato{background:var(--tarjeta);border:1px solid var(--linea);border-radius:12px;padding:10px 6px;text-align:center}
+.dato b{display:block;font-size:22px;color:var(--azul);font-variant-numeric:tabular-nums}
+.dato span{font-size:11.5px;color:var(--suave);display:block;line-height:1.2}
+.buscar{width:100%;padding:11px 14px;border:1px solid var(--linea);border-radius:12px;background:#fff;margin-bottom:12px}
+.tarjeta{background:var(--tarjeta);border:1px solid var(--linea);border-radius:14px;margin-bottom:10px;overflow:hidden}
+.alumno{display:block;width:100%;text-align:left;border:1px solid var(--linea);padding:14px}
+.alumno h2{margin:0 0 6px;font-size:17px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.linea{font-size:13.5px;color:var(--suave)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{font-size:12.5px;padding:3px 9px;border-radius:99px;background:var(--gris-f);color:var(--gris);white-space:nowrap}
+.e-completada{background:var(--verde-f);color:var(--verde)}
+.e-pendiente{background:var(--gris-f);color:var(--gris)}
+.e-revisar{background:var(--ambar-f);color:var(--ambar)}
+.e-sin_humanizar{background:var(--morado-f);color:var(--morado)}
+.e-video_audio{background:var(--celeste-f);color:var(--celeste)}
+.aviso{background:#FDE8E8;color:var(--rojo);font-weight:600}
+.banner{background:#FDE8E8;color:var(--rojo);border:1px solid #F5B5B5;border-radius:12px;padding:10px 12px;margin-bottom:12px;font-size:14.5px;font-weight:600}
+h3.seccion{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--suave);margin:20px 4px 8px;display:flex;justify-content:space-between}
+.curso-cab{display:flex;align-items:center;gap:6px;padding:12px 8px 12px 14px}
+.curso-cab .titulo{flex:1;min-width:0;background:none;border:0;text-align:left;padding:0}
+.curso-cab .titulo b{display:block;font-size:16px;overflow-wrap:anywhere}
+.curso-cab .titulo small{color:var(--suave);font-size:13px}
+.barra{height:5px;background:var(--gris-f)}
+.barra i{display:block;height:100%;background:var(--verde)}
+.cuerpo{padding:6px 12px 12px;border-top:1px solid var(--linea)}
+.fila-curso{display:flex;gap:8px;align-items:center;padding:8px 0;flex-wrap:wrap}
+.fila-curso label{font-size:13px;color:var(--suave)}
+.act{display:grid;grid-template-columns:26px 1fr auto;gap:6px;align-items:center;padding:8px 0;border-top:1px dashed var(--linea)}
+.act .n{color:var(--suave);font-variant-numeric:tabular-nums;font-size:14px}
+.act .nombre{background:none;border:0;text-align:left;padding:4px 0;overflow-wrap:anywhere;min-width:0}
+.act .estado{grid-column:2 / 4;display:flex;gap:6px;align-items:center}
+select{border:1px solid var(--linea);border-radius:10px;padding:8px 10px;background:#fff;max-width:100%}
+select.est{border-color:transparent;font-size:13.5px;font-weight:600;flex:1;min-width:0}
+.mini{background:none;border:0;color:var(--suave);width:34px;height:34px;border-radius:50%;font-size:16px;flex:none}
+.mini:active{background:var(--gris-f)}
+.nueva{display:flex;gap:8px;margin-top:10px}
+.nueva input{flex:1;min-width:0;padding:10px 12px;border:1px solid var(--linea);border-radius:10px;background:#fff}
+.btn{background:var(--azul);color:#fff;border:0;border-radius:10px;padding:10px 16px;font-weight:600}
+.btn.sec{background:#fff;color:var(--azul);border:1px solid var(--linea)}
+.btn.rojo{background:var(--rojo)}
+.btn.ancho{width:100%;margin-top:8px}
+.acciones{display:flex;gap:8px;margin-bottom:14px}
+.acciones .btn{flex:1}
+.fab{position:fixed;right:18px;bottom:22px;background:var(--azul);color:#fff;border:0;border-radius:99px;padding:14px 22px;font-weight:600;font-size:16px;box-shadow:0 6px 18px rgba(31,58,95,.35);z-index:6}
+.vacio{text-align:center;color:var(--suave);padding:36px 16px}
+.velo{position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.modal{background:#fff;width:100%;max-width:520px;border-radius:18px 18px 0 0;padding:18px 16px 20px;max-height:92vh;overflow:auto}
+.modal h2{margin:0 0 12px;font-size:18px}
+.modal p{margin:0 0 12px;color:var(--suave)}
+.campo{display:block;margin-bottom:12px}
+.campo span{display:block;font-size:13px;color:var(--suave);margin-bottom:4px}
+.campo input[type=text],.campo input[type=number],.campo select,.campo textarea{width:100%;padding:11px 12px;border:1px solid var(--linea);border-radius:10px;background:#fff}
+.marca{display:flex;gap:10px;align-items:center;margin-bottom:12px}
+.marca input{width:20px;height:20px}
+.pie{display:flex;gap:8px;justify-content:flex-end;margin-top:6px}
+.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#1B2533;color:#fff;padding:10px 16px;border-radius:10px;z-index:30;font-size:14.5px;max-width:90vw}
+@media(min-width:620px){.velo{align-items:center}.modal{border-radius:18px}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="capa"></div>
+<input type="file" id="archivo" accept=".json,application/json" hidden>
+<script>
+"use strict";
+/* ============ Datos ============ */
+var CLAVE = "mis-alumnos-v1";
+var ESTADOS = [
+  ["pendiente", "Falta por hacer"],
+  ["revisar", "Hecha, falta algo por revisar"],
+  ["sin_humanizar", "Completada, sin humanizar"],
+  ["video_audio", "Pendiente entrega de video/audios"],
+  ["completada", "Completada"]
+];
+var ESTADO_NOMBRE = {};
+ESTADOS.forEach(function (e) { ESTADO_NOMBRE[e[0]] = e[1]; });
+var TIPOS_CURSO = [["abierto", "Abierto"], ["por_hacer", "Por hacer"], ["completado", "Completado"]];
+var TIPO_TITULO = { abierto: "Cursos abiertos", por_hacer: "Cursos por hacer", completado: "Cursos completados" };
+
+var datos = cargar();
+var desplegados = {};   // cursos abiertos en pantalla
+var filtro = "";
+
+function cargar() {
+  try {
+    var d = JSON.parse(localStorage.getItem(CLAVE));
+    if (d && Array.isArray(d.alumnos)) return normalizar(d);
+  } catch (e) {}
+  return normalizar({ alumnos: [] });
+}
+function normalizar(d) {
+  d.ajustes = d.ajustes || {};
+  if (!(d.ajustes.umbral > 0)) d.ajustes.umbral = 10;
+  if (d.ajustes.contar !== "hechas") d.ajustes.contar = "completadas";
+  d.alumnos.forEach(function (a) {
+    a.id = a.id || uid(); a.nombre = String(a.nombre || "Sin nombre"); a.avisado = a.avisado || 0;
+    a.cursos = Array.isArray(a.cursos) ? a.cursos : [];
+    a.cursos.forEach(function (c) {
+      c.id = c.id || uid(); c.nombre = String(c.nombre || "Curso");
+      if (!TIPO_TITULO[c.tipo]) c.tipo = "abierto";
+      c.actividades = Array.isArray(c.actividades) ? c.actividades : [];
+      c.actividades.forEach(function (t) {
+        t.id = t.id || uid(); t.nombre = String(t.nombre || "Actividad");
+        if (!ESTADO_NOMBRE[t.estado]) t.estado = "pendiente";
+      });
+    });
+  });
+  return d;
+}
+function guardar() {
+  try { localStorage.setItem(CLAVE, JSON.stringify(datos)); }
+  catch (e) { toast("No se pudo guardar: " + e.message); }
+}
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+function alumno(id) { return datos.alumnos.filter(function (a) { return a.id === id; })[0]; }
+function curso(a, id) { return a.cursos.filter(function (c) { return c.id === id; })[0]; }
+
+/* ============ Sumatorias ============ */
+function cuenta(a) {
+  var r = { abierto: 0, por_hacer: 0, completado: 0, total: 0, estados: {} };
+  ESTADOS.forEach(function (e) { r.estados[e[0]] = 0; });
+  a.cursos.forEach(function (c) {
+    r[c.tipo]++;
+    c.actividades.forEach(function (t) { r.estados[t.estado]++; r.total++; });
+  });
+  r.hechas = r.total - r.estados.pendiente;
+  r.paraAviso = datos.ajustes.contar === "hechas" ? r.hechas : r.estados.completada;
+  return r;
+}
+function cuentaCurso(c) {
+  var ok = c.actividades.filter(function (t) { return t.estado === "completada"; }).length;
+  return { ok: ok, total: c.actividades.length };
+}
+function textoAviso(n) {
+  return n + " actividades " + (datos.ajustes.contar === "hechas" ? "hechas" : "completadas");
+}
+/* Avisa cada vez que un alumno alcanza un múltiplo del umbral (10, 20, 30...). */
+function revisarAviso(a) {
+  var n = cuenta(a).paraAviso, nivel = Math.floor(n / datos.ajustes.umbral);
+  if (nivel > a.avisado) {
+    a.avisado = nivel;
+    guardar();
+    aviso("🔔 " + a.nombre, "Ya llegaste a " + textoAviso(n) + " con este alumno.");
+  } else if (nivel < a.avisado) { a.avisado = nivel; guardar(); }
+}
+
+/* ============ Pantallas ============ */
+function h(s) {
+  return String(s).replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+  });
+}
+function pintar() {
+  var m = location.hash.match(/^#\/alumno\/(.+)$/), a = m && alumno(m[1]);
+  document.getElementById("app").innerHTML = a ? vistaAlumno(a) : vistaInicio();
+}
+function vistaInicio() {
+  var tot = { ab: 0, comp: 0, act: 0 };
+  datos.alumnos.forEach(function (a) {
+    var c = cuenta(a); tot.ab += c.abierto; tot.comp += c.completado; tot.act += c.estados.completada;
+  });
+  var f = filtro.trim().toLowerCase();
+  var lista = datos.alumnos.slice().sort(function (x, y) { return x.nombre.localeCompare(y.nombre, "es"); })
+    .filter(function (a) { return !f || a.nombre.toLowerCase().indexOf(f) >= 0; });
+  var s = '<header><h1>Mis Alumnos</h1><button class="ico" data-a="ajustes" aria-label="Ajustes">⚙</button></header><main>';
+  s += '<div class="resumen">' + dato(datos.alumnos.length, "Alumnos") + dato(tot.ab, "Cursos abiertos") +
+    dato(tot.comp, "Cursos completados") + dato(tot.act, "Actividades completadas") + "</div>";
+  if (datos.alumnos.length > 4 || f) s += '<input class="buscar" id="buscar" placeholder="Buscar alumno…" value="' + h(filtro) + '">';
+  if (!datos.alumnos.length) s += '<div class="vacio">Todavía no hay alumnos.<br>Toca <b>+ Alumno</b> para agregar el primero.</div>';
+  else if (!lista.length) s += '<div class="vacio">Ningún alumno coincide con la búsqueda.</div>';
+  lista.forEach(function (a) {
+    var c = cuenta(a);
+    s += '<button class="tarjeta alumno" data-a="abrir" data-al="' + a.id + '"><h2>' + h(a.nombre) +
+      (c.paraAviso >= datos.ajustes.umbral ? ' <span class="chip aviso">🔔 ' + c.paraAviso + "</span>" : "") + "</h2>" +
+      '<div class="linea">Cursos: ' + c.completado + " completados · " + c.abierto + " abiertos" +
+      (c.por_hacer ? " · " + c.por_hacer + " por hacer" : "") + "</div>" +
+      '<div class="linea">Actividades: ' + c.estados.completada + " completadas de " + c.total + "</div>" +
+      chipsEstados(c, true) + "</button>";
+  });
+  return s + '</main><button class="fab" data-a="nuevo-alumno">+ Alumno</button>';
+}
+function dato(n, t) { return '<div class="dato"><b>' + n + "</b><span>" + t + "</span></div>"; }
+function chipsEstados(c, soloPendientes) {
+  var s = "";
+  ESTADOS.forEach(function (e) {
+    if (soloPendientes && e[0] === "completada") return;
+    if (c.estados[e[0]]) s += '<span class="chip e-' + e[0] + '">' + c.estados[e[0]] + " · " + e[1] + "</span>";
+  });
+  return s ? '<div class="chips">' + s + "</div>" : "";
+}
+function vistaAlumno(a) {
+  var c = cuenta(a);
+  var s = '<header><button class="ico" data-a="volver" aria-label="Volver">←</button><h1>' + h(a.nombre) + "</h1>" +
+    '<button class="ico" data-a="editar-alumno" data-al="' + a.id + '" aria-label="Editar alumno">✎</button></header><main>';
+  if (c.paraAviso >= datos.ajustes.umbral) s += '<div class="banner">🔔 Llevas ' + textoAviso(c.paraAviso) + " con este alumno.</div>";
+  s += '<div class="resumen">' + dato(c.completado, "Cursos completados") + dato(c.abierto, "Cursos abiertos") +
+    dato(c.por_hacer, "Cursos por hacer") + dato(c.estados.completada + "/" + c.total, "Actividades completadas") + "</div>";
+  s += chipsEstados(c, false);
+  s += '<div class="acciones" style="margin-top:12px"><button class="btn" data-a="nuevo-curso" data-al="' + a.id + '">+ Curso</button>' +
+    '<button class="btn sec" data-a="reporte" data-al="' + a.id + '">Reporte Word</button></div>';
+  if (!a.cursos.length) s += '<div class="vacio">Este alumno no tiene cursos todavía.</div>';
+  TIPOS_CURSO.forEach(function (tp) {
+    var cs = a.cursos.filter(function (x) { return x.tipo === tp[0]; });
+    if (!cs.length) return;
+    s += '<h3 class="seccion"><span>' + TIPO_TITULO[tp[0]] + "</span><span>" + cs.length + "</span></h3>";
+    cs.forEach(function (cu) { s += tarjetaCurso(a, cu); });
+  });
+  return s + "</main>";
+}
+function tarjetaCurso(a, cu) {
+  var k = cuentaCurso(cu), ids = ' data-al="' + a.id + '" data-cu="' + cu.id + '"';
+  var s = '<div class="tarjeta"><div class="curso-cab"><button class="titulo" data-a="desplegar"' + ids + "><b>" + h(cu.nombre) +
+    "</b><small>" + k.ok + " de " + k.total + " actividades completadas</small></button>" +
+    '<button class="mini" data-a="editar-curso"' + ids + ' aria-label="Editar curso">✎</button>' +
+    '<button class="mini" data-a="desplegar"' + ids + ' aria-label="Ver actividades">' + (desplegados[cu.id] ? "▲" : "▼") + "</button></div>" +
+    '<div class="barra"><i style="width:' + (k.total ? Math.round(100 * k.ok / k.total) : 0) + '%"></i></div>';
+  if (!desplegados[cu.id]) return s + "</div>";
+  s += '<div class="cuerpo"><div class="fila-curso"><label>Estado del curso</label><select data-c="tipo-curso"' + ids + ">" +
+    opciones(TIPOS_CURSO, cu.tipo) + "</select></div>";
+  cu.actividades.forEach(function (t, i) {
+    var it = ids + ' data-ac="' + t.id + '"';
+    s += '<div class="act"><span class="n">' + (i + 1) + '.</span><button class="nombre" data-a="editar-act"' + it + ">" + h(t.nombre) +
+      '</button><button class="mini" data-a="editar-act"' + it + ' aria-label="Editar actividad">✎</button>' +
+      '<div class="estado"><select class="est e-' + t.estado + '" data-c="estado-act"' + it + ">" + opciones(ESTADOS, t.estado) + "</select></div></div>";
+  });
+  s += '<form class="nueva" data-f="nueva-act"' + ids + '><input name="nombre" placeholder="Nueva actividad…" autocomplete="off">' +
+    '<button class="btn" type="submit">Agregar</button></form></div></div>';
+  return s;
+}
+function opciones(lista, actual) {
+  return lista.map(function (o) {
+    return '<option value="' + o[0] + '"' + (o[0] === actual ? " selected" : "") + ">" + o[1] + "</option>";
+  }).join("");
+}
+
+/* ============ Ventanas ============ */
+var alCerrar = null;
+function modal(html) {
+  document.getElementById("capa").innerHTML = '<div class="velo" data-a="velo"><div class="modal">' + html + "</div></div>";
+  var p = document.querySelector(".modal input[type=text]");
+  if (p) { p.focus(); p.select(); }
+}
+window.cerrarModal = function () {
+  var capa = document.getElementById("capa");
+  if (!capa.querySelector(".velo")) return false;
+  capa.innerHTML = ""; alCerrar = null;
+  return true;
+};
+function toast(t) {
+  var d = document.createElement("div"); d.className = "toast"; d.textContent = t;
+  document.body.appendChild(d); setTimeout(function () { d.remove(); }, 2600);
+}
+function aviso(titulo, texto) {
+  modal("<h2>" + h(titulo) + "</h2><p>" + h(texto) + '</p><div class="pie"><button class="btn" data-a="cerrar">Entendido</button></div>');
+}
+/* Formulario genérico: campos = [{n, t, v, tipo, ops}] ; borrar = texto del botón de borrar (opcional) */
+function formulario(titulo, campos, alGuardar, borrar, alBorrar) {
+  var s = "<h2>" + h(titulo) + '</h2><form data-f="modal">';
+  campos.forEach(function (c) {
+    if (c.tipo === "marca") s += '<label class="marca"><input type="checkbox" name="' + c.n + '"' + (c.v ? " checked" : "") + "><span>" + h(c.t) + "</span></label>";
+    else if (c.tipo === "lista") s += '<label class="campo"><span>' + h(c.t) + '</span><select name="' + c.n + '">' + opciones(c.ops, c.v) + "</select></label>";
+    else if (c.tipo === "area") s += '<label class="campo"><span>' + h(c.t) + '</span><textarea name="' + c.n + '" rows="5" placeholder="' + h(c.p || "") + '">' + h(c.v || "") + "</textarea></label>";
+    else s += '<label class="campo"><span>' + h(c.t) + '</span><input type="' + (c.tipo || "text") + '" name="' + c.n + '" value="' + h(c.v == null ? "" : c.v) + '" autocomplete="off"' + (c.tipo === "number" ? ' min="1" inputmode="numeric"' : "") + "></label>";
+  });
+  s += '<div class="pie">' + (borrar ? '<button type="button" class="btn rojo" data-a="borrar-modal" style="margin-right:auto">' + h(borrar) + "</button>" : "") +
+    '<button type="button" class="btn sec" data-a="cerrar">Cancelar</button><button class="btn" type="submit">Guardar</button></div></form>';
+  modal(s);
+  alCerrar = { guardar: alGuardar, borrar: alBorrar };
+}
+function confirmar(texto, alAceptar) {
+  modal("<h2>¿Seguro?</h2><p>" + h(texto) + '</p><div class="pie"><button class="btn sec" data-a="cerrar">Cancelar</button><button class="btn rojo" data-a="confirmar">Sí, borrar</button></div>');
+  alCerrar = { confirmar: alAceptar };
+}
+function listo() { guardar(); window.cerrarModal(); pintar(); }
+
+/* ============ Acciones ============ */
+var ACCION = {
+  volver: function () { if (history.length > 1) history.back(); else location.hash = "#/"; },
+  abrir: function (d) { location.hash = "#/alumno/" + d.al; },
+  cerrar: function () { window.cerrarModal(); },
+  velo: function (d, ev) { if (ev.target.classList.contains("velo")) window.cerrarModal(); },
+  confirmar: function () { var f = alCerrar && alCerrar.confirmar; window.cerrarModal(); if (f) f(); },
+  "borrar-modal": function () { var f = alCerrar && alCerrar.borrar; if (f) f(); },
+  desplegar: function (d) { desplegados[d.cu] = !desplegados[d.cu]; pintar(); },
+
+  "nuevo-alumno": function () {
+    formulario("Nuevo alumno", [{ n: "nombre", t: "Nombre del alumno" }], function (v) {
+      if (!v.nombre) return toast("Escribe el nombre");
+      var a = { id: uid(), nombre: v.nombre, avisado: 0, cursos: [] };
+      datos.alumnos.push(a); guardar(); window.cerrarModal(); location.hash = "#/alumno/" + a.id;
+    });
+  },
+  "editar-alumno": function (d) {
+    var a = alumno(d.al);
+    formulario("Editar alumno", [{ n: "nombre", t: "Nombre del alumno", v: a.nombre }], function (v) {
+      if (!v.nombre) return toast("Escribe el nombre");
+      a.nombre = v.nombre; listo();
+    }, "Borrar alumno", function () {
+      confirmar("Se borrará a " + a.nombre + " con todos sus cursos y actividades.", function () {
+        datos.alumnos = datos.alumnos.filter(function (x) { return x !== a; });
+        guardar(); location.hash = "#/"; pintar();
+      });
+    });
+  },
+  "nuevo-curso": function (d) {
+    var a = alumno(d.al);
+    formulario("Nuevo curso", [
+      { n: "nombre", t: "Nombre del curso (ej. NURS-FPX4010)" },
+      { n: "tipo", t: "Estado del curso", tipo: "lista", ops: TIPOS_CURSO, v: "abierto" },
+      { n: "acts", t: "Actividades (opcional, una por línea)", tipo: "area", p: "Assessment 1\nAssessment 2\nAssessment 3" }
+    ], function (v) {
+      if (!v.nombre) return toast("Escribe el nombre del curso");
+      var c = { id: uid(), nombre: v.nombre, tipo: v.tipo, actividades: [] };
+      v.acts.split("\n").forEach(function (l) {
+        l = l.trim();
+        if (l) c.actividades.push({ id: uid(), nombre: l, estado: v.tipo === "completado" ? "completada" : "pendiente" });
+      });
+      a.cursos.push(c); desplegados[c.id] = true; listo(); revisarAviso(a);
+    });
+  },
+  "editar-curso": function (d) {
+    var a = alumno(d.al), c = curso(a, d.cu);
+    formulario("Editar curso", [
+      { n: "nombre", t: "Nombre del curso", v: c.nombre },
+      { n: "tipo", t: "Estado del curso", tipo: "lista", ops: TIPOS_CURSO, v: c.tipo }
+    ], function (v) {
+      if (!v.nombre) return toast("Escribe el nombre del curso");
+      c.nombre = v.nombre; c.tipo = v.tipo; listo();
+    }, "Borrar curso", function () {
+      confirmar("Se borrará el curso " + c.nombre + " con sus " + c.actividades.length + " actividades.", function () {
+        a.cursos = a.cursos.filter(function (x) { return x !== c; });
+        guardar(); pintar(); revisarAviso(a);
+      });
+    });
+  },
+  "editar-act": function (d) {
+    var a = alumno(d.al), c = curso(a, d.cu), t = c.actividades.filter(function (x) { return x.id === d.ac; })[0];
+    formulario("Editar actividad", [
+      { n: "nombre", t: "Nombre de la actividad", v: t.nombre },
+      { n: "estado", t: "Estado", tipo: "lista", ops: ESTADOS, v: t.estado },
+      { n: "pos", t: "Posición en la lista (1 a " + c.actividades.length + ")", tipo: "number", v: c.actividades.indexOf(t) + 1 }
+    ], function (v) {
+      if (!v.nombre) return toast("Escribe el nombre");
+      t.nombre = v.nombre; t.estado = v.estado;
+      var p = Math.min(Math.max(parseInt(v.pos, 10) || 1, 1), c.actividades.length) - 1;
+      c.actividades.splice(c.actividades.indexOf(t), 1); c.actividades.splice(p, 0, t);
+      listo(); revisarAviso(a);
+    }, "Borrar", function () {
+      confirmar("Se borrará la actividad " + t.nombre + ".", function () {
+        c.actividades = c.actividades.filter(function (x) { return x !== t; });
+        guardar(); pintar(); revisarAviso(a);
+      });
+    });
+  },
+  reporte: function (d) {
+    var a = alumno(d.al);
+    if (!a.cursos.length) return toast("Este alumno no tiene cursos");
+    formulario("Reporte en Word", [
+      { n: "cuales", t: "Cursos a incluir", tipo: "lista", v: "todos", ops: [["todos", "Todos los cursos"], ["completado", "Solo completados"], ["abierto", "Solo abiertos"], ["por_hacer", "Solo por hacer"]] },
+      { n: "estados", t: "Mostrar el estado de cada actividad", tipo: "marca", v: false },
+      { n: "resumen", t: "Incluir resumen con totales", tipo: "marca", v: true }
+    ], function (v) {
+      var cs = a.cursos.filter(function (c) { return v.cuales === "todos" || c.tipo === v.cuales; });
+      if (!cs.length) return toast("No hay cursos de ese tipo");
+      window.cerrarModal();
+      var nombre = "Reporte " + a.nombre.replace(/[\\/:*?"<>|]+/g, " ").trim() + ".docx";
+      entregar(nombre, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", crearDocx(a, cs, v));
+    });
+    document.querySelector(".modal .btn[type=submit]").textContent = "Crear documento";
+  },
+  ajustes: function () {
+    formulario("Ajustes", [
+      { n: "umbral", t: "Avisarme cada cuántas actividades por alumno", tipo: "number", v: datos.ajustes.umbral },
+      { n: "contar", t: "Qué actividades cuentan para el aviso", tipo: "lista", v: datos.ajustes.contar, ops: [["completadas", "Solo las completadas"], ["hechas", "Todas las hechas (aunque falte revisar o entregar)"]] }
+    ], function (v) {
+      datos.ajustes.umbral = Math.max(1, parseInt(v.umbral, 10) || 10);
+      datos.ajustes.contar = v.contar;
+      datos.alumnos.forEach(function (a) { a.avisado = Math.floor(cuenta(a).paraAviso / datos.ajustes.umbral); });
+      listo();
+    });
+    document.querySelector(".modal form").insertAdjacentHTML("afterend",
+      '<h2 style="margin-top:18px">Respaldo</h2><p>Guarda una copia de todos tus datos o recupérala en otro teléfono.</p>' +
+      '<button class="btn sec ancho" data-a="exportar">Guardar respaldo</button><button class="btn sec ancho" data-a="importar">Restaurar respaldo</button>');
+  },
+  exportar: function () {
+    var hoy = new Date().toISOString().slice(0, 10);
+    entregar("mis-alumnos-" + hoy + ".json", "application/json", new TextEncoder().encode(JSON.stringify(datos, null, 1)));
+  },
+  importar: function () { document.getElementById("archivo").click(); }
+};
+
+document.addEventListener("click", function (ev) {
+  var el = ev.target.closest("[data-a]");
+  if (el && ACCION[el.dataset.a]) ACCION[el.dataset.a](el.dataset, ev);
+});
+document.addEventListener("change", function (ev) {
+  var el = ev.target, d = el.dataset;
+  if (d.c === "estado-act") {
+    var a = alumno(d.al), c = curso(a, d.cu);
+    c.actividades.filter(function (x) { return x.id === d.ac; })[0].estado = el.value;
+    guardar(); pintar(); revisarAviso(a);
+  } else if (d.c === "tipo-curso") {
+    curso(alumno(d.al), d.cu).tipo = el.value; guardar(); pintar();
+  } else if (el.id === "archivo" && el.files[0]) {
+    var fr = new FileReader();
+    fr.onload = function () {
+      try {
+        var d2 = JSON.parse(fr.result);
+        if (!d2 || !Array.isArray(d2.alumnos)) throw 0;
+        datos = normalizar(d2); listo(); toast("Respaldo restaurado: " + datos.alumnos.length + " alumnos");
+      } catch (e) { toast("Ese archivo no es un respaldo válido"); }
+    };
+    fr.readAsText(el.files[0]); el.value = "";
+  }
+});
+document.addEventListener("submit", function (ev) {
+  ev.preventDefault();
+  var f = ev.target, v = {};
+  Array.prototype.forEach.call(f.elements, function (e) {
+    if (e.name) v[e.name] = e.type === "checkbox" ? e.checked : e.value.trim();
+  });
+  if (f.dataset.f === "modal") { if (alCerrar && alCerrar.guardar) alCerrar.guardar(v); }
+  else if (f.dataset.f === "nueva-act") {
+    if (!v.nombre) return;
+    var a = alumno(f.dataset.al), cid = f.dataset.cu;
+    curso(a, cid).actividades.push({ id: uid(), nombre: v.nombre, estado: "pendiente" });
+    guardar(); pintar();
+    var nuevo = document.querySelector('form[data-cu="' + cid + '"] input');
+    if (nuevo) nuevo.focus();
+  }
+});
+document.addEventListener("input", function (ev) {
+  if (ev.target.id !== "buscar") return;
+  filtro = ev.target.value; pintar();
+  var b = document.getElementById("buscar"); b.focus(); b.setSelectionRange(filtro.length, filtro.length);
+});
+window.addEventListener("hashchange", function () { window.cerrarModal(); pintar(); window.scrollTo(0, 0); });
+
+/* ============ Archivos (Word y respaldo) ============ */
+function entregar(nombre, mime, bytes) {
+  if (window.AndroidBridge && AndroidBridge.saveFile) {
+    var bin = "";
+    for (var i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
+    AndroidBridge.saveFile(nombre, mime, btoa(bin));
+  } else {
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([bytes], { type: mime })); a.download = nombre;
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+}
+function x(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+/* Párrafo de Word. o = {tam (pt), negrita, color, antes, despues, sangria, centro} */
+function par(texto, o) {
+  o = o || {};
+  var pPr = '<w:spacing w:before="' + (o.antes || 0) + '" w:after="' + (o.despues == null ? 80 : o.despues) + '"/>' +
+    (o.sangria ? '<w:ind w:left="' + o.sangria + '" w:hanging="' + (o.colgante || 0) + '"/>' : "") + (o.centro ? '<w:jc w:val="center"/>' : "") +
+    (o.borde ? '<w:pBdr><w:bottom w:val="single" w:sz="8" w:space="2" w:color="1F3A5F"/></w:pBdr>' : "") + (o.junto ? "<w:keepNext/>" : "");
+  var rPr = '<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/>' + (o.negrita ? "<w:b/>" : "") +
+    (o.color ? '<w:color w:val="' + o.color + '"/>' : "") + '<w:sz w:val="' + (o.tam || 11) * 2 + '"/>';
+  var trozos = [].concat(texto).map(function (t) {
+    var extra = typeof t === "object" ? t : null, txt = extra ? extra.t : t;
+    return "<w:r><w:rPr>" + rPr + (extra && extra.suave ? '<w:i/><w:color w:val="64748B"/>' : "") + '</w:rPr><w:t xml:space="preserve">' + x(txt) + "</w:t></w:r>";
+  }).join("");
+  return "<w:p><w:pPr>" + pPr + "</w:pPr>" + trozos + "</w:p>";
+}
+function crearDocx(a, cursos, op) {
+  var c = cuenta(a), b = "";
+  b += par("Reporte de actividades", { tam: 22, negrita: true, color: "1F3A5F", despues: 40 });
+  b += par("Alumno: " + a.nombre, { tam: 14, negrita: true, despues: 40 });
+  b += par("Capella University · " + new Date().toLocaleDateString("es", { day: "numeric", month: "long", year: "numeric" }), { color: "64748B", despues: 200, borde: true });
+  if (op.resumen) {
+    var acts = 0, ok = 0;
+    cursos.forEach(function (cu) { var k = cuentaCurso(cu); acts += k.total; ok += k.ok; });
+    b += par("Resumen", { tam: 14, negrita: true, color: "1F3A5F", antes: 120 });
+    b += par("Cursos completados: " + c.completado, { sangria: 360 });
+    b += par("Cursos abiertos: " + c.abierto, { sangria: 360 });
+    if (c.por_hacer) b += par("Cursos por hacer: " + c.por_hacer, { sangria: 360 });
+    b += par("Actividades en este reporte: " + acts + (op.estados ? " (" + ok + " completadas)" : ""), { sangria: 360, despues: 160 });
+  }
+  var n = 0;
+  TIPOS_CURSO.forEach(function (tp) {
+    cursos.filter(function (cu) { return cu.tipo === tp[0]; }).forEach(function (cu) {
+      n++;
+      b += par(n + ". " + cu.nombre, { tam: 14, negrita: true, color: "1F3A5F", antes: 280, despues: 40, junto: true });
+      b += par("Curso " + tp[1].toLowerCase() + " · " + cu.actividades.length + (cu.actividades.length === 1 ? " actividad" : " actividades"), { color: "64748B", tam: 10, despues: 100, junto: true });
+      if (!cu.actividades.length) b += par("Sin actividades registradas.", { sangria: 360, color: "64748B" });
+      cu.actividades.forEach(function (t, i) {
+        var txt = [(i + 1) + ".  " + t.nombre];
+        if (op.estados) txt.push({ t: "  —  " + ESTADO_NOMBRE[t.estado], suave: true });
+        b += par(txt, { sangria: 720, colgante: 360 });
+      });
+    });
+  });
+  var doc = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' + b +
+    '<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="708" w:footer="708" w:gutter="0"/></w:sectPr></w:body></w:document>';
+  return zip([
+    ["[Content_Types].xml", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>'],
+    ["_rels/.rels", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>'],
+    ["word/document.xml", doc]
+  ]);
+}
+/* ZIP sin compresión: suficiente para un .docx y no necesita librerías. */
+var TABLA_CRC = (function () {
+  var t = new Uint32Array(256);
+  for (var n = 0; n < 256; n++) { var c = n; for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; }
+  return t;
+})();
+function crc32(u) { var c = 0xFFFFFFFF; for (var i = 0; i < u.length; i++) c = TABLA_CRC[(c ^ u[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function zip(archivos) {
+  var enc = new TextEncoder(), partes = [], central = [], pos = 0;
+  function cab(firma, largo) { var d = new DataView(new ArrayBuffer(largo)); d.setUint32(0, firma, true); return d; }
+  archivos.forEach(function (f) {
+    var nombre = enc.encode(f[0]), datosF = enc.encode(f[1]), crc = crc32(datosF);
+    var l = cab(0x04034b50, 30);
+    l.setUint16(4, 20, true); l.setUint16(6, 0x0800, true); l.setUint16(8, 0, true);
+    l.setUint16(10, 0, true); l.setUint16(12, 0x21, true);
+    l.setUint32(14, crc, true); l.setUint32(18, datosF.length, true); l.setUint32(22, datosF.length, true);
+    l.setUint16(26, nombre.length, true);
+    var c = cab(0x02014b50, 46);
+    c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(10, 0, true);
+    c.setUint16(12, 0, true); c.setUint16(14, 0x21, true);
+    c.setUint32(16, crc, true); c.setUint32(20, datosF.length, true); c.setUint32(24, datosF.length, true);
+    c.setUint16(28, nombre.length, true); c.setUint32(42, pos, true);
+    partes.push(new Uint8Array(l.buffer), nombre, datosF);
+    central.push(new Uint8Array(c.buffer), nombre);
+    pos += 30 + nombre.length + datosF.length;
+  });
+  var tamCentral = central.reduce(function (s, p) { return s + p.length; }, 0);
+  var fin = cab(0x06054b50, 22);
+  fin.setUint16(8, archivos.length, true); fin.setUint16(10, archivos.length, true);
+  fin.setUint32(12, tamCentral, true); fin.setUint32(16, pos, true);
+  var todo = partes.concat(central, [new Uint8Array(fin.buffer)]);
+  var out = new Uint8Array(todo.reduce(function (s, p) { return s + p.length; }, 0)), o = 0;
+  todo.forEach(function (p) { out.set(p, o); o += p.length; });
+  return out;
+}
+
+pintar();
+</script>
+</body>
+</html>
