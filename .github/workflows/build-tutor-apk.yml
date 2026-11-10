@@ -1,4 +1,4 @@
-name: Build Mis Alumnos APK
+name: Build Mis Tutorías APK
 
 on:
   workflow_dispatch:
@@ -35,5 +35,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: mis-alumnos-apk
+          name: mis-tutorias-apk
           path: tutor-android/app/build/outputs/apk/release/app-release.apk

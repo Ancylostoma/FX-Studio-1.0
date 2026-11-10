@@ -1,6 +1,7 @@
 package com.ancylostoma.tutor;
 
 import android.app.Activity;
+import android.content.ClipData;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -21,6 +22,7 @@ import android.widget.FrameLayout;
 import android.widget.Toast;
 
 import androidx.core.app.NotificationManagerCompat;
+import androidx.core.content.FileProvider;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
@@ -28,10 +30,13 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.webkit.WebViewAssetLoader;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.OutputStream;
 
 /**
- * Contenedor nativo de Mis Alumnos: la app corre en su propio WebView
+ * Contenedor nativo de Mis Tutorías: la app corre en su propio WebView
  * con los archivos dentro de la APK (sin Chrome y sin internet).
  */
 public class MainActivity extends Activity {
@@ -139,6 +144,13 @@ public class MainActivity extends Activity {
   }
 
   private class Bridge {
+    /** Comparte un archivo (el reporte Word). Con app = "whatsapp" abre WhatsApp, que pregunta a qué chat enviarlo. */
+    @JavascriptInterface
+    public void shareFile(String name, String mime, String base64, String app) {
+      byte[] bytes = Base64.decode(base64, Base64.DEFAULT);
+      runOnUiThread(() -> compartir(name, mime, bytes, app));
+    }
+
     /** Datos para el aviso diario (ver Recordatorio). */
     @JavascriptInterface
     public void setRecordatorio(String json) {
@@ -154,7 +166,7 @@ public class MainActivity extends Activity {
           requestPermissions(new String[] {"android.permission.POST_NOTIFICATIONS"}, REQ_NOTIFICACIONES);
         } else if (!NotificationManagerCompat.from(MainActivity.this).areNotificationsEnabled()) {
           Toast.makeText(MainActivity.this,
-              "Las notificaciones de Mis Alumnos están apagadas en los ajustes del teléfono", Toast.LENGTH_LONG).show();
+              "Las notificaciones de Mis Tutorías están apagadas en los ajustes del teléfono", Toast.LENGTH_LONG).show();
         }
       });
     }
@@ -176,6 +188,40 @@ public class MainActivity extends Activity {
           Toast.makeText(MainActivity.this, "No se pudo guardar el archivo", Toast.LENGTH_LONG).show();
         }
       });
+    }
+  }
+
+  private void compartir(String name, String mime, byte[] bytes, String app) {
+    try {
+      File carpeta = new File(getCacheDir(), "compartir");
+      if (!carpeta.isDirectory() && !carpeta.mkdirs()) throw new IOException("sin carpeta");
+      File[] viejos = carpeta.listFiles();
+      if (viejos != null) for (File f : viejos) f.delete();
+      String limpio = name.replaceAll("[\\\\/:*?\"<>|]+", " ").trim();
+      File archivo = new File(carpeta, limpio.isEmpty() ? "reporte.docx" : limpio);
+      try (FileOutputStream out = new FileOutputStream(archivo)) {
+        out.write(bytes);
+      }
+      Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".archivos", archivo);
+      Intent enviar = new Intent(Intent.ACTION_SEND)
+          .setType(mime)
+          .putExtra(Intent.EXTRA_STREAM, uri)
+          .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+      enviar.setClipData(ClipData.newRawUri(limpio, uri));
+      if ("whatsapp".equals(app)) {
+        for (String paquete : new String[] {"com.whatsapp", "com.whatsapp.w4b"}) {
+          try {
+            startActivity(new Intent(enviar).setPackage(paquete));
+            return;
+          } catch (ActivityNotFoundException noInstalada) {
+            // Se prueba con WhatsApp Business y, si tampoco está, con cualquier app.
+          }
+        }
+        Toast.makeText(this, "WhatsApp no está instalado: elige otra app", Toast.LENGTH_LONG).show();
+      }
+      startActivity(Intent.createChooser(enviar, "Enviar reporte"));
+    } catch (Exception e) {
+      Toast.makeText(this, "No se pudo compartir: " + e.getMessage(), Toast.LENGTH_LONG).show();
     }
   }
 
