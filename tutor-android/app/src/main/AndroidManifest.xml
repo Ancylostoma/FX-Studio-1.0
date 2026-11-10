@@ -29,5 +29,16 @@
         <action android:name="android.intent.action.BOOT_COMPLETED" />
       </intent-filter>
     </receiver>
+
+    <!-- Para enviar el reporte Word por WhatsApp u otra app. -->
+    <provider
+      android:name="androidx.core.content.FileProvider"
+      android:authorities="${applicationId}.archivos"
+      android:exported="false"
+      android:grantUriPermissions="true">
+      <meta-data
+        android:name="android.support.FILE_PROVIDER_PATHS"
+        android:resource="@xml/archivos" />
+    </provider>
   </application>
 </manifest>

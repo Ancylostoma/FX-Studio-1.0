@@ -80,6 +80,7 @@ main{padding:0 14px 110px;max-width:720px;margin:0 auto}
 .btn:active{transform:scale(.97);opacity:.9}
 .btn.sec{background:#fff;color:var(--azul);box-shadow:inset 0 0 0 1px var(--linea)}
 .btn.rojo{background:var(--rojo-f);color:var(--rojo)}
+.btn.wa{background:#1FA855}
 .btn.ancho{width:100%;margin-top:8px}
 .acciones .btn{flex:1}
 h3.seccion{font-size:12.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--suave);margin:22px 6px 9px;display:flex;align-items:center;gap:8px;font-weight:700}
@@ -215,6 +216,11 @@ function normalizar(d) {
   if (!(d.ajustes.capacidad > 0)) d.ajustes.capacidad = 2;
   d.ajustes.recordar = !!d.ajustes.recordar;
   if (!/^\d\d:\d\d$/.test(d.ajustes.hora || "")) d.ajustes.hora = "08:00";
+  if (!Array.isArray(d.catalogo)) d.catalogo = semillaCatalogo();
+  d.catalogo.forEach(function (c) {
+    c.id = c.id || uid(); c.codigo = String(c.codigo || "CURSO"); c.area = String(c.area || "General"); c.titulo = String(c.titulo || "");
+    c.assessments = Array.isArray(c.assessments) ? c.assessments.map(String) : [];
+  });
   d.alumnos.forEach(function (a) {
     a.id = a.id || uid(); a.nombre = String(a.nombre || "Sin nombre"); a.avisado = a.avisado || 0;
     a.cursos = Array.isArray(a.cursos) ? a.cursos : [];
@@ -281,6 +287,7 @@ var ICONOS = {
   lupa: '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
   doc: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h6"/>',
   reloj: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  enviar: '<path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/>',
   campana: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/>',
   check: '<path d="M20 6L9 17l-5-5"/>',
   gente: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/>',
@@ -338,14 +345,14 @@ function pendientes() {
 }
 function pintar() {
   var m = location.hash.match(/^#\/alumno\/(.+)$/), a = m && alumno(m[1]);
-  document.getElementById("app").innerHTML = a ? vistaAlumno(a) : vistaInicio();
+  document.getElementById("app").innerHTML = location.hash === "#/catalogo" ? vistaCatalogo() : a ? vistaAlumno(a) : vistaInicio();
 }
 function vistaInicio() {
   var tot = { ab: 0, comp: 0, act: 0 }, pen = pendientes(), plan = planificar();
   datos.alumnos.forEach(function (a) {
     var c = cuenta(a); tot.ab += c.abierto; tot.comp += c.completado; tot.act += c.estados.completada;
   });
-  var s = '<div class="heroe"><div class="barra-sup"><span class="hueco"></span><button class="ico" data-a="ajustes" aria-label="Ajustes">' + ic("ajustes") + "</button></div>" +
+  var s = '<div class="heroe"><div class="barra-sup"><span class="hueco"></span><button class="ico" data-a="ir-catalogo" aria-label="Base de datos de cursos">' + ic("libro") + '</button><button class="ico" data-a="ajustes" aria-label="Ajustes">' + ic("ajustes") + "</button></div>" +
     "<h1>Mis Tutorías</h1><div class=\"sub\">" + (plan.vencidas ? plural(plan.vencidas, "actividad vencida", "actividades vencidas") + " · " : "") + (pen.length ? plural(pen.length, "pendiente", "pendientes") + (plan.hoy ? " · " + plan.hoy + " para hoy" : "") : "Todo al día") + "</div></div><main>";
   s += '<div class="cifras">' + cifra(datos.alumnos.length, "Alumnos") + cifra(tot.ab, "Cursos abiertos") +
     cifra(tot.comp, "Cursos completados") + cifra(tot.act, "Actividades completadas") + "</div>";
@@ -446,6 +453,9 @@ function tarjetaCurso(a, cu) {
       '<button class="nombre" data-a="editar-act"' + it + ">" + h(t.nombre) + "</button>" + (t.nota ? '<div class="nota">' + h(t.nota) + "</div>" : "") + '<div class="fila-p">' + pildora(t, it) + (t.estado === "completada" ? "" : chipFecha(t.fecha, true)) + "</div></div>" +
       '<button class="cuadro" style="background:none" data-a="editar-act"' + it + ' aria-label="Editar actividad">' + ic("lapiz", 16) + "</button></div>";
   });
+  var cat = delCatalogo(cu.nombre);
+  s += '<button class="sugerir" style="background:var(--gris-f);color:var(--azul);margin:12px 0 0" data-a="mas-assess"' + ids + ">" + ic("mas", 18) +
+    (cat ? "Assessments de " + h(cat.codigo) + " (base de datos)" : "Agregar Assessment 1 a 8") + "</button>";
   s += '<form class="nueva" data-f="nueva-act"' + ids + '><input name="nombre" placeholder="Nueva actividad…" autocomplete="off" enterkeyhint="done">' +
     '<button class="btn" type="submit" aria-label="Agregar actividad">' + ic("mas", 20) + "</button></form></div></div>";
   return s;
@@ -585,6 +595,129 @@ function syncNativo() {
   } catch (e) {}
 }
 
+/* ============ Base de datos de cursos (local y editable) ============ */
+/* Función (no variable) porque los datos se cargan antes de llegar a esta parte del archivo. */
+function catalogoInicial() {
+  return [
+  ["Psicología", "PSYC-FPX2002", ["Time Management Exercise", "CRAAP Test and Library Worksheet", "College Planning Reflection", "Career Planning Worksheet"]],
+  ["Psicología", "PSYC-FPX3110", ["Theories of Abnormal Behavior", "Diagnosing Using the DSM-5-TR", "Living the Criteria of the DSM-5-TR", "Applying the DSM-5-TR"]],
+  ["Psicología", "PSYC-FPX3130", ["Assessment in Forensic Psychology", "Case Study Assessment", "Ethics Poster", "Case Study: Final Report"]],
+  ["Psicología", "PSYC-FPX3770", ["Bulletin to Highend Hotel Employees and Guests", "Reflections on Learning", "Heading Home", "Cognitive Reflection Paper"]],
+  ["Psicología", "PSYC-FPX4110", ["Happiness and Well-Being Reflection Paper", "Wisdom, Courage, and Humanity Presentation", "Justice, Temperance, and Transcendence Newspaper", "Positive Psychology Applied to Institutions"]],
+  ["Psicología", "PSYC-FPX4325", ["Planning Worksheet: Coping Strategies and Relaxation Techniques", "Stress and Trauma in Marginalized Populations", "Mind-Body Connections Poster", "Coping and Relaxation Presentation"]]
+  ];
+}
+function semillaCatalogo() {
+  return catalogoInicial().map(function (c) {
+    return { id: uid(), area: c[0], codigo: c[1], titulo: "", assessments: c[2].map(function (t, i) { return "Assessment " + (i + 1) + ": " + t; }) };
+  });
+}
+function normCod(s) { return String(s || "").toUpperCase().replace(/[^A-Z0-9]/g, ""); }
+function numAssess(nombre) { var m = /assessment\s*(\d+)/i.exec(nombre || ""); return m ? +m[1] : 0; }
+/* Quita el "[u01a1]" de Capella y numera las líneas que no dicen "Assessment N". */
+function limpiarAssessments(lineas) {
+  var r = [];
+  lineas.forEach(function (l) {
+    l = String(l).replace(/\[[^\]]*\]/g, "").replace(/\s+/g, " ").trim();
+    if (!l) return;
+    if (!numAssess(l)) l = "Assessment " + (r.length + 1) + ": " + l;
+    r.push(l.replace(/^assessment\s*(\d+)\s*[:.\-–]?\s*/i, function (x, n) { return "Assessment " + n + ": "; }).replace(/:\s*$/, ""));
+  });
+  return r;
+}
+/* Curso de la base de datos que corresponde al nombre que tiene el curso del alumno. */
+function delCatalogo(nombreCurso) {
+  var n = normCod(nombreCurso), mejor = null;
+  datos.catalogo.forEach(function (c) {
+    var k = normCod(c.codigo);
+    if (k && n.indexOf(k) >= 0 && (!mejor || k.length > normCod(mejor.codigo).length)) mejor = c;
+  });
+  return mejor;
+}
+/* Agrega los assessments que falten y pone el nombre completo a los que solo dicen "Assessment N". */
+function completarAssessments(c, hasta) {
+  var cat = delCatalogo(c.nombre), lista = [], r = { nuevos: 0, renombrados: 0, cat: cat };
+  if (cat) lista = cat.assessments;
+  else for (var k = 1; k <= hasta; k++) lista.push("Assessment " + k);
+  lista.forEach(function (nombre) {
+    var n = numAssess(nombre), ya = c.actividades.filter(function (t) { return n ? numAssess(t.nombre) === n : t.nombre === nombre; })[0];
+    if (ya) {
+      if (ya.nombre !== nombre && /^\s*assessment\s*\d+\s*$/i.test(ya.nombre)) { ya.nombre = nombre; r.renombrados++; }
+    } else {
+      c.actividades.push({ id: uid(), nombre: nombre, nota: "", fecha: "", estado: c.tipo === "completado" ? "completada" : "pendiente" });
+      r.nuevos++;
+    }
+  });
+  if (r.nuevos) c.actividades.sort(function (x, y) { return (numAssess(x.nombre) || 999) - (numAssess(y.nombre) || 999); });
+  return r;
+}
+/*
+ * Lee texto pegado (por ejemplo, copiado del Word o de la página del curso):
+ * una línea con el área ("Psicología"), una con el código ("PSYC-FPX3110 ...")
+ * y debajo sus "Assessment N: ...". Ignora fechas, intentos y números sueltos.
+ */
+function leerLista(texto, areaInicial) {
+  var area = areaInicial || "General", res = [], actual = null;
+  texto.split(/\r?\n/).forEach(function (l) {
+    l = l.replace(/\[[^\]]*\]/g, "").replace(/\s+/g, " ").trim();
+    if (!l) return;
+    var cod = /^([A-Za-z]{2,6}[\s-]?FPX[\s-]?\d{3,5}[A-Za-z]?)\b\s*[:\-–]?\s*(.*)$/.exec(l);
+    if (cod) {
+      actual = { area: area, codigo: cod[1].toUpperCase().replace(/\s+/g, "-").replace(/FPX-/, "FPX"), titulo: cod[2].trim(), assessments: [] };
+      res.push(actual); return;
+    }
+    if (numAssess(l) && actual) { actual.assessments.push(l); return; }
+    if (/^(target|due|attempt|fecha|intento|score|grade)\b/i.test(l) || /\d/.test(l)) return;
+    if (l.length <= 40) area = l.charAt(0).toUpperCase() + l.slice(1);
+  });
+  res.forEach(function (c) { c.assessments = limpiarAssessments(c.assessments); });
+  return res;
+}
+function areasCatalogo() {
+  var a = [];
+  datos.catalogo.forEach(function (c) { if (a.indexOf(c.area) < 0) a.push(c.area); });
+  return a.sort(function (x, y) { return x.localeCompare(y, "es"); });
+}
+function vistaCatalogo() {
+  var tot = 0; datos.catalogo.forEach(function (c) { tot += c.assessments.length; });
+  var s = '<div class="heroe"><div class="barra-sup"><button class="ico" data-a="volver" aria-label="Volver">' + ic("volver") + '</button><span class="hueco"></span></div>' +
+    "<h1>Base de datos</h1><div class=\"sub\">" + plural(datos.catalogo.length, "curso", "cursos") + " · " + plural(tot, "assessment", "assessments") + "</div></div><main>";
+  s += '<div class="acciones" style="margin-top:16px"><button class="btn" data-a="cat-nuevo">' + ic("mas", 18) + "Curso</button>" +
+    '<button class="btn sec" data-a="cat-pegar">' + ic("doc", 18) + "Pegar lista</button></div>";
+  if (!datos.catalogo.length) s += '<div class="vacio"><div class="dib">' + ic("libro", 36) + "</div><b>Base de datos vacía</b>Agrega cursos uno a uno o pega la lista copiada del Word.</div>";
+  areasCatalogo().forEach(function (area) {
+    var cs = datos.catalogo.filter(function (c) { return c.area === area; }).sort(function (x, y) { return x.codigo.localeCompare(y.codigo); });
+    s += '<h3 class="seccion">' + h(area) + ' <span class="globo num">' + cs.length + '</span></h3><div class="tarjeta">';
+    cs.forEach(function (c) {
+      s += '<button class="pend ritmo" data-a="cat-editar" data-id="' + c.id + '"><span class="medio"><b>' + h(c.codigo) + "</b><small>" +
+        h(c.titulo || c.assessments[0] || "Sin assessments") + (c.titulo || c.assessments.length < 2 ? "" : "…") + '</small></span><span class="fecha">' + plural(c.assessments.length, "assessment", "assessments") + "</span></button>";
+    });
+    s += "</div>";
+  });
+  return s + '<p class="linea" style="padding:14px 6px">Al crear un curso para un alumno con uno de estos códigos, los assessments se agregan con su nombre completo.</p></main>';
+}
+function formCatalogo(c) {
+  var nuevo = !c;
+  c = c || { id: uid(), area: areasCatalogo()[0] || "", codigo: "", titulo: "", assessments: [] };
+  formulario(nuevo ? "Curso en la base de datos" : c.codigo, [
+    { n: "codigo", t: "Código del curso", v: c.codigo, p: "Ej. NURS-FPX4010" },
+    { n: "area", t: "Área (Psicología, Enfermería, Electivo…)", v: c.area, sug: areasCatalogo() },
+    { n: "titulo", t: "Nombre del curso (opcional)", v: c.titulo, p: "Ej. Leading People, Processes, and Organizations" },
+    { n: "acts", t: "Assessments, uno por línea", tipo: "area", filas: 7, v: c.assessments.join("\n"), p: "Assessment 1: ...\nAssessment 2: ..." }
+  ], function (v) {
+    if (!v.codigo) return toast("Escribe el código del curso");
+    var otro = datos.catalogo.filter(function (x) { return x !== c && normCod(x.codigo) === normCod(v.codigo); })[0];
+    if (otro) return toast("Ya existe " + otro.codigo + " en la base de datos");
+    c.codigo = v.codigo.toUpperCase().replace(/\s+/g, ""); c.area = v.area || "General"; c.titulo = v.titulo;
+    c.assessments = limpiarAssessments(v.acts.split("\n"));
+    if (nuevo) datos.catalogo.push(c);
+    listo();
+  }, nuevo ? null : "Borrar", nuevo ? null : function () {
+    confirmar("Se borrará " + c.codigo + " de la base de datos. Los cursos de tus alumnos no cambian.", function () {
+      datos.catalogo = datos.catalogo.filter(function (x) { return x !== c; }); guardar(); pintar();
+    });
+  });
+}
 /* ============ Ventanas ============ */
 var alCerrar = null;
 function modal(html, sinFoco) {
@@ -613,10 +746,14 @@ function formulario(titulo, campos, alGuardar, borrar, alBorrar, textoGuardar) {
     if (c.tipo === "marca") s += '<label class="marca"><input type="checkbox" name="' + c.n + '"' + (c.v ? " checked" : "") + "><span>" + h(c.t) + "</span></label>";
     else if (c.tipo === "lista") s += '<label class="campo"><span>' + h(c.t) + '</span><select name="' + c.n + '">' + opciones(c.ops, c.v) + "</select></label>";
     else if (c.tipo === "area") s += '<label class="campo"><span>' + h(c.t) + '</span><textarea name="' + c.n + '" rows="' + (c.filas || 4) + '" placeholder="' + h(c.p || "") + '">' + h(c.v || "") + "</textarea></label>";
-    else s += '<label class="campo"><span>' + h(c.t) + '</span><input type="' + (c.tipo || "text") + '" name="' + c.n + '" value="' + h(c.v == null ? "" : c.v) + '" placeholder="' + h(c.p || "") + '" autocomplete="off"' + (c.tipo === "number" ?  ' min="' + (c.paso || 1) + '" step="' + (c.paso || 1) + '" inputmode="decimal"' : "") + "></label>";
+    else s += '<label class="campo"><span>' + h(c.t) + '</span><input type="' + (c.tipo || "text") + '" name="' + c.n + '"' + (c.sug ? ' list="sug-' + c.n + '"' : "") + ' value="' + h(c.v == null ? "" : c.v) + '" placeholder="' + h(c.p || "") + '" autocomplete="off"' + (c.tipo === "number" ?  ' min="' + (c.paso || 1) + '" step="' + (c.paso || 1) + '" inputmode="decimal"' : "") + ">" +
+      (c.sug ? '<datalist id="sug-' + c.n + '">' + c.sug.map(function (x) { return '<option value="' + h(x) + '">'; }).join("") + "</datalist>" : "") + "</label>";
+    if (c.ayuda) s += '<p class="linea" style="margin:-6px 2px 12px">' + h(c.ayuda) + "</p>";
   });
   s += '<div class="pie">' + (borrar ? '<button type="button" class="btn rojo" data-a="borrar-modal" style="margin-right:auto">' + h(borrar) + "</button>" : "") +
-    '<button type="button" class="btn sec" data-a="cerrar">Cancelar</button><button class="btn" type="submit">' + (textoGuardar || "Guardar") + "</button></div></form>";
+    '<button type="button" class="btn sec" data-a="cerrar">Cancelar</button>' + (Array.isArray(textoGuardar) ? textoGuardar : [["", textoGuardar || "Guardar"]]).map(function (b) {
+      return '<button class="btn' + (b[2] ? " " + b[2] : "") + '" type="submit" value="' + b[0] + '">' + b[1] + "</button>";
+    }).join("") + "</div></form>";
   modal(s);
   alCerrar = { guardar: alGuardar, borrar: alBorrar };
 }
@@ -679,18 +816,31 @@ var ACCION = {
   },
   "nuevo-curso": function (d) {
     var a = alumno(d.al);
+    var ops = [["", datos.catalogo.length ? "— Otro curso (escribir el nombre) —" : "— La base de datos está vacía —"]];
+    areasCatalogo().forEach(function (area) {
+      datos.catalogo.filter(function (c) { return c.area === area; }).sort(function (x, y) { return x.codigo.localeCompare(y.codigo); })
+        .forEach(function (c) { ops.push([c.id, area + " · " + c.codigo + (c.titulo ? " " + c.titulo : "")]); });
+    });
     formulario("Nuevo curso", [
-      { n: "nombre", t: "Nombre del curso", p: "Ej. NURS-FPX4010" },
+      { n: "desde", t: "Curso de la base de datos", tipo: "lista", ops: ops, v: "" },
+      { n: "nombre", t: "Nombre del curso (si no está en la lista)", p: "Ej. NURS-FPX4010" },
       { n: "tipo", t: "Estado del curso", tipo: "lista", ops: TIPOS_CURSO, v: "abierto" },
       { n: "fin", t: "Fecha límite del curso (opcional)", tipo: "date" },
-      { n: "acts", t: "Actividades (opcional, una por línea)", tipo: "area", p: "Assessment 1\nAssessment 2\nAssessment 3" }
+      { n: "auto", t: "Agregar los assessments automáticamente", tipo: "marca", v: true },
+      { n: "hasta", t: "Si no está en la base de datos: cuántos assessments", tipo: "number", v: 8 },
+      { n: "acts", t: "Otras actividades (opcional, una por línea)", tipo: "area", filas: 2, p: "Discusión semana 1" }
     ], function (v) {
-      if (!v.nombre) return toast("Escribe el nombre del curso");
-      var c = { id: uid(), nombre: v.nombre, tipo: v.tipo, fin: fechaValida(v.fin), actividades: [] };
+      var cat = datos.catalogo.filter(function (x) { return x.id === v.desde; })[0];
+      var nombre = v.nombre || (cat ? cat.codigo + (cat.titulo ? " " + cat.titulo : "") : "");
+      if (!nombre) return toast("Elige un curso de la lista o escribe el nombre");
+      if (cat && v.nombre && !delCatalogo(v.nombre)) nombre = cat.codigo + " " + v.nombre;
+      var c = { id: uid(), nombre: nombre, tipo: v.tipo, fin: fechaValida(v.fin), actividades: [] };
       v.acts.split("\n").forEach(function (l) {
         l = l.trim();
         if (l) c.actividades.push({ id: uid(), nombre: l, nota: "", fecha: "", estado: v.tipo === "completado" ? "completada" : "pendiente" });
       });
+      // Después de las escritas a mano, para no duplicar un "Assessment N" que ya esté.
+      if (v.auto) completarAssessments(c, Math.min(Math.max(parseInt(v.hasta, 10) || 8, 1), 30));
       a.cursos.push(c); desplegados[c.id] = true; listo(); revisarAviso(a);
     });
   },
@@ -731,6 +881,45 @@ var ACCION = {
       });
     });
   },
+  "mas-assess": function (d) {
+    var a = alumno(d.al), c = curso(a, d.cu);
+    function hecho(r) {
+      guardar(); pintar(); revisarAviso(a);
+      toast(r.nuevos || r.renombrados ? (r.nuevos ? plural(r.nuevos, "assessment agregado", "assessments agregados") : "") +
+        (r.nuevos && r.renombrados ? " · " : "") + (r.renombrados ? plural(r.renombrados, "nombre completado", "nombres completados") : "") : "Ya tiene todos los assessments");
+    }
+    if (delCatalogo(c.nombre)) return hecho(completarAssessments(c));
+    formulario("Agregar assessments", [
+      { n: "hasta", t: "Del Assessment 1 hasta el…", tipo: "number", v: 8, ayuda: "Este curso no está en la base de datos, así que se agregan con nombre genérico. Si lo agregas a la base de datos, este mismo botón les pondrá el nombre completo." }
+    ], function (v) { window.cerrarModal(); hecho(completarAssessments(c, Math.min(Math.max(parseInt(v.hasta, 10) || 8, 1), 30))); }, null, null, "Agregar");
+  },
+  "ir-catalogo": function () { location.hash = "#/catalogo"; },
+  "cat-nuevo": function () { formCatalogo(null); },
+  "cat-editar": function (d) { formCatalogo(datos.catalogo.filter(function (c) { return c.id === d.id; })[0]); },
+  "cat-pegar": function () {
+    formulario("Pegar lista de cursos", [
+      { n: "area", t: "Área (si el texto no la dice)", v: areasCatalogo()[0] || "", sug: areasCatalogo() },
+      { n: "texto", t: "Texto copiado del Word o de la página del curso", tipo: "area", filas: 9, p: "Psicología\nPSYC-FPX3110\n[u01a1] Assessment 1: Theories of Abnormal Behavior\nTarget Date: …\n[u02a1] Assessment 2: …",
+        ayuda: "Se ignoran fechas, intentos y números sueltos. Si un curso ya existe, se actualizan sus assessments." }
+    ], function (v) {
+      var lista = leerLista(v.texto, v.area).filter(function (c) { return c.assessments.length; });
+      if (!lista.length) return toast("No encontré códigos de curso (ej. PSYC-FPX3110) con assessments");
+      var nuevos = 0, act = 0;
+      lista.forEach(function (n) {
+        var ya = datos.catalogo.filter(function (c) { return normCod(c.codigo) === normCod(n.codigo); })[0];
+        if (!ya) { n.id = uid(); datos.catalogo.push(n); nuevos++; return; }
+        n.assessments.forEach(function (x) {
+          var k = numAssess(x), i = -1;
+          ya.assessments.forEach(function (y, j) { if (numAssess(y) === k) i = j; });
+          if (i >= 0) ya.assessments[i] = x; else ya.assessments.push(x);
+        });
+        ya.assessments.sort(function (x, y) { return numAssess(x) - numAssess(y); });
+        if (n.titulo && !ya.titulo) ya.titulo = n.titulo;
+        act++;
+      });
+      listo(); toast((nuevos ? plural(nuevos, "curso nuevo", "cursos nuevos") : "") + (nuevos && act ? " · " : "") + (act ? plural(act, "actualizado", "actualizados") : ""));
+    }, null, null, "Importar");
+  },
   reporte: function (d) {
     var a = alumno(d.al);
     if (!a.cursos.length) return toast("Este alumno no tiene cursos");
@@ -742,9 +931,10 @@ var ACCION = {
       var cs = a.cursos.filter(function (c) { return v.cuales === "todos" || c.tipo === v.cuales; });
       if (!cs.length) return toast("No hay cursos de ese tipo");
       window.cerrarModal();
-      var nombre = "Reporte " + a.nombre.replace(/[\\/:*?"<>|]+/g, " ").trim() + ".docx";
-      entregar(nombre, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", crearDocx(a, cs, v));
-    }, null, null, "Crear documento");
+      var nombre = "Reporte " + a.nombre.replace(/[\\/:*?"<>|]+/g, " ").trim() + ".docx", mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+      if (v._boton === "whatsapp") compartir(nombre, mime, crearDocx(a, cs, v), "whatsapp");
+      else entregar(nombre, mime, crearDocx(a, cs, v));
+    }, null, null, [["guardar", "Guardar", "sec"], ["whatsapp", ic("enviar", 18) + "WhatsApp", "wa"]]);
   },
   ajustes: function () {
     formulario("Ajustes", [
@@ -767,6 +957,7 @@ var ACCION = {
       listo();
     });
     document.querySelector(".modal form").insertAdjacentHTML("afterend",
+      '<h2 style="margin-top:22px">Base de datos de cursos</h2><p>' + plural(datos.catalogo.length, "curso guardado", "cursos guardados") + ' con el nombre de sus assessments.</p><button class="btn sec ancho" data-a="ir-catalogo">Abrir base de datos</button>' +
       '<h2 style="margin-top:22px">Respaldo</h2><p>Guarda una copia de todos tus datos o recupérala en otro teléfono.' +
       (datos.ajustes.respaldo ? " Último respaldo: " + new Date(datos.ajustes.respaldo).toLocaleDateString("es") + "." : "") + "</p>" +
       '<button class="btn sec ancho" data-a="exportar">Guardar respaldo</button><button class="btn sec ancho" data-a="importar">Restaurar respaldo</button>');
@@ -803,6 +994,7 @@ document.addEventListener("submit", function (ev) {
   Array.prototype.forEach.call(f.elements, function (e) {
     if (e.name) v[e.name] = e.type === "checkbox" ? e.checked : e.value.trim();
   });
+  v._boton = ev.submitter ? ev.submitter.value : "";
   if (f.dataset.f === "modal") { if (alCerrar && alCerrar.guardar) alCerrar.guardar(v); }
   else if (f.dataset.f === "nueva-act") {
     if (!v.nombre) return;
@@ -821,11 +1013,22 @@ document.addEventListener("input", function (ev) {
 window.addEventListener("hashchange", function () { window.cerrarModal(); pintar(); window.scrollTo(0, 0); });
 
 /* ============ Archivos (Word y respaldo) ============ */
+function base64(bytes) {
+  var bin = "";
+  for (var i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
+  return btoa(bin);
+}
+/* Envía el archivo con la hoja de compartir de Android; con app = "whatsapp" va directo a WhatsApp, que pregunta a quién. */
+function compartir(nombre, mime, bytes, app) {
+  if (window.AndroidBridge && AndroidBridge.shareFile) return AndroidBridge.shareFile(nombre, mime, base64(bytes), app || "");
+  var f = typeof File === "function" ? new File([bytes], nombre, { type: mime }) : null;
+  if (f && navigator.canShare && navigator.canShare({ files: [f] })) return navigator.share({ files: [f] }).catch(function () {});
+  entregar(nombre, mime, bytes);
+  toast("Guardado. Adjúntalo en WhatsApp desde la app instalada");
+}
 function entregar(nombre, mime, bytes) {
   if (window.AndroidBridge && AndroidBridge.saveFile) {
-    var bin = "";
-    for (var i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
-    AndroidBridge.saveFile(nombre, mime, btoa(bin));
+    AndroidBridge.saveFile(nombre, mime, base64(bytes));
   } else {
     var a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([bytes], { type: mime })); a.download = nombre;

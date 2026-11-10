@@ -5,6 +5,8 @@ App Android (WebView, sin internet) para llevar el control de alumnos, sus curso
 - Alumnos, cursos (abiertos, por hacer, completados) y actividades: todo se puede crear, renombrar, reordenar y borrar.
 - Estado al lado de cada actividad y sumatoria por alumno y por curso.
 - Pestaña **Pendientes**: todo lo que falta por hacer, revisar, humanizar o entregar, de todos los alumnos, filtrable por estado.
+- **Base de datos de cursos** (icono del libro): código, área y nombre completo de cada assessment; editable, y se puede pegar la lista copiada del Word. Al crear un curso con ese código, sus assessments se agregan solos; si no está, el botón agrega Assessment 1 a 8.
+- Reporte Word: **Guardar** o **enviar por WhatsApp** (WhatsApp pregunta a qué chat).
 - Nota y **fecha de entrega** opcionales en cada actividad; fecha límite opcional por curso.
 - Pestaña **Plan** (sin conexión): reparte lo pendiente por días según tu capacidad diaria, dice si vas a buen ritmo, justo o atrasado, y cuánto necesitas hacer por día.
 - **Aviso diario** a la hora que elijas con lo vencido, lo que vence hoy y lo que toca según el plan (Ajustes ⚙).
