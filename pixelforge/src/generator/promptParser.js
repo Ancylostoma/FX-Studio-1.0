@@ -3,13 +3,17 @@
 // finalize() añade los valores por defecto. Guardar el raw permite editar la
 // escena después ("agrega una luna") sin perder la intención original.
 import { PHRASES, STOPWORDS, MAX_PHRASE, normalize } from './vocabulary.js';
-import { LIB } from './spriteLibrary.js';
+import { LIB, defOf } from './spriteLibrary.js';
+import { checkTheme, inferTheme } from './environments.js';
 import { BIOMES, COLOR_NAMES } from './templates.js';
 
 export const MAX_PROMPT = 600;
 
 export function emptyRaw() {
-  return { subjects: [], structures: [], flora: [], features: [], biome: null, time: null, weather: [], celestial: [], fx: [], themes: [], sky: {}, style: null, moonPhase: null, anim: null, no: [], unknown: [] };
+  return { subjects: [], structures: [], flora: [], features: [], biome: null, time: null, weather: [], celestial: [], fx: [], themes: [], sky: {}, style: null, moonPhase: null, anim: null, no: [], unknown: [],
+    // Dirección artística (la rellenan el parser o la IA): escenario interior,
+    // asentamiento, batalla, vista, luz, tema de paleta, protagonista, nº de planetas.
+    setting: null, room: null, town: null, battle: false, crowd: false, view: null, light: null, theme: null, focus: null, planets: 0 };
 }
 
 function tokenize(text) {
@@ -34,7 +38,7 @@ function tokenize(text) {
 // side: 'left'|'center'|'right' · depth: 'back'|'front' · rel: { type, of } respecto a otra entidad
 export const ent = (id) => ({ id, color: null, color2: null, n: 1, size: 0, fly: null, side: null, depth: null, rel: null, a: {} });
 export const REL_TYPES = ['on', 'behind', 'front', 'beside', 'leftof', 'rightof'];
-const HUMANOID = (e) => LIB[e.id]?.cat === 'humanoid';
+const HUMANOID = (e) => defOf(e)?.cat === 'humanoid';
 
 export function extract(text) {
   const raw = emptyRaw();
@@ -46,6 +50,7 @@ export function extract(text) {
   const lastEnt = () => ents[ents.length - 1];
   const lastBody = () => { for (let j = ents.length - 1; j >= 0; j--) if (!ents[j].part) return ents[j]; return null; };
   const nounSoon = (i) => { let j = i + 1, skipped = 0; while (toks[j] && skipped < 3 && /^(stop|unk$|col:|size:|n:)/.test(toks[j].tag)) { j++; skipped++; } return isNoun(toks[j]); };
+  const rooms = [];
   let pend = null;               // relación a la espera de su segundo término ("detrás de" → …)
   // ¿Sigue "de/del/of" + sustantivo? Distingue "a la izquierda del castillo" de "a la izquierda".
   const ofNoun = (i) => { let j = i + 1; if (!(toks[j]?.tag === 'stop' && /^(de|del|of)$/.test(toks[j].word))) return false; j++; if (toks[j]?.tag === 'stop') j++; while (toks[j] && /^(col|size|n):/.test(toks[j].tag)) j++; return isNoun(toks[j]) && !toks[j].tag.startsWith('part:'); };
@@ -108,6 +113,15 @@ export function extract(text) {
       case 'fx': if (!raw.fx.includes(id)) raw.fx.push(id); break;
       case 'theme': if (!raw.themes.includes(id)) raw.themes.push(id); break;
       case 'style': raw.style = id; break;
+      case 'setting': raw.setting = 'interior'; break;
+      case 'room': rooms.push(id); break;
+      case 'town': raw.town = { kind: id }; break;
+      case 'battle': raw.battle = true; break;
+      case 'jungle': raw.biome = 'forest'; if (!raw.themes.includes('tropical')) raw.themes.push('tropical'); break;
+      case 'crowd': raw.crowd = true; break;
+      case 'view': raw.view = id; break;
+      case 'light': raw.light = id; break;
+      case 'planets': raw.planets = 4; if (!raw.celestial.includes('planet')) raw.celestial.push('planet'); break;
       case 'anim': raw.anim = id; break;
       case 'col':
         if (isNoun(prev) && lastEnt()) setColor(lastEnt(), id);
@@ -157,6 +171,13 @@ export function extract(text) {
       return true;
     });
   }
+  // Estancias: mazmorra, sala del trono, laboratorio o habitación implican un
+  // interior; biblioteca y taberna solo si se dice "interior de…" (si no, son edificios).
+  const INDOOR = ['dungeon', 'throne', 'lab', 'room'];
+  if (rooms.length) {
+    if (raw.setting === 'interior' || rooms.some((r) => INDOOR.includes(r))) { raw.setting = 'interior'; raw.room = rooms.find((r) => INDOOR.includes(r) || raw.setting) || rooms[0]; }
+    else for (const r of rooms) { const id = r === 'library' ? 'library' : r === 'tavern' ? 'medievalhouse' : null; if (id && !raw.structures.some((e) => e.id === id)) raw.structures.push(ent(id)); }
+  }
   // Una relación solo es válida si su destino sigue en la escena y no es la propia entidad.
   const present = new Set([...raw.subjects, ...raw.structures, ...raw.flora].map((e) => e.id));
   for (const list of [raw.subjects, raw.structures, raw.flora]) for (const e of list) { delete e._i; if (e.rel && (!present.has(e.rel.of) || e.rel.of === e.id)) e.rel = null; }
@@ -179,9 +200,50 @@ export function finalize(raw) {
     if (!flo.includes('cherry') && !no.has('cherry')) s.flora.push(ent('cherry'));
     if (!str.length && !no.has('torii')) s.structures.push(ent('torii'));
   }
-  const sceneHints = s.biome || s.features.length || str.length || flo.length || s.time || s.weather.length || s.celestial.length || s.fx.length || s.sky.color || s.themes.includes('japan');
+  // --- Dirección artística por reglas (modo procedural) ---
+  if (s.setting === 'interior') { s.room ||= 'room'; s.biome = 'interior'; }
+  if (s.town) {
+    const fut = s.themes.includes('future') || s.biome === 'cyber';
+    if (fut) { s.biome = 'cyber'; s.town = null; }
+    else {
+      s.town.style ||= s.themes.includes('tropical') || s.biome === 'beach' || s.biome === 'sea' ? 'tropical' : s.themes.includes('japan') ? 'japanese' : s.biome === 'desert' ? 'desert' : s.biome === 'snow' ? 'nordic' : 'medieval';
+      s.town.size ||= s.town.kind === 'city' ? 3 : 2;
+      if (s.biome === 'sea') s.biome = 'beach';
+      if (!s.biome || s.biome === 'city') s.biome = s.town.style === 'tropical' ? 'beach' : s.town.style === 'desert' ? 'desert' : 'town';
+      if (!s.themes.includes('medieval') && s.town.style === 'medieval') s.themes.push('medieval');
+    }
+  }
+  if (s.biome === 'city' && s.themes.includes('medieval')) { s.biome = 'town'; s.town = { kind: 'city', style: 'medieval', size: 3 }; }
+  // Tren que cruza montañas: va sobre un puente.
+  const train = s.subjects.find((e) => e.id === 'train');
+  if (train) {
+    if (s.themes.includes('future')) { train.a.style = 'futurist'; }
+    if ((s.features.includes('mountains') || s.structures.some((e) => e.id === 'bridge')) && !no.has('bridge')) {
+      let br = s.structures.find((e) => e.id === 'bridge');
+      if (!br) { br = { id: 'bridge', color: null, color2: null, n: 1, size: 0, fly: null, side: null, depth: null, rel: null, a: {} }; s.structures.push(br); }
+      if (s.themes.includes('future')) br.a.future = true;
+      train.rel ||= { type: 'on', of: 'bridge' };
+    }
+  }
+  // Batalla: los contendientes atacan; si faltan, se eligen rivales.
+  if (s.battle || s.crowd) {
+    const fighters = s.subjects.filter((e) => defOf(e)?.cat !== 'effect' && !['object'].includes(defOf(e)?.cat));
+    const mk = (id) => ({ id, color: null, color2: null, n: 1, size: 0, fly: null, side: null, depth: null, rel: null, a: {} });
+    if (s.battle && fighters.length < 2) {
+      const pool = fighters.length ? (defOf(fighters[0])?.cat === 'humanoid' ? ['dragon', 'troll', 'orc'] : ['knight', 'golem', 'griffin']) : ['dragon', 'troll'];
+      for (const id of pool) { if (s.subjects.filter((e) => defOf(e)?.cat !== 'effect').length >= 2) break; if (!s.subjects.some((e) => e.id === id)) s.subjects.push(mk(id)); }
+      s.notes.push('Añado contendientes para la batalla: ' + s.subjects.filter((e) => !fighters.includes(e)).map((e) => LIB[e.id]?.name || e.id).join(' y ') + '.');
+    }
+    if (s.battle) {
+      for (const e of s.subjects) if (defOf(e)?.cat !== 'effect') e.action ||= 'attack';
+      if (!s.subjects.some((e) => defOf(e)?.cat === 'effect')) s.subjects.push({ ...mk('magic'), clash: true, fly: true, size: -1 });
+      if (s.subjects.some((e) => e.id === 'dragon')) s.subjects.find((e) => e.id === 'dragon').a.fire = true;
+    }
+  }
+  if (s.features.includes('waterfall') && !s.features.includes('lake')) s.features.push('lake');
+  const sceneHints = s.biome || s.town || s.setting || s.battle || s.features.length || str.length || flo.length || s.time || s.weather.length || s.celestial.length || s.fx.length || s.sky.color || s.themes.includes('japan');
   if (!s.biome && sceneHints) {
-    if (sub.includes('astronaut') || sub.includes('alien') || (sub.includes('rocket') && s.celestial.includes('planet'))) s.biome = s.celestial.includes('planet') || sub.includes('rocket') ? 'space' : 'moonland';
+    if (sub.includes('astronaut') || sub.includes('alien') || ((sub.includes('rocket') || sub.includes('spaceship') || sub.includes('ufo')) && s.celestial.includes('planet'))) s.biome = s.celestial.includes('planet') || sub.includes('rocket') || sub.includes('spaceship') ? 'space' : 'moonland';
     else if (sub.includes('boat') || sub.includes('whale') || sub.includes('shark') || str.includes('lighthouse')) s.biome = 'sea';
     else if (flo.includes('cactus') || str.includes('pyramid')) s.biome = 'desert';
     else if (flo.includes('palm')) s.biome = 'beach';
@@ -194,11 +256,12 @@ export function finalize(raw) {
   if (!sceneHints && !sub.length) { s.biome = 'meadow'; s.notes.push('No reconocí ningún elemento concreto: genero un paisaje de pradera.'); }
   if (s.biome === 'snow' && !s.weather.includes('snow') && !no.has('snow')) { /* nieve en el suelo, sin nevada */ }
   const b = s.biome ? BIOMES[s.biome] : null;
+  if (!s.time && s.setting === 'interior') s.time = 'night';
   if (!s.time) s.time = (s.biome === 'cyber' || s.fx.includes('fireflies') || s.themes.includes('spooky') || s.celestial.includes('moon') || s.celestial.includes('aurora') || (s.celestial.includes('stars') && !s.celestial.includes('sun'))) ? 'night' : 'day';
   if (s.themes.includes('magic')) { if (!no.has('sparkles')) s.fx = uniq([...s.fx, 'sparkles']); if (s.time === 'night' && s.biome === 'forest' && !no.has('fireflies')) s.fx = uniq([...s.fx, 'fireflies']); }
   if (s.biome === 'cyber' && !s.weather.length && !no.has('rain')) s.weather.push('rain');
   const addC = (id) => { if (!s.celestial.includes(id) && !no.has(id)) s.celestial.push(id); };
-  if (b) {
+  if (b && !b.noSky) {
     if (b.sky === 'space') { addC('stars'); if (s.biome === 'space') addC('planet'); }
     else {
       if (s.time === 'night') { addC('stars'); if (!s.celestial.includes('sun')) addC('moon'); }
@@ -210,9 +273,15 @@ export function finalize(raw) {
   s.celestial = s.celestial.filter((c) => !no.has(c));
   s.weather = s.weather.filter((c) => !no.has(c));
   s.fx = s.fx.filter((c) => !no.has(c));
-  for (const e of [...s.subjects, ...s.structures, ...s.flora]) { e.side ??= null; e.depth ??= null; e.rel ??= null; }
+  for (const e of [...s.subjects, ...s.structures, ...s.flora]) { e.side ??= null; e.depth ??= null; e.rel ??= null; e.action ??= null; e.facing ??= null; }
+  // Protagonista: el indicado o el primer sujeto (o estructura).
+  s.focus ||= s.subjects.find((e) => defOf(e)?.cat !== 'effect')?.id || s.structures[0]?.id || null;
+  // Paleta: la propuesta (si es coherente con la escena) o la que corresponda.
+  const th = checkTheme(s.theme || inferTheme(s), s);
+  s.theme = th.theme; if (th.note) s.notes.push(th.note);
+  if (s.planets) s.planets = Math.max(1, Math.min(5, s.planets | 0));
   for (const e of s.subjects) {
-    const def = LIB[e.id];
+    const def = defOf(e);
     if (e.fly == null) e.fly = !!def?.air;
     e.n = Math.max(1, Math.min(5, e.n || 1));
   }
@@ -235,7 +304,13 @@ export function describeSpec(spec, opts = {}) {
   if (spec.flora.length) out.push('PROPS=' + spec.flora.map(e).join('+'));
   if (spec.biome) out.push('BIOME=' + spec.biome);
   if (spec.features.length) out.push('RELIEF=' + spec.features.join(','));
-  out.push('LIGHT=' + spec.time);
+  if (spec.setting === 'interior') out.push('ROOM=' + spec.room);
+  if (spec.town) out.push(`TOWN=${spec.town.style}×${spec.town.size}`);
+  if (spec.battle) out.push('ACTION=battle');
+  out.push('LIGHT=' + spec.time + (spec.light === 'right' ? '→' : ''));
+  if (spec.view && spec.view !== 'side') out.push('VIEW=' + spec.view);
+  if (spec.theme && spec.theme !== 'natural') out.push('PALETTE=' + spec.theme);
+  if (spec.focus) out.push('FOCUS=' + spec.focus);
   if (spec.celestial.length) out.push('SKY=' + spec.celestial.join(',') + (spec.sky.color ? `(${spec.sky.color})` : ''));
   else if (spec.sky.color) out.push(`SKY=(${spec.sky.color})`);
   if (spec.weather.length) out.push('WEATHER=' + spec.weather.join(','));
@@ -247,12 +322,15 @@ export function describeSpec(spec, opts = {}) {
 
 // Resumen legible en español de lo que el motor entendió.
 export function explainSpec(spec) {
-  const name = (x) => (x.n > 1 ? x.n + '× ' : '') + (LIB[x.id]?.name || x.id) + (x.color ? ' ' + (COLOR_NAMES[x.color] || x.color) : '');
+  const name = (x) => (x.n > 1 ? x.n + '× ' : '') + (defOf(x)?.name || x.id) + (x.color ? ' ' + (COLOR_NAMES[x.color] || x.color) : '');
   const parts = [];
   if (spec.subjects.length) parts.push('Sujeto: ' + spec.subjects.map(name).join(', '));
   if (spec.structures.length) parts.push('Estructuras: ' + spec.structures.map(name).join(', '));
   if (spec.flora.length) parts.push('Elementos: ' + spec.flora.map(name).join(', '));
-  if (spec.biome) parts.push('Entorno: ' + BIOMES[spec.biome].name);
+  if (spec.setting === 'interior') parts.push('Interior: ' + ({ library: 'biblioteca', tavern: 'taberna', dungeon: 'mazmorra', throne: 'sala del trono', lab: 'laboratorio', room: 'habitación' }[spec.room] || spec.room));
+  else if (spec.town) parts.push('Entorno: ' + ({ medieval: 'ciudad medieval', tropical: 'aldea tropical', japanese: 'pueblo japonés', desert: 'ciudad del desierto', nordic: 'aldea nórdica' }[spec.town.style]));
+  else if (spec.biome) parts.push('Entorno: ' + BIOMES[spec.biome].name);
+  if (spec.battle) parts.push('Acción: batalla');
   const T = { day: 'día', night: 'noche', sunset: 'atardecer', dawn: 'amanecer' };
   parts.push('Luz: ' + T[spec.time]);
   return parts.join(' · ');

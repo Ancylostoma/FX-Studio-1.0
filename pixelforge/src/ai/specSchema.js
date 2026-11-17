@@ -8,7 +8,7 @@ import { emptyRaw, REL_TYPES } from '../generator/promptParser.js';
 
 const idsOf = (...cats) => Object.values(LIB).filter((d) => cats.includes(d.cat)).map((d) => d.id);
 export const CATALOG = Object.freeze({
-  subjects: idsOf('humanoid', 'animal', 'creature', 'vehicle', 'object'),
+  subjects: idsOf('humanoid', 'animal', 'creature', 'vehicle', 'object', 'effect'),
   structures: idsOf('structure'),
   flora: idsOf('flora'),
   biomes: Object.keys(BIOMES),

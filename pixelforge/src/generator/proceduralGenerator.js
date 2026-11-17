@@ -165,10 +165,12 @@ export function genCelestial(G) {
     G.bodyPos = { cx, cy, r };
   }
   if (has('planet')) {
-    const o = [], n = G.biome.noGround ? 2 : 1;
+    const o = [], n = Math.min(5, Math.max(spec.planets || 0, G.biome.noGround ? 2 : 1));
+    const SPOTS = [[0.74, 0.3, 0.15], [0.2, 0.62, 0.07], [0.16, 0.18, 0.09], [0.84, 0.78, 0.08], [0.5, 0.12, 0.05]];
     for (let i = 0; i < n; i++) {
-      const r = Math.max(3, Math.round(u * (i ? 0.07 : 0.15)));
-      const cx = Math.round(w * (i ? 0.2 : 0.74) * (G.moonSide > 0 || i ? 1 : 0.4)), cy = Math.round(skyH * (i ? 0.62 : 0.3));
+      const [sx, sy, sr] = SPOTS[i];
+      const r = Math.max(3, Math.round(u * sr));
+      const cx = Math.round(w * (G.moonSide > 0 ? sx : 1 - sx)), cy = Math.round(skyH * sy);
       const pr = C.hsl(rng.pick([20, 190, 280, 130, 40]), 55, 52);
       o.push(['E', cx, cy, r, r, pr[2]]);
       for (let b = -2; b <= 2; b++) if (rng.chance(0.6)) o.push(['R', cx - r, cy + Math.round((b * r) / 3), 2 * r + 1, Math.max(1, Math.round(r / 6)), pr[b & 1 ? 3 : 1], 1]);
@@ -338,6 +340,21 @@ export function genFar(G) {
         out.push(L(k ? 'edificios' : 'edificios lejanos', 'far', bo, { f: [sky, k ? 12 : 45] }));
         if (lo.length) out.push(L(k ? 'ventanas' : 'ventanas lejanas', 'far', lo, { nl: 1, a: k ? 1 : 0.6 }));
       }
+    } else if (f === 'waterfall') {
+      // Acantilado con cascada que cae al lago, en el lado contrario al astro.
+      const side = G.moonSide > 0 ? -1 : 1, st = C.mat('stone'), wt = C.mat('water'), foam = C.rgb([235, 245, 255]);
+      const x0 = side < 0 ? 0 : w, cw = Math.round(w * 0.42), top = Math.round(H * 0.32), fx = side < 0 ? Math.round(w * 0.3) : w - Math.round(w * 0.3), fw = Math.max(3, Math.round(w * 0.07));
+      const edge = (t) => Math.round(x0 - side * cw * t);
+      o.push(['P', [x0, H + 1, x0, top, edge(0.55), top - Math.round(H * 0.04), edge(0.8), top + Math.round(H * 0.08), edge(1), H + 1], st[1]]);
+      o.push(['P', [x0, H + 1, x0, top, edge(0.4), top, edge(0.45), H + 1], st[2]]);
+      o.push(['T', Math.min(x0, edge(1)), top, cw, H - top + 1, st[3], 8, 31, 1], ['T', Math.min(x0, edge(1)), top, cw, H - top + 1, st[0], 6, 37, 1]);
+      const lush = C.mat('leaf'); o.push(['E', edge(0.5), top, Math.round(cw * 0.35), Math.max(2, Math.round(H * 0.05)), lush[2]], ['E', edge(0.2), top + 1, Math.round(cw * 0.25), Math.max(2, Math.round(H * 0.04)), lush[3]]);
+      out.push(L('acantilado', 'far', o, { f: [sky, 12] }));
+      const wo = [['R', fx - (fw >> 1), top, fw, H - top + 2, wt[3]], ['R', fx - (fw >> 1), top, 1, H - top + 2, wt[4]]];
+      const F = G.frames > 1 ? G.frame : 0;
+      for (let y = top + ((F * 3) % 6); y < H; y += 6) wo.push(['R', fx - (fw >> 1) + 1, y, fw - 2, 2, wt[4]]);
+      wo.push(['E', fx, H + 1, fw, Math.max(1, Math.round(fw * 0.4)), foam], ['T', fx - fw * 2, H - 3, fw * 4, 5, foam, 25, 11 + F]);
+      out.push(L('cascada', 'far', wo, { nl: 1 }));
     } else if (f === 'volcano') {
       const m = C.mat('ash'), lava = C.rgb([255, 120, 40]), lava2 = C.rgb([255, 214, 90]);
       const px = Math.round(w * (G.moonSide > 0 ? 0.34 : 0.66)), ph = Math.round(H * 0.55), py = H - ph, wl = Math.round(w * 0.36), top = Math.max(2, Math.round(w * 0.05));

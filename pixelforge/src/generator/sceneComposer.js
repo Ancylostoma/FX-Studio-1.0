@@ -8,7 +8,9 @@ import { PaletteBuilder, compactPalette, PALETTES } from '../core/paletteManager
 import { AMBIENTS } from '../core/lighting.js';
 import { VERSION, LIMITS, validateScene, mapLayerColors, mapOpColors, layerSignature, spriteRefs } from '../core/pixelScene.js';
 import { STYLES, BIOMES, SKIES, DETAIL_FACTOR, ANIMS } from './templates.js';
-import { LIB } from './spriteLibrary.js';
+import { LIB, defOf } from './spriteLibrary.js';
+import { genTown, genInterior, applyTheme } from './environments.js';
+import { THEMES } from './templates.js';
 import { Pen, Kit, L, skyColors, genSky, genStars, genCelestial, genClouds, genFar, genGround, genWater, genWeather } from './proceduralGenerator.js';
 import { finalize } from './promptParser.js';
 
@@ -36,6 +38,13 @@ export function normalizeOptions(o = {}) {
 
 const SIZE = { '-1': 0.72, 0: 1, 1: 1.35 };
 const SIDE_X = { left: 0.24, center: 0.5, right: 0.76 };
+// Escala de una entidad: tamaño pedido, protagonista algo mayor (jerarquía
+// visual) y reducción general en vista panorámica.
+function sizeOf(G, e) {
+  const many = G.spec.subjects.length + G.spec.structures.length > 1;
+  const focus = many && e.id === G.spec.focus && !e.depth ? 1.15 : 1;
+  return SIZE[e.size ?? 0] * focus * (G.scaleMul || 1) * (G.adjust?.scale?.[e.id] || 1);
+}
 const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
 const cxOf = (b) => b.x + b.w / 2;
 
@@ -44,6 +53,24 @@ const cxOf = (b) => b.x + b.w / 2;
 // Se aplican sobre la composición por defecto, moviendo solo lo indicado.
 function applyPositions(G, relOnly = false) {
   const { w, h } = G, all = [...G.structs, ...G.subs];
+  // Batalla: los dos primeros contendientes, frente a frente en los tercios.
+  if (G.spec.battle && !relOnly) {
+    const fighters = [], seen = new Set();
+    for (const b of G.subs) if (b.def.cat !== 'effect' && !seen.has(b.e)) { seen.add(b.e); fighters.push(b); }
+    if (fighters.length >= 2) {
+      const [A, B] = fighters, ground = Math.max(A.air ? 0 : A.by || 0, B.air ? 0 : B.by || 0) || null;
+      for (const [b, u, flip] of [[A, 0.3, false], [B, 0.7, true]]) {
+        if (b.e.side || b.e.rel) continue;
+        b.x = Math.round(clampN(w * u, b.w / 2 + 1, w - b.w / 2 - 1) - b.w / 2); b.flip = flip;
+        if (!b.air && ground) { b.by = ground; b.y = b.by - b.h; }
+      }
+      const clash = G.subs.find((b) => b.e.clash);
+      if (clash) {
+        const mid = (b) => (b.air ? b.y + b.h * 0.4 : b.y + b.h * 0.45);
+        clash.x = Math.round((cxOf(A) + cxOf(B)) / 2 - clash.w / 2); clash.y = Math.round((mid(A) + mid(B)) / 2 - clash.h / 2);
+      }
+    }
+  }
   const isStruct = (b) => G.structs.includes(b);
   const put = (b, cx, base, scale = 1) => {
     if (scale !== 1) { b.w = Math.max(3, Math.round(b.w * scale)); b.h = Math.max(3, Math.round(b.h * scale)); }
@@ -104,9 +131,14 @@ function buildContext(spec, o, pb, frame) {
   // Animación: todos los fotogramas comparten semillas, así que solo cambia lo que cada generador decide mover.
   G.frames = ANIMS[o.anim].n; G.frame = frame;
   G.pose = G.frames > 1 ? { kind: o.anim, f: frame, n: G.frames } : null;
-  G.layoutKind = st.layout === 'sprite' || !spec.biome ? 'portrait' : st.layout === 'iso' ? 'iso' : 'scene';
+  G.layoutKind = st.layout === 'sprite' || !spec.biome || spec.view === 'front' ? 'portrait' : st.layout === 'iso' || spec.view === 'top' ? 'iso' : 'scene';
   G.transparent = st.layout === 'sprite';
   G.biome = BIOMES[spec.biome || 'meadow'];
+  G.interior = !!G.biome.interior && G.layoutKind === 'scene';
+  if (G.biome.interior && G.layoutKind === 'iso') G.biome = BIOMES.meadow;
+  G.ld = spec.light === 'right' ? 1 : -1;
+  G.adjust = o.adjust || null;
+  if (spec.view === 'panorama' && G.layoutKind === 'scene') { G.panorama = true; G.scaleMul = 0.7; }
   G.timeKey = spec.time;
   const bad = spec.weather.includes('rain') || spec.weather.includes('storm');
   const skyKey = G.biome.sky || (bad && spec.time !== 'night' ? 'storm' : spec.time);
@@ -115,7 +147,8 @@ function buildContext(spec, o, pb, frame) {
   G.lights = G.night || spec.time === 'sunset' || bad || skyKey === 'space' || !!G.biome.neon;
   G.amb = G.biome.sky === 'space' ? null : AMBIENTS[G.sky.amb]?.amb || null;
   if (bad && spec.time === 'night') G.amb = AMBIENTS.night.amb;
-  G.H = G.biome.noGround ? h : Math.round(h * Math.min(0.8, G.biome.hz + (st.vista ? 0.03 : 0)));
+  G.H = G.biome.noGround ? h : Math.round(h * Math.min(0.8, G.biome.hz + (st.vista ? 0.03 : 0) - (G.panorama ? 0.06 : 0)));
+  if (G.interior) { G.lights = true; G.amb = G.night ? [255, 176, 128, 30] : null; }
   const lay = root.fork('layout');
   G.moonSide = lay.chance(0.5) ? 1 : -1;
   if (G.layoutKind === 'portrait') {
@@ -125,7 +158,7 @@ function buildContext(spec, o, pb, frame) {
     G.farFeatures = [];
     G.amb = null;
   } else {
-    G.skyIdx = skyColors(G).map((c) => C.rgb(c));
+    G.skyIdx = G.interior ? [C.mat(spec.room === 'dungeon' ? 'darkstone' : 'bark')[0]] : skyColors(G).map((c) => C.rgb(c));
     G.starDensity = spec.celestial.includes('stars') ? G.sky.stars || (spec.time === 'day' ? 0 : 0.4) : 0;
     G.waterKind = G.biome.water || (spec.features.includes('lake') ? 'lake' : null);
     if (G.layoutKind === 'iso') { G.waterKind = null; G.H = Math.round(h * 0.86); }
@@ -136,7 +169,8 @@ function buildContext(spec, o, pb, frame) {
     if (G.biome.snowy && !far.includes('mountains')) far.unshift('mountains');
     if (far.includes('fuji')) far = far.filter((f) => f !== 'mountains' && f !== 'hills');
     if (spec.features.includes('mountains') && far.includes('hills')) far = far.filter((f) => f !== 'hills');
-    G.farFeatures = G.layoutKind === 'iso' || G.biome.noGround ? [] : far;
+    G.farFeatures = G.layoutKind === 'iso' || G.biome.noGround || G.interior ? [] : far;
+    if (G.interior) { G.waterKind = null; G.starDensity = 0; }
     if (G.layoutKind === 'iso') G.iso = { cx: w >> 1, cy: Math.round(h * 0.6), rx: Math.round(w * 0.45), ry: Math.round(w * 0.2), th: Math.round(h * 0.13) };
   }
   G.skyHorizon = G.skyIdx[G.skyIdx.length - 1];
@@ -151,7 +185,7 @@ function layout(G, rng) {
   G.boxes = []; G.islets = [];
   const subs = [];
   const pool = G.layoutKind === 'portrait' ? [...spec.subjects, ...spec.structures, ...spec.flora] : spec.subjects;
-  for (const s of pool) for (let i = 0; i < Math.min(5, s.n || 1); i++) subs.push({ e: s, def: LIB[s.id], i });
+  for (const s of pool) for (let i = 0; i < Math.min(5, s.n || 1); i++) subs.push({ e: s, def: defOf(s), i });
   const grounded = subs.filter((s) => !s.e.fly && !(s.def.float && G.waterKind));
   const fliers = subs.filter((s) => s.e.fly);
   const floaters = subs.filter((s) => !s.e.fly && s.def.float && G.waterKind);
@@ -175,18 +209,18 @@ function layout(G, rng) {
   if (G.layoutKind === 'iso') {
     const { cx, cy, rx, ry } = G.iso;
     spec.structures.slice(0, 2).forEach((e, i) => {
-      const def = LIB[e.id], { bw, bh } = fit(def, h * def.sz * 0.85 * SIZE[e.size], rx * 1.0);
+      const def = defOf(e), { bw, bh } = fit(def, h * def.sz * 0.85 * sizeOf(G, e), rx * 1.0);
       const x = cx + (i ? -side : side) * Math.round(rx * (spec.structures.length > 1 ? 0.35 : 0.12)), by = cy - Math.round(ry * 0.1);
       G.structs.push({ e, def, x: x - (bw >> 1), y: by - bh, w: bw, h: bh, by });
       G.boxes.push([x - (bw >> 1), x + (bw >> 1), by]);
     });
     grounded.concat(floaters).forEach((s, i, arr) => {
-      const { bw, bh } = fit(s.def, h * s.def.sz * 0.9 * SIZE[s.e.size], rx * 0.5);
+      const { bw, bh } = fit(s.def, h * s.def.sz * 0.9 * sizeOf(G, s.e), rx * 0.5);
       const x = cx - side * Math.round(rx * 0.3) + Math.round((i - (arr.length - 1) / 2) * bw * 1.1), by = cy + Math.round(ry * 0.45);
       G.subs.push({ ...s, x: x - (bw >> 1), y: by - bh, w: bw, h: bh, flip: x > cx, depth: 1 });
     });
     fliers.forEach((s, i) => {
-      const { bw, bh } = fit(s.def, h * s.def.sz * 0.9 * SIZE[s.e.size], w * 0.5);
+      const { bw, bh } = fit(s.def, h * s.def.sz * 0.9 * sizeOf(G, s.e), w * 0.5);
       const x = Math.round(w * (0.5 - side * 0.2)) + i * Math.round(bw * 0.6), y = Math.round(h * 0.08) + i * Math.round(bh * 0.5);
       G.subs.push({ ...s, x: x - (bw >> 1), y, w: bw, h: bh, flip: x > w / 2, air: true, depth: 0 });
     });
@@ -197,13 +231,14 @@ function layout(G, rng) {
   const hasFg = grounded.length > 0;
   // Estructuras
   spec.structures.slice(0, 3).forEach((e, i) => {
-    const def = LIB[e.id];
+    const def = defOf(e);
     const farShore = lake || G.waterKind === 'beach';
-    const scale = (farShore ? 0.62 : 1) * (i ? 0.78 : 1) * (fliers.length ? 0.88 : 1) * SIZE[e.size];
+    const scale = (farShore ? 0.62 : 1) * (i ? 0.78 : 1) * (fliers.length ? 0.88 : 1) * sizeOf(G, e);
     const by = farShore ? H + 1 : sea ? H + Math.round((h - H) * 0.3) : H + Math.round((h - H) * (def.id === 'castle' ? 0.16 : 0.24));
-    const { bw, bh } = fit(def, Math.min(h * def.sz * scale, by - h * 0.04), w * (i ? 0.4 : 0.72));
+    let { bw, bh } = fit(def, Math.min(h * def.sz * scale, by - h * 0.04), w * (i ? 0.4 : 0.72));
+    if (def.span) { bw = w + 4; bh = Math.max(4, Math.round(bw / def.ar * 1.4)); }
     const n = Math.min(3, spec.structures.length);
-    let cx = n === 1 ? 0.5 + side * (hasFg ? 0.16 : fliers.length ? 0.1 : 0.04) : [0.5 + side * 0.2, 0.5 - side * 0.24, 0.5][i];
+    let cx = def.span ? 0.5 : n === 1 ? 0.5 + side * (hasFg ? 0.16 : fliers.length ? 0.1 : 0.04) : [0.5 + side * 0.2, 0.5 - side * 0.24, 0.5][i];
     cx = Math.round(w * cx);
     const b = { e, def, x: cx - (bw >> 1), y: by - bh, w: bw, h: bh, by };
     G.structs.push(b); G.boxes.push([b.x - 1, b.x + bw + 1, by]);
@@ -213,7 +248,7 @@ function layout(G, rng) {
   // Sujetos en tierra
   grounded.forEach((s, i) => {
     const by = sea ? H + Math.round((h - H) * 0.55) : gTop + Math.round((h - gTop) * 0.62);
-    const { bw, bh } = fit(s.def, Math.min(h * s.def.sz * 1.2 * SIZE[s.e.size], by - 2), w * 0.5);
+    const { bw, bh } = fit(s.def, Math.min(h * s.def.sz * 1.2 * sizeOf(G, s.e), by - 2), w * 0.5);
     const base = main ? 0.5 - side * 0.22 : 0.5 + (grounded.length > 1 ? 0 : -side * 0.06);
     const cx = Math.max((bw >> 1) + 1, Math.min(w - (bw >> 1) - 1, Math.round(w * (grounded.length > 2 && !main ? 0.5 : base) + (i - (grounded.length - 1) / 2) * Math.min(bw * 1.25, (w * 0.9) / grounded.length))));
     const b = { ...s, x: cx - (bw >> 1), y: by - bh, w: bw, h: bh, by, flip: main ? cx > main.x + main.w / 2 : cx > w / 2, depth: 1, ground: true };
@@ -223,19 +258,22 @@ function layout(G, rng) {
   floaters.forEach((s, i) => {
     const bottom = sea ? h : G.shoreY;
     const by = H + Math.round((bottom - H) * 0.5);
-    const { bw, bh } = fit(s.def, h * s.def.sz * SIZE[s.e.size], w * 0.45);
+    const { bw, bh } = fit(s.def, h * s.def.sz * sizeOf(G, s.e), w * 0.45);
     const cx = Math.round(w * (0.5 - side * 0.16) + i * bw * 1.3);
     G.subs.push({ ...s, x: cx - (bw >> 1), y: by - bh, w: bw, h: bh, by, flip: cx > w / 2, depth: 0.5, floating: true });
   });
   fliers.forEach((s, i) => {
     const skyH = G.biome.noGround ? h : H;
-    const { bw, bh } = fit(s.def, Math.min(h * s.def.sz * SIZE[s.e.size], skyH * 0.62), w * 0.58);
+    const { bw, bh } = fit(s.def, Math.min(h * s.def.sz * sizeOf(G, s.e), skyH * 0.62), w * 0.58);
     const cx = Math.round(w * (0.5 - side * (main ? 0.2 : 0.08)) + (i % 2 ? 1 : -1) * Math.ceil(i / 2) * bw * 0.9);
     const cy = Math.round(skyH * (G.biome.noGround ? 0.5 : main ? 0.26 : 0.34) + (i ? rng.range(-0.1, 0.12) * skyH : 0));
     G.subs.push({ ...s, x: cx - (bw >> 1), y: Math.max(1, cy - (bh >> 1)), w: bw, h: bh, flip: side < 0 ? false : true, air: true, depth: 0 });
   });
   G.gTop = gTop;
   applyPositions(G);
+  // Correcciones del control de calidad: desplazamientos horizontales por entidad.
+  for (const b of [...G.structs, ...G.subs]) { const dx = G.adjust?.dx?.[b.e.id]; if (dx) b.x = Math.round(clampN(b.x + dx * w, -b.w * 0.2, w - b.w * 0.8)); }
+  G.boxes = [...G.structs, ...G.subs.filter((s) => s.ground && !s.onTop)].map((b) => [b.x - 1, b.x + b.w + 1, b.by]);
   const pathOk = main && !G.waterKind && ['grass', 'snow'].includes(G.biome.ground) && ['castle', 'house', 'tower', 'temple', 'windmill'].includes(main.def.id);
   if (pathOk) G.path = { x0: main.x + (main.w >> 1), y0: main.by, x1: Math.round(w * (0.5 - side * 0.1)), wide: Math.max(2, Math.round(w * 0.07)) };
   G.gTop = gTop;
@@ -253,17 +291,23 @@ function outlineProps(G, kind) {
 function drawEntity(G, box, key, rngLabel) {
   const { def, e } = box;
   const main = [], lit = [], glow = [];
+  if (e.facing) box.flip = e.facing === 'left';
   const p = new Pen(main, box.x, box.y, box.w, box.h, box.flip);
-  const k = { C: G.C, a: { ...e.a, color: e.color, color2: e.color2, fly: box.air, snowy: G.biome.snowy, mat: G.biome.ground === 'mars' ? 'mars' : G.biome.ground === 'moon' ? 'moon' : undefined }, lit: p.on(lit), glow, night: G.lights, rng: G.rng(rngLabel), neon: G.biome.neon, space: G.biome.noGround, beamDir: box.flip ? -1 : 1, sprites: G.sprites, pose: G.pose };
+  // Acción sin animación: pose estática representativa (golpe, paso).
+  const act = e.action === 'cast' ? 'attack' : e.action;
+  const pose = G.pose || (act === 'attack' || act === 'walk' ? { kind: act, f: act === 'walk' ? 0 : 2, n: 4 } : null);
+  const k = { C: G.C, a: { ...e.a, color: e.color, color2: e.color2, fly: box.air, snowy: G.biome.snowy, mat: G.biome.ground === 'mars' ? 'mars' : G.biome.ground === 'moon' ? 'moon' : undefined }, lit: p.on(lit), glow, night: G.lights, rng: G.rng(rngLabel), neon: G.biome.neon, space: G.biome.noGround, beamDir: box.flip ? -1 : 1, sprites: G.sprites, pose };
   def.build(p, k);
   const name = def.name + (box.i ? ' ' + (box.i + 1) : '');
   const out = [];
   if (box.by != null && !box.air && !box.floating && !box.onTop && G.layoutKind !== 'portrait' && def.cat !== 'structure') {
-    out.push(L('sombra de ' + name, key, [['E', box.x + (box.w >> 1), box.by, Math.max(1, Math.round(box.w * 0.42)), Math.max(0, Math.round(box.w * 0.07)), G.C.dark]], { a: 0.28, nl: 1 }));
+    // La sombra cae del lado contrario a la luz.
+    out.push(L('sombra de ' + name, key, [['E', box.x + (box.w >> 1) - G.ld * Math.round(box.w * 0.1), box.by, Math.max(1, Math.round(box.w * 0.42)), Math.max(0, Math.round(box.w * 0.07)), G.C.dark]], { a: 0.28, nl: 1 }));
   }
   if (glow.length) out.push(L('halo de ' + name, key, glow, { nl: 1, a: 0.2 }));
   const props = outlineProps(G, def.cat === 'structure' ? 'struct' : 'subj');
   if (def.alpha) props.a = def.alpha;
+  if (G.adjust?.outline?.[e.id] && props.ol === undefined) props.ol = G.C.dark;   // contraste insuficiente con el fondo
   // Lo que vuela o flota se mece: desplazamiento de capa por fotograma.
   const mv = !G.pose || G.layoutKind === 'portrait' && !box.air ? null : box.air ? [[0, 1], [0, 0], [0, -1], [0, 0]] : box.floating ? [[0, 0], [0, 0], [0, 1], [0, 1]] : null;
   if (mv) { props.mv = mv; for (const l of out) l.mv = mv; }
@@ -282,7 +326,7 @@ function genProps(G) {
   const gTop = iso ? 0 : G.gTop, gH = h - gTop;
   const blocked = (x, bw, by) => G.boxes.some(([a, b, y]) => x + bw > a && x < b && Math.abs(by - y) < h * 0.2);
   const place = (id, big, explicit, e) => {
-    const def = LIB[id];
+    const def = e ? defOf(e) : LIB[id];
     for (let tries = 0; tries < 14; tries++) {
       let x, by, t;
       if (iso) {
@@ -344,6 +388,8 @@ function genProps(G) {
   const B = mk(), F = mk(), Z = mk();
   for (const it of items) {
     const T = it.behind ? Z : it.by > frontY ? F : B;
+    // El control de calidad puede pedir que el primer plano no tape al protagonista.
+    if (T === F && G.adjust?.clearFocus) { const fb = G.subs.find((b) => b.e.id === G.spec.focus); if (fb && it.x < fb.x + fb.w && it.x + it.bw > fb.x && it.by - it.bh < fb.y + fb.h) continue; }
     const attrs = { ...it.e.a, color: it.e.color, color2: it.e.color2, snowy: G.biome.snowy, mat: G.biome.ground === 'mars' ? 'mars' : G.biome.ground === 'moon' ? 'moon' : undefined };
     const pad = Math.ceil(it.bh * 0.3);
     const sid = `${it.id}${it.lvl}${it.explicit ? 'x' : ''}${it.e.color ? '_' + it.e.color : ''}_${it.bw}x${it.bh}`;
@@ -374,16 +420,18 @@ function composeFrame(spec, o, pb, frame) {
   const { C } = G;
   let layers = [];
   const add = (ls) => { for (const l of ls) if (l.o.length) layers.push(l); };
-  if (!G.transparent) add(genSky(G));
-  if (G.layoutKind !== 'portrait') {
+  if (!G.transparent && !G.interior) add(genSky(G));
+  if (G.interior) add(genInterior(G));
+  else if (G.layoutKind !== 'portrait') {
     add(genStars(G));
     add(genCelestial(G));
     G.bodyX = G.bodyPos?.cx ?? null;
     add(genClouds(G));
     add(genFar(G));
+    add(genTown(G, 'far'));
   }
   const water = G.waterKind && G.layoutKind === 'scene';
-  if (!water) add(genGround(G));
+  if (!water && !G.interior) add(genGround(G));
   else if (G.waterKind !== 'sea') {
     const g = C.mat(G.biome.ground);
     add([L('orilla lejana', 'far', [['R', 0, G.H - 1, G.w, 3, g[1]], ['T', 0, G.H - 2, G.w, 1, g[1], 40, 7]], { f: [G.skyHorizon, 20] })]);
@@ -393,7 +441,7 @@ function composeFrame(spec, o, pb, frame) {
   add(props.behind);
   G.subs.filter((b) => b.behind).forEach((b) => add(drawEntity(G, b, subKey(b), 'subj:' + b.def.id + b.i)));
   G.structs.forEach((b) => { const i = G.spec.structures.indexOf(b.e); add(drawEntity(G, b, 'struct:' + b.def.id + (i ? i : ''), 'struct' + i)); });
-  if (water) { add(genWater(G)); add(genGround(G)); }
+  if (water) { add(genWater(G)); add(genGround(G)); add(genTown(G, 'shore')); }
   add(props.back);
   const order = G.subs.filter((b) => !b.behind).sort((a, b) => (a.air ? 1 : 0) - (b.air ? 1 : 0) || (a.z ?? a.by ?? 0) - (b.z ?? b.by ?? 0));
   order.forEach((b) => add(drawEntity(G, b, 'subj:' + b.def.id + (b.i ? b.i : ''), 'subj:' + b.def.id + b.i)));
@@ -404,8 +452,12 @@ function composeFrame(spec, o, pb, frame) {
   return { G, layers };
 }
 
-export function composeScene(spec, options) {
+export function composeScene(spec, options) { return composeSceneEx(spec, options).scene; }
+
+// Como composeScene, pero devuelve también el contexto de maquetación (cajas).
+export function composeSceneEx(spec, options) {
   const o = normalizeOptions(options);
+  o.adjust = options?.adjust || null;
   const pb = new PaletteBuilder();
   const anim = ANIMS[o.anim];
   const { G, layers } = composeFrame(spec, o, pb, 0);
@@ -427,16 +479,17 @@ export function composeScene(spec, options) {
   }
   let scene = {
     v: VERSION, w: G.w, h: G.h, pal: G.pb.pal, bg: G.transparent ? -1 : G.skyHorizon, rmp: G.pb.rmp,
-    fx: { ld: -1, dth: G.style.dth, ...(G.amb ? { amb: G.amb } : {}) },
+    fx: { ld: G.ld, dth: G.style.dth, ...(G.amb ? { amb: G.amb } : {}) },
     sprites: G.sprites, layers,
   };
   if (anim.n > 1 && layers.some((l) => l.fo || l.mv)) scene.an = { n: anim.n, fps: anim.fps };
-  const qKey = o.palette !== 'auto' ? o.palette : G.style.q;
+  const th = THEMES[spec.theme];
+  const qKey = o.palette !== 'auto' ? o.palette : G.style.q || th?.q;
   if (qKey && PALETTES[qKey]?.colors) scene.q = PALETTES[qKey].colors;
-  scene = compactPalette(pruneSprites(scene));
+  scene = applyTheme(compactPalette(pruneSprites(scene)), spec.theme);
   const v = validateScene(scene);
   if (!v.ok) throw new Error('El generador produjo una escena inválida: ' + v.errors.join('; '));
-  return scene;
+  return { scene, G };
 }
 
 function pruneSprites(scene) {

@@ -81,4 +81,29 @@ export const BIOMES = {
   snow: { name: 'paisaje nevado', ground: 'snow', hz: 0.62, flora: [['pine', 5], ['rock', 1], ['deadtree', 1]], far: ['mountains'], snowy: 1 },
   volcano: { name: 'tierra volcánica', ground: 'ash', hz: 0.64, flora: [['rock', 4], ['deadtree', 2]], far: ['volcano'] },
   space: { name: 'espacio', ground: null, hz: 1, flora: [], far: [], sky: 'space', noGround: 1 },
+  town: { name: 'ciudad', ground: 'grass', hz: 0.6, flora: [['bush', 2], ['flower', 1], ['rock', 1]], far: ['hills'], town: 1 },
+  interior: { name: 'interior', ground: 'wood', hz: 0.68, flora: [], far: [], interior: 1, noSky: 1 },
+};
+
+// Temas de paleta: gradación aplicada a toda la paleta tras componer la escena
+// (no toca la geometría). h: tono hacia el que viran las luces / las sombras.
+// sat, lit: multiplicadores; amt: grados máximos de viraje.
+export const THEMES = {
+  natural: { name: 'Naturalista' },
+  medieval: { name: 'Medieval', lightHue: 38, shadowHue: 250, amt: 10, sat: 0.88 },
+  fantasy: { name: 'Fantasía', lightHue: 50, shadowHue: 275, amt: 16, sat: 1.15 },
+  dark: { name: 'Oscuro', lightHue: 40, shadowHue: 255, amt: 14, sat: 0.78, lit: 0.78 },
+  cyberpunk: { name: 'Cyberpunk', lightHue: 185, shadowHue: 290, amt: 30, sat: 1.25 },
+  tropical: { name: 'Tropical', lightHue: 48, shadowHue: 190, amt: 12, sat: 1.25, lit: 1.04 },
+  winter: { name: 'Invernal', lightHue: 200, shadowHue: 225, amt: 16, sat: 0.8, lit: 1.04 },
+  desert: { name: 'Desértico', lightHue: 40, shadowHue: 20, amt: 16, sat: 0.95, lit: 1.02 },
+  space: { name: 'Espacial', lightHue: 200, shadowHue: 255, amt: 18, sat: 1.1 },
+  japanese: { name: 'Japonés', lightHue: 350, shadowHue: 235, amt: 12, sat: 0.92, lit: 1.02 },
+  retro: { name: 'Retro', q: 'retro' },
+  postapoc: { name: 'Postapocalíptico', lightHue: 40, shadowHue: 30, amt: 26, sat: 0.55, lit: 0.95 },
+};
+// Combinaciones incoherentes: tema → entornos con los que choca.
+export const THEME_CONFLICTS = {
+  winter: ['desert', 'mars', 'beach', 'volcano'], tropical: ['snow', 'moonland', 'space'], desert: ['snow', 'sea'],
+  space: ['meadow', 'forest', 'beach', 'town'], cyberpunk: [], japanese: [],
 };
