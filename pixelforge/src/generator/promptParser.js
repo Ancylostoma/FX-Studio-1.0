@@ -117,6 +117,7 @@ export function extract(text) {
       case 'room': rooms.push(id); break;
       case 'town': raw.town = { kind: id }; break;
       case 'battle': raw.battle = true; break;
+      case 'bright': raw.bright = Math.max(-2, Math.min(2, (raw.bright || 0) + (id === 'up' ? 1 : -1))); break;
       case 'jungle': raw.biome = 'forest'; if (!raw.themes.includes('tropical')) raw.themes.push('tropical'); break;
       case 'crowd': raw.crowd = true; break;
       case 'view': raw.view = id; break;
@@ -374,6 +375,7 @@ export function applyEdit(rawIn, instruction) {
     if (part.biome) raw.biome = part.biome;
     if (part.time) { raw.time = part.time; raw.celestial = raw.celestial.filter((c) => !['sun', 'moon', 'stars'].includes(c) || part.celestial.includes(c)); }
     if (part.sky.color) raw.sky.color = part.sky.color;
+    if (part.bright) raw.bright = Math.max(-2, Math.min(2, (raw.bright || 0) + part.bright));
     // Un color suelto tras "cambia" se aplica al sujeto principal.
     done.push((verb === 'change' ? 'Cambio: ' : 'Añado: ') + clause);
   }

@@ -1,71 +1,39 @@
 # PixelForge Studio
 
-Generador de Pixel Art **por código**. Escribes una descripción («un dragón rojo volando sobre un castillo durante la noche»), la aplicación la convierte en una estructura compacta de datos (**PixelScene v1**: coordenadas, capas, índices de paleta) y un motor propio en JavaScript la dibuja en un Canvas. No hay filtros de pixelado ni modelos generativos de imágenes.
+Generador de Pixel Art **por código**. Escribes una descripción («un dragón negro volando sobre una ciudad medieval con una luna roja»), un intérprete la convierte en un **plan de escena** (qué aparece, dónde, con qué jerarquía, paleta y luz), un **compositor** procedural la maqueta, un **control de calidad** mide el resultado y lo corrige, y un **motor gráfico propio** la dibuja en un Canvas. No hay filtros de pixelado ni modelos generativos de imágenes.
 
-| | | |
-|---|---|---|
-| ![Dragón sobre un castillo](docs/examples/dragon-castillo.png) | ![Paisaje japonés](docs/examples/paisaje-japones.png) | ![Ciudad cyberpunk](docs/examples/cyberpunk.png) |
-| ![Bosque encantado](docs/examples/bosque-encantado.png) | ![Astronauta en Marte](docs/examples/astronauta-marte.png) | ![Isla isométrica](docs/examples/isla-isometrica.png) |
+**Funciona sin internet, sin cuentas y sin claves.** La IA es opcional y local: un modelo de lenguaje en tu ordenador vía [Ollama](https://ollama.com) actúa como director artístico.
 
-Con animación (GIF exportado por la propia aplicación):
+![Benchmark de 12 escenas (motor procedural)](docs/benchmark/comparativa.png)
 
-| | | | |
+## Inicio rápido (Windows)
+
+1. Instala [Node.js](https://nodejs.org) (LTS).
+2. Doble clic en **`INICIAR.bat`** → se abre `http://localhost:8787`. Para cerrarla, **`DETENER.bat`**.
+3. Opcional: instala Ollama y ejecuta **`COMPROBAR_OLLAMA.bat`**. Detalle en [GUIA_INSTALACION.md](GUIA_INSTALACION.md).
+
+En macOS o Linux: `npm start` dentro de esta carpeta.
+
+## Motores
+
+| Motor | Quién interpreta | Necesita | Cuándo usarlo |
 |---|---|---|---|
-| ![Dragón con lluvia](docs/examples/anim-dragon-lluvia.gif) | ![Bosque con luciérnagas](docs/examples/anim-bosque.gif) | ![Ataque con espada de fuego](docs/examples/anim-caballero-ataque.gif) | ![Caballo caminando](docs/examples/anim-caballo.gif) |
+| **Procedural offline** | Diccionarios, sinónimos y reglas semánticas | Nada | Siempre disponible, también en el móvil; instantáneo |
+| **IA local · Ollama** | Un modelo de lenguaje en tu equipo | Ollama + un modelo | Descripciones libres, sinónimos, objetos fuera del catálogo |
+| **Híbrido automático** (por defecto) | Ollama; si no responde, el procedural | Nada (usa Ollama si lo hay) | Recomendado: nunca se bloquea |
+| Claude (nube, opcional) | API de Anthropic | Clave de pago en `.env` | Solo aparece si configuras una clave |
 
-Todas las imágenes de `docs/examples/` las genera el modo offline (`npm run examples`). La escena del dragón a 128×128 ocupa **5,7 KB** de JSON.
+En el modo híbrido, lo que el parser reconoce con certeza y el modelo olvida se añade al plan, lo que protege frente a omisiones de modelos pequeños. El panel **«IA local (Ollama)»** muestra el estado, los modelos instalados, la memoria del equipo, el modelo recomendado y permite **evaluar** un modelo con medidas reales. Guía de modelos: [GUIA_MODELOS.md](GUIA_MODELOS.md).
 
-## Cómo iniciarla
+El modelo **nunca dibuja ni devuelve código**: produce un plan JSON que se valida contra un esquema. Para lo que no existe en el catálogo usa **kits paramétricos** (humanoide, cuadrúpedo, edificio, volador, primitivas): un hada se construye como humanoide pequeño con alas y brillo, no se sustituye por un elfo.
 
-Requiere Node 20 o superior. El modo offline no necesita instalar nada:
+## Qué sabe dibujar
 
-```bash
-cd pixelforge
-```
-
-```bash
-npm start
-```
-
-Abre <http://localhost:8787>. Los módulos ES necesitan servirse por HTTP (no funciona abriendo `index.html` con `file://`). Cualquier servidor estático sirve para el modo offline; `npm start` añade además el backend del modo IA.
-
-Es una PWA: desde Chrome (escritorio o Android) se puede instalar con «Instalar aplicación» y, tras la primera carga, funciona sin conexión.
-
-### Modo IA (opcional)
-
-```bash
-npm install
-```
-
-```bash
-cp .env.example .env
-```
-
-Escribe tu clave en `ANTHROPIC_API_KEY` dentro de `.env` y reinicia `npm start`. Los modos con IA del selector **Modo** se habilitan solo cuando el servidor detecta la clave. Sin clave la aplicación sigue funcionando completa en offline.
-
-Hay dos modos con IA:
-
-| Modo | Qué hace la IA | Salida del modelo | Cuándo usarlo |
-|---|---|---|---|
-| **Híbrido (IA interpreta)** | Traduce la descripción al catálogo del motor; el dibujo es local | Una especificación de ~100 tokens | Por defecto: entiende cualquier redacción e idioma a un coste mínimo |
-| **IA (dibuja todo)** | Escribe la escena PixelScene completa | Miles de tokens | Cuando lo pedido no existe en el catálogo ni tiene sustituto razonable |
-
-En el modo híbrido el modelo recibe la lista de los 79 sprites, entornos, clima y colores, y responde con una estructura restringida por esquema JSON (`src/ai/specSchema.js`). Si algo no está en el catálogo elige lo más parecido y lo declara («tigre → león naranja»), y ese aviso se muestra en la interpretación. Como el resultado es la misma especificación que produce el parser offline, VARIAR, las semillas y la edición por capas funcionan igual y **sin volver a llamar a la IA**; solo «Modificar la escena» hace otra llamada para interpretar la instrucción. El modelo de este modo se puede fijar aparte con `PIXELFORGE_INTERPRET_MODEL`.
-
-- La clave vive únicamente en el servidor (`server/`); el navegador solo habla con `/api/interpret` y `/api/pixelscene`.
-- El modelo (por defecto `claude-opus-5-5`, configurable con `PIXELFORGE_MODEL`) **no genera imágenes**: devuelve un JSON PixelScene que el motor local dibuja.
-- La respuesta se sanea y valida en el servidor y otra vez en el cliente; si no es válida se hace un único reintento con los errores.
-- Los endpoints solo aceptan peticiones del mismo origen y están limitados a 12 peticiones por minuto e IP.
-
-#### Probar el modo híbrido con tu clave
-
-```bash
-npm run probe
-```
-
-Ejecuta 12 descripciones pensadas para caer fuera del vocabulario offline (un tigre, una catedral gótica, un hada, un submarino…) y compara lo que entiende el motor offline con lo que entiende la IA. Deja en `docs/probe/` un informe (`informe.md`), una imagen por prompt y modo, y `comparativa.png` (offline a la izquierda, híbrido a la derecha). Cuesta en torno a 4–6 céntimos de dólar con el modelo por defecto. Para probar tus propias frases: `npm run probe -- "tu descripción" "otra"`. Con `-- --offline` hace solo la parte gratuita.
-
-> Los dos modos con IA están implementados y sus partes deterministas (saneado, validación, petición, flujo de interfaz con el backend simulado) tienen pruebas, pero **no se han ejecutado contra la API real** en el entorno donde se construyeron, porque no había clave disponible. La calidad de la interpretación del modelo está, por tanto, sin medir.
+- **Biblioteca de 139 elementos**: personajes (caballero, mago, hada, ángel, demonio, trol, orco, vampiro, bruja, arquero, vikingo…), animales y criaturas (tigre, elefante, jirafa, cebra, grifo, araña gigante, pingüino…), arquitectura (catedral, iglesia, palacio, mezquita, biblioteca, casa medieval, cabaña tropical, puente, muralla, fuente…), vehículos (tren clásico y futurista, nave espacial, submarino…), mobiliario de interiores y efectos (explosión, bola de fuego, magia, humo, rayo).
+- **Interiores**: biblioteca, taberna, mazmorra, sala del trono, laboratorio y habitación, con ventanas, haces de luz y mobiliario.
+- **Asentamientos**: ciudad medieval, aldea tropical en la playa, pueblo japonés, ciudad del desierto, aldea nórdica, con edificios de alturas variadas en dos planos.
+- **Dirección artística**: protagonista con más peso visual, batallas cara a cara con pose de ataque, dirección de la luz con sombras coherentes, vista lateral, frontal, isométrica o panorámica, y 12 paletas temáticas con comprobación de coherencia (medieval, fantasía, oscuro, cyberpunk, tropical, invernal, desértico, espacial, japonés, retro, postapocalíptico, naturalista).
+- **Resolución adaptativa**: con «Automática», las escenas sencillas usan 96 px y las complejas 128–160 px.
 
 ## Uso
 
@@ -78,7 +46,7 @@ Ejecuta 12 descripciones pensadas para caer fuera del vocabulario offline (un ti
 
 ### Posición de los elementos
 
-El modo offline entiende dónde quieres cada cosa (en español o inglés):
+El motor procedural (y la IA local) entienden dónde quieres cada cosa (en español o inglés):
 
 | Se escribe | Efecto |
 |---|---|
@@ -120,78 +88,49 @@ Límites de la animación:
 - Hoja de sprites (sujetos, estructuras y sprites reutilizables) con su índice JSON; PNG de una capa suelta desde el panel de capas.
 - `*.pixelscene.json` (la escena) y `*.pfproj.json` (proyecto completo: escena, prompt, opciones y especificación). Ambos se pueden volver a importar.
 
-## PixelScene v1
 
-```json
-{"v":1,"w":64,"h":64,"pal":[[12,18,34],[35,48,80],[230,190,100]],"bg":0,
- "layers":[{"n":"sky","o":[["R",0,0,64,64,0],["E",42,12,8,8,2]]},
-           {"n":"castle","o":[["R",12,30,40,22,1]]}]}
-```
+## Formatos
 
-| Campo | Significado |
-|---|---|
-| `w`, `h` | Tamaño lógico, 8–256 px |
-| `pal` | Paleta RGB (máx. 96). Todo color es un índice |
-| `bg` | Índice de fondo, o `-1` transparente |
-| `rmp` | Rampas de índices (oscuro → claro) para el sombreado |
-| `q` | Paleta de cuantización final (opcional) |
-| `fx` | `ld` dirección de la luz, `amb` luz ambiental `[r,g,b,%]`, `dth` dithering 0–3 |
-| `an` | Animación (opcional): `n` fotogramas (2–12) y `fps` |
-| `sprites` | Sprites reutilizables `{id:{w,h,o}}` |
-| `layers` | Capas en orden de dibujo: `n` nombre, `k` parte, `v` visible, `a` opacidad, `sh` sombreado de borde, `ol` contorno (`-2` selectivo), `nl` emisiva, `f` bruma, `rf` reflejo, `o` operaciones, `fo` fotogramas siguientes (`o` es el 0), `mv` desplazamiento `[dx,dy]` por fotograma |
-
-| Op | Parámetros | |
-|---|---|---|
-| `R` | `x,y,w,h,c` | rectángulo |
-| `L` | `x1,y1,x2,y2,c` | línea |
-| `E` | `cx,cy,rx,ry,c` | elipse rellena |
-| `P` | `[x1,y1,…],c` | polígono relleno |
-| `M` | `x,y,filas` | matriz de píxeles (`0-9a-zA-Z` = índices, `.` = vacío) |
-| `S` | `id,x,y,flip` | instancia de sprite |
-| `G` | `x,y,w,h,[c…],dir` | degradado tramado |
-| `D` | `x,y,w,h,c,nivel` | trama de Bayer |
-| `T` | `x,y,w,h,c,dens,seed` | textura de motas determinista |
-| `B` | `x,y,w,h,id` | sprite en mosaico |
-| `H` | `x,y,w,h,delta` | desplaza los píxeles por su rampa |
-
-El último parámetro opcional de las operaciones de dibujo es el *modo* (1 = solo sobre píxeles opacos, 2 = solo sobre vacíos); `c = -1` borra. La definición formal y los límites están en `src/core/pixelScene.js`.
-
-La validación comprueba JSON, dimensiones, cada índice de color, rangos de coordenadas, operaciones permitidas, estructura de capas y límites globales (8000 operaciones, 64 capas, 2 MB). No se usa `eval` ni `innerHTML` en ningún punto.
+El plan de escena, PixelScene v1 y el control de calidad están documentados en [GUIA_PIXELSCENE.md](GUIA_PIXELSCENE.md).
 
 ## Arquitectura
 
 ```
 src/core        Motor: formato y validación, renderizador a búfer de índices,
                 geometría entera, dithering de Bayer, luz por paleta, semillas
-src/generator   Modo offline: vocabulario, parser, biblioteca de sprites
-                procedurales, generadores de entorno, compositor por partes
-src/editor      Operaciones puras de capas, color, historial y retoque
-src/export      PNG (canvas.toBlob), GIF animado, hojas de sprites, proyectos
+src/generator   Intérprete procedural (vocabulary, promptParser), biblioteca
+                (spriteBase, kits, props), entornos (environments), compositor
+                (sceneComposer) y control de calidad (qualityControl)
+src/ai          Plan de escena para el modelo local (planSchema), clientes
+src/editor      Capas, color, historial y retoque
+src/export      PNG, GIF animado, hojas de sprites, proyectos
 src/storage     IndexedDB (con respaldo en memoria)
-src/ai          Especificación para el modelo y cliente del backend
 src/ui          Interfaz
-server          Servidor estático + adaptador de IA
-tests           Pruebas unitarias (node:test) y de navegador (tests/e2e)
-tools           Render a PNG desde Node, ejemplos e iconos
+server          Servidor estático + adaptadores: Ollama (local) y Claude (opcional)
+tests           Pruebas unitarias, simulador de Ollama y prueba en navegador
+tools           Benchmark, prueba de Claude, ejemplos e iconos
 ```
 
-Decisiones que se apartan de la estructura propuesta, y por qué:
+- **El servidor hace de intermediario con Ollama** y solo permite el propio equipo; otro ordenador de la red debe autorizarse con `PIXELFORGE_OLLAMA_HOSTS`.
+- **El núcleo no toca el DOM**: todo el motor corre igual en Node, lo que permite el benchmark y las pruebas sin navegador.
+- **Sin Web Workers**: componer y renderizar una escena de 160 px tarda decenas de milisegundos.
 
-- **Sin Web Workers.** Renderizar 256×256 tarda unos milisegundos; un worker añadiría complejidad sin mejora medible.
-- **`vocabulary.js` y `src/ai/` añadidos.** El diccionario se separa del parser para ampliarlo sin tocar lógica; la especificación del modelo la comparten cliente y servidor.
-- **El núcleo no toca el DOM.** `renderer.js` devuelve RGBA puro, lo que permite probarlo en Node y generar los ejemplos sin navegador.
-- **La luz y la paleta restringida se aplican al renderizar**, sobre la paleta. Cambiar de día a noche o a 4 verdes no modifica ninguna capa.
+## Benchmark
 
-## Límites del modo offline
+```bash
+npm run benchmark
+```
 
-El motor offline **no entiende lenguaje libre**: reconoce un vocabulario cerrado en español e inglés (79 sprites procedurales, 13 entornos, relieve, hora, clima, astros, 14 colores) y lo compone con reglas. Lo que no reconoce lo ignora y lo dice; no finge haberlo dibujado. La lista completa está en la aplicación, en «¿Qué entiende el modo offline?».
+Ejecuta 12 escenas de categorías distintas con el motor procedural. Para compararlo con modelos de Ollama: `npm run benchmark -- qwen2.5:3b llama3.2:1b`. Deja imágenes, la comparativa lado a lado y un informe con métricas medidas en `docs/benchmark/` ([último informe](docs/benchmark/informe.md)). No asigna notas artísticas: eso requiere mirar las imágenes.
 
-- Los sprites son procedurales y estilizados: sirven como base, no sustituyen a un artista.
-- El estilo isométrico usa una isla en perspectiva con los objetos como figuras frontales, no modelos isométricos reales.
-- El borrador solo elimina retoques hechos con el lápiz, no píxeles de las capas generadas (para eso, oculta o elimina la capa).
-- A 16×16 y 32×32 las escenas completas pierden legibilidad; a esos tamaños funciona mejor el estilo «Personajes y sprites».
+## Límites conocidos
 
-Para ampliar el vocabulario: añade sinónimos en `src/generator/vocabulary.js`; para un objeto nuevo, registra su constructor en `src/generator/spriteLibrary.js`.
+- **El motor procedural no entiende lenguaje libre**: reconoce un vocabulario amplio pero cerrado. Lo que no reconoce lo dice; no finge haberlo dibujado.
+- **La calidad del modo Ollama depende del modelo y no se ha medido con un modelo real**: el adaptador se ha probado contra un simulador del contrato HTTP de Ollama, no contra Ollama en funcionamiento (ver la sección de pruebas).
+- La **vista cenital** (`view: top`) usa por ahora la isla isométrica; no hay sprites vistos desde arriba. La vista en tres cuartos no está implementada.
+- Los kits construyen formas reconocibles pero esquemáticas; los objetos descritos con **primitivas** (`shapes`) son el último recurso y su calidad depende de la descripción del modelo.
+- El **borrador** solo elimina retoques del lápiz; las animaciones son ciclos procedurales de 4 fotogramas.
+- Los scripts `.bat` están escritos para Windows, pero no se han podido ejecutar en Windows durante el desarrollo.
 
 ## Pruebas
 
@@ -199,10 +138,10 @@ Para ampliar el vocabulario: añade sinónimos en `src/generator/vocabulary.js`;
 npm test
 ```
 
-81 pruebas unitarias: parser, posiciones y relaciones espaciales, modo híbrido, animación y codificador GIF (verificado con un decodificador independiente), validación de PixelScene, geometría, renderizador, generador (todas las combinaciones de estilo, resolución y bioma, y los 79 sprites), edición parcial, exportación y adaptador de IA.
+91 pruebas unitarias: parser, posiciones, validación, geometría, renderizador, generador, kits, edición, exportación, animación, GIF, modo híbrido, adaptador de Ollama (contra un simulador que valida el contrato HTTP) y saneado del plan.
 
 ```bash
 npm run test:e2e
 ```
 
-Prueba en navegador real con Playwright (debe estar instalado): arranque, generación, nitidez del escalado, semillas, variaciones, edición por instrucción, capas, paleta, luz, lápiz, exportación PNG/JSON, galería con IndexedDB, vista móvil, animación (reproducción, GIF, tira) y modo híbrido con el backend de IA simulado.
+18 comprobaciones en un navegador real con Playwright, incluido el recorrido completo con el simulador de Ollama (detección, generación, edición, evaluación y caída de Ollama con recurso al motor procedural).

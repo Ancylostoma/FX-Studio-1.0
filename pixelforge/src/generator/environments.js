@@ -26,6 +26,16 @@ export function applyTheme(scene, themeKey) {
   return { ...scene, pal: scene.pal.map((c) => gradeColor(c, th)) };
 }
 
+// Iluminación global (±2 pasos): aclara u oscurece la paleta y suaviza o
+// refuerza la luz ambiental. No toca la geometría.
+export function brighten(scene, steps) {
+  const k = 1 + 0.12 * steps;
+  const pal = scene.pal.map((c) => { const [h, s, l] = rgbToHsl(c); return hslToRgb(h, s, Math.max(0, Math.min(100, l * k + steps * 2))); });
+  const fx = { ...scene.fx };
+  if (fx.amb) fx.amb = [...fx.amb.slice(0, 3), Math.max(0, Math.min(100, fx.amb[3] - steps * 18))];
+  return { ...scene, pal, fx };
+}
+
 // Tema por defecto según la escena (modo procedural) y comprobación de coherencia
 // del tema que proponga la IA.
 export function inferTheme(spec) {

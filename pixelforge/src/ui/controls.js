@@ -1,6 +1,6 @@
 // Utilidades de interfaz: creación de nodos, selectores y avisos.
 import { RESOLUTIONS, ASPECTS } from '../generator/sceneComposer.js';
-import { STYLES, DETAIL_LEVELS, ANIMS } from '../generator/templates.js';
+import { STYLES, DETAIL_LEVELS, ANIMS, THEMES } from '../generator/templates.js';
 import { PALETTES } from '../core/paletteManager.js';
 import { AMBIENTS } from '../core/lighting.js';
 import { LIB, CATEGORY_NAMES } from '../generator/spriteLibrary.js';
@@ -46,7 +46,8 @@ export const EXAMPLES = [
 ];
 
 export function initControls() {
-  fillSelect($('#optRes'), RESOLUTIONS.map((r) => [r, `${r} px`]), 64);
+  fillSelect($('#optRes'), [['auto', 'Automática'], ...RESOLUTIONS.map((r) => [r, `${r} px`])], 'auto');
+  fillSelect($('#themeSel'), [['', 'Paleta temática…'], ...Object.entries(THEMES).map(([k, t]) => [k, t.name])], '');
   fillSelect($('#optAspect'), Object.keys(ASPECTS).map((a) => [a, a]), '1:1');
   fillSelect($('#optStyle'), Object.entries(STYLES).map(([k, s]) => [k, s.name]), 'bit16');
   const pals = Object.entries(PALETTES).map(([k, p]) => [k, p.name]);
@@ -72,8 +73,8 @@ export function initControls() {
 
 export function readOptions() {
   return {
-    res: +$('#optRes').value, aspect: $('#optAspect').value, style: $('#optStyle').value, palette: $('#optPalette').value,
-    detail: +$('#optDetail').value, anim: $('#optAnim').value, seed: Math.max(1, Math.min(999999, +$('#optSeed').value || 1)), mode: $('#optMode').value,
+    res: $('#optRes').value === 'auto' ? 'auto' : +$('#optRes').value, aspect: $('#optAspect').value, style: $('#optStyle').value, palette: $('#optPalette').value,
+    detail: +$('#optDetail').value, anim: $('#optAnim').value, seed: Math.max(1, Math.min(999999, +$('#optSeed').value || 1)), mode: ({ offline: 'procedural', hybrid: 'claude', ai: 'claude-full' })[$('#optMode').value] || $('#optMode').value,
   };
 }
 

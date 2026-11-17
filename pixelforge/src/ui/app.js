@@ -16,16 +16,20 @@ import { exportImage, exportFrames, buildFrameStrip, animationToGif, scaleForTar
 import { sceneToJSON, serializeProject, parseProjectFile, safeFileName } from '../export/projectExporter.js';
 import * as pm from '../storage/projectManager.js';
 import { aiStatus, aiGenerate, aiInterpret } from '../ai/aiClient.js';
+import { localStatus, localInterpret, localEvaluate } from '../ai/localClient.js';
+import { mergeWithParser } from '../ai/planSchema.js';
+import { composeChecked } from '../generator/qualityControl.js';
+import { autoResolution, applyTheme } from '../generator/environments.js';
 
 const state = {
   project: null,            // { id?, name, prompt, opts, raw, scene }
   history: new History(),
   zoom: 'fit', grid: false, tool: 'move', color: 0,
-  openLayer: -1, ai: { available: false },
+  openLayer: -1, ai: { available: false }, local: { available: false }, localCfg: null,
   frame: 0, playing: true,
 };
 const scene = () => state.project?.scene;
-const composeOpts = (o) => ({ ...dimensions(o.res, o.aspect), style: o.style, detail: o.detail, seed: o.seed, palette: o.palette, anim: o.anim });
+const composeOpts = (o) => ({ ...dimensions(o.res === 'auto' ? 128 : o.res, o.aspect), style: o.style, detail: o.detail, seed: o.seed, palette: o.palette, anim: o.anim });
 
 // ---------- Estado e historial ----------
 function commit(newScene, { raw, record = true } = {}) {
@@ -55,6 +59,7 @@ function setProject(p, { resetHistory = true } = {}) {
   $('#prompt').value = p.prompt || '';
   writeOptions(p.opts);
   refresh(); saveDraftSoon();
+  renderVersions();
 }
 
 // ---------- Previsualización ----------
@@ -107,6 +112,86 @@ async function busy(fn) {
 }
 const projectName = (prompt) => (prompt.trim().slice(0, 48) || 'Sin título');
 
+// ---------- Motores de interpretación ----------
+// procedural: reglas locales · local: Ollama · auto: Ollama con recurso al
+// procedural · claude / claude-full: nube opcional (solo si hay clave).
+const ENGINE_NAMES = { procedural: 'Procedural', local: 'IA local', auto: 'Híbrido', claude: 'Claude', 'claude-full': 'Claude (dibujo)' };
+function localSettings() { return state.localCfg; }
+async function interpretWith(engine, input) {
+  const t0 = performance.now();
+  const procedural = () => (input.prompt ? { raw: parsePrompt(input.prompt).raw } : { raw: applyEdit(input.raw, input.instruction).raw });
+  const cfg = localSettings();
+  const localBody = () => ({ ...input, url: cfg.url || undefined, model: cfg.model, temperature: cfg.temperature, maxTokens: cfg.maxTokens, timeoutMs: cfg.timeout * 1000, prefs: cfg.prefs });
+  if (engine === 'local') {
+    if (!state.local.available) throw new Error('Ollama no está disponible. ' + (state.local.reason || '') + ' Cambia el motor a «Procedural» o «Híbrido automático».');
+    if (!cfg.model) throw new Error('Elige un modelo de Ollama en el panel «IA local».');
+    toast(`Interpretando con ${cfg.model}…`);
+    const out = await localInterpret(localBody());
+    return { raw: out.raw, source: 'local', info: { model: out.model, ms: performance.now() - t0, timings: out.timings, warnings: out.warnings } };
+  }
+  if (engine === 'auto') {
+    if (state.local.available && cfg.model) {
+      try {
+        toast(`Interpretando con ${cfg.model}…`);
+        const out = await localInterpret(localBody());
+        // Fusión: lo que el parser reconoce con certeza y el modelo omitió se añade.
+        const merged = input.prompt ? mergeWithParser(out.raw, parsePrompt(input.prompt).raw) : { raw: out.raw, added: [] };
+        return { raw: merged.raw, source: 'local', info: { model: out.model, ms: performance.now() - t0, timings: out.timings, warnings: out.warnings, added: merged.added } };
+      } catch (e) {
+        const r = procedural();
+        return { ...r, source: 'procedural', info: { ms: performance.now() - t0, fallback: e.message } };
+      }
+    }
+    return { ...procedural(), source: 'procedural', info: { ms: performance.now() - t0, fallback: state.local.available ? 'no hay modelo seleccionado' : 'Ollama no disponible' } };
+  }
+  if (engine === 'claude') {
+    if (!state.ai.available) throw new Error('Claude no está configurado.');
+    const out = await aiInterpret(input);
+    return { raw: out.raw, source: 'claude', info: { model: out.model, ms: performance.now() - t0, usage: out.usage } };
+  }
+  return { ...procedural(), source: 'procedural', info: { ms: performance.now() - t0 } };
+}
+
+function showEngineInfo(res, renderMs, scene, qc, opts) {
+  const i = res.info || {};
+  const parts = [ENGINE_NAMES[res.source] + (i.model ? ` (${i.model})` : '')];
+  if (res.source !== 'procedural' || i.ms > 20) parts.push(`interpretación ${(i.ms / 1000).toFixed(i.ms < 1000 ? 2 : 1)} s`);
+  if (i.timings?.tokensPerSecond) parts.push(`${i.timings.tokensPerSecond} tok/s`);
+  parts.push(`render ${Math.round(renderMs)} ms`, `semilla ${opts.seed}`, `${scene.pal.length} colores`);
+  if (qc) parts.push(`calidad ${qc.checks.filter((c) => c.ok).length}/${qc.checks.length}`);
+  $('#perf').textContent = parts.join(' · ');
+  const notes = [];
+  if (i.fallback) notes.push(`IA local no usada (${i.fallback}): se ha usado el motor procedural.`);
+  if (i.added?.length) notes.push('Añadido por el intérprete procedural: ' + i.added.join(', ') + '.');
+  if (i.warnings?.length) notes.push(i.warnings.length + ' dato(s) del modelo descartados al validar.');
+  return notes;
+}
+function showQC(qc) {
+  const box = $('#qcBox');
+  if (!qc) { box.hidden = true; return; }
+  box.hidden = false;
+  const bad = qc.checks.filter((c) => !c.ok).length, fixed = qc.checks.filter((c) => c.fixed).length;
+  $('#qcSummary').textContent = `Control de calidad: ${qc.checks.length - bad}/${qc.checks.length} correcto${fixed ? `, ${fixed} corregido(s)` : ''}${bad ? `, ${bad} pendiente(s)` : ''} · ${qc.passes} pasada(s)`;
+  $('#qcList').replaceChildren(...qc.checks.map((c) => h('li', { class: (c.ok ? 'ok' : 'bad') + (c.fixed ? ' fixed' : '') }, `${c.label}: ${c.detail}`)));
+}
+function composeFor(spec, opts) {
+  const res = opts.res === 'auto' ? autoResolution(spec) : opts.res;
+  const t0 = performance.now();
+  const out = composeChecked(spec, { ...composeOpts({ ...opts, res }) });
+  return { ...out, renderMs: performance.now() - t0, res };
+}
+function pushVersion(label) {
+  const p = state.project;
+  if (!p) return;
+  p.versions = [...(p.versions || []), { t: Date.now(), label: label.slice(0, 60), scene: p.scene, raw: p.raw }].slice(-12);
+  renderVersions();
+}
+function renderVersions() {
+  const v = state.project?.versions || [];
+  fillSelect($('#versionSel'), v.map((x, i) => [i, `${new Date(x.t).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })} · ${x.label}`]).reverse(), v.length - 1);
+  $('#btnVersion').disabled = v.length < 2;
+}
+
 function generate({ newSeed }) {
   return busy(async () => {
     const prompt = $('#prompt').value.trim();
@@ -115,35 +200,33 @@ function generate({ newSeed }) {
     if (newSeed || !$('#optLock').checked && !state.seedTyped) opts.seed = randomSeed() || 1;
     state.seedTyped = false;
     $('#optSeed').value = opts.seed;
-    let sceneOut, raw = null;
-    if (opts.mode === 'ai') {
-      if (!state.ai.available) { toast('Modo IA no disponible: ' + state.ai.reason, 'error'); return; }
+    let sceneOut, raw = null, qc = null;
+    if (opts.mode === 'claude-full') {
+      if (!state.ai.available) { toast('Claude no está configurado', 'error'); return; }
       toast('Pidiendo la escena a la IA…');
-      const d = dimensions(opts.res, opts.aspect);
+      const d = dimensions(opts.res === 'auto' ? 128 : opts.res, opts.aspect);
       const out = await aiGenerate({ prompt, w: d.w, h: d.h, style: opts.style });
       sceneOut = CE.setQuantPalette(out.scene, opts.palette);
-      $('#interp').hidden = false;
-      $('#interpText').textContent = `Escena interpretada por la IA (${out.model || 'Claude'}).`;
+      $('#interp').hidden = false; showQC(null);
+      $('#interpText').textContent = `Escena dibujada por la IA (${out.model || 'Claude'}).`;
       $('#interpCode').textContent = out.usage ? `tokens: entrada ${out.usage.input_tokens} · salida ${out.usage.output_tokens}` : '';
       $('#interpNotes').textContent = out.warnings.length ? `${out.warnings.length} operación(es) descartadas al validar.` : '';
-    } else if (opts.mode === 'hybrid') {
-      if (!state.ai.available) { toast('Modo híbrido no disponible: ' + state.ai.reason, 'error'); return; }
-      toast('La IA está interpretando la descripción…');
-      const out = await aiInterpret({ prompt });
-      raw = out.raw;
-      const spec = finalize(raw);
-      sceneOut = composeScene(spec, composeOpts(opts));
-      showInterpretation(spec, opts, out);
     } else {
-      const parsed = parsePrompt(prompt);
-      raw = parsed.raw;
-      if (parsed.raw.anim && !state.animTouched && opts.anim === 'none') { opts.anim = parsed.raw.anim; $('#optAnim').value = opts.anim; }
-      const style = parsed.raw.style && !state.styleTouched ? parsed.raw.style : opts.style;
-      if (style !== opts.style) { opts.style = style; $('#optStyle').value = style; }
-      sceneOut = composeScene(parsed.spec, composeOpts(opts));
-      showInterpretation(parsed.spec, opts);
+      const res = await interpretWith(opts.mode, { prompt });
+      raw = res.raw;
+      if (raw.anim && !state.animTouched && opts.anim === 'none') { opts.anim = raw.anim; $('#optAnim').value = opts.anim; }
+      if (raw.style && !state.styleTouched && raw.style !== opts.style) { opts.style = raw.style; $('#optStyle').value = raw.style; }
+      const spec = finalize(raw);
+      const c = composeFor(spec, opts);
+      sceneOut = c.scene; qc = c.qc;
+      showInterpretation(spec, opts);
+      const notes = showEngineInfo(res, c.renderMs, sceneOut, qc, opts);
+      $('#interpNotes').textContent = [...notes, ...spec.notes].join(' ');
+      showQC(qc);
+      if (res.info?.fallback && opts.mode === 'auto') toast('Ollama no respondió: imagen generada con el motor procedural.');
     }
-    setProject({ name: projectName(prompt), prompt, opts, raw, scene: sceneOut });
+    setProject({ name: projectName(prompt), prompt, opts, raw, scene: sceneOut, qc });
+    pushVersion('Generada');
     $('#variations').hidden = true;
     setView('stage');
   });
@@ -152,15 +235,16 @@ function generate({ newSeed }) {
 function vary() {
   return busy(async () => {
     const p = state.project;
-    if (!p?.raw) { toast(p ? 'Las variaciones por semilla solo existen en modo offline; usa REGENERAR para pedir otra versión a la IA.' : 'Genera primero una imagen'); return; }
+    if (!p?.raw) { toast(p ? 'Esta escena no tiene plan editable; usa REGENERAR.' : 'Genera primero una imagen'); return; }
     const spec = finalize(p.raw);
     const box = $('#variations');
+    // Las variaciones reutilizan el plan ya interpretado: no vuelven a llamar a la IA.
     const items = [1, 2, 3, 4].map(() => {
       const opts = { ...p.opts, seed: randomSeed() || 1 };
-      const sc = composeScene(spec, composeOpts(opts));
+      const { scene: sc } = composeFor(spec, opts);
       const cv = h('canvas');
       drawScene(sc, cv, Math.max(1, Math.floor(128 / Math.max(sc.w, sc.h))));
-      return h('button', { title: 'Semilla ' + opts.seed, onclick: () => { setProject({ ...p, id: undefined, opts, scene: sc }); toast('Variación aplicada (semilla ' + opts.seed + ')'); } }, cv);
+      return h('button', { title: 'Semilla ' + opts.seed, onclick: () => { setProject({ ...p, id: undefined, opts, scene: sc }); pushVersion('Variación ' + opts.seed); toast('Variación aplicada (semilla ' + opts.seed + ')'); } }, cv);
     });
     box.replaceChildren(h('span', {}, 'Variaciones:'), ...items, h('button', { class: 'chip', onclick: () => { box.hidden = true; drawPreview(); } }, 'cerrar'));
     box.hidden = false;
@@ -175,27 +259,84 @@ function editByInstruction() {
     if (!p) { toast('Genera primero una imagen'); return; }
     if (!text) { toast('Escribe qué quieres cambiar'); return; }
     const mode = readOptions().mode;
-    if (p.raw && mode !== 'ai') {
-      let raw, done, ai = null;
-      if (mode === 'hybrid' && state.ai.available) {
-        toast('La IA está interpretando el cambio…');
-        ai = await aiInterpret({ raw: p.raw, instruction: text });
-        raw = ai.raw; done = ['Instrucción interpretada por IA'];
-      } else ({ raw, done } = applyEdit(p.raw, text));
-      const res = editScene(p.scene, p.raw, raw, composeOpts(p.opts));
-      if (!res.changed.length) { toast('No encontré nada que cambiar en esa instrucción'); return; }
-      commit(res.scene, { raw });
-      showInterpretation(finalize(raw), p.opts, ai);
-      const kept = new Set(res.scene.layers.map((l) => l.k)).size - res.changed.length;
-      toast(res.rebuilt ? 'La escena se regeneró completa.' : `${done.join(' · ')} — regeneradas ${res.changed.length} parte(s), conservadas ${Math.max(0, kept)}.`);
+    if (p.raw && mode !== 'claude-full') {
+      const res = await interpretWith(mode, { raw: p.raw, instruction: text });
+      const raw = res.raw;
+      const edit = editScene(p.scene, p.raw, raw, composeOpts({ ...p.opts, res: p.scene.w === p.scene.h ? p.scene.w : Math.max(p.scene.w, p.scene.h) }));
+      if (!edit.changed.length) { toast('No encontré nada que cambiar en esa instrucción'); return; }
+      commit(edit.scene, { raw });
+      pushVersion(text);
+      const spec = finalize(raw);
+      showInterpretation(spec, p.opts);
+      const notes = showEngineInfo(res, 0, edit.scene, null, p.opts);
+      $('#interpNotes').textContent = [...notes, ...spec.notes].join(' ');
+      const kept = new Set(edit.scene.layers.map((l) => l.k)).size - edit.changed.length;
+      toast(edit.rebuilt ? 'La escena se regeneró completa.' : `Regeneradas ${edit.changed.length} parte(s), conservadas ${Math.max(0, kept)}.`);
     } else if (state.ai.available) {
       toast('Pidiendo el cambio a la IA…');
       const out = await aiGenerate({ base: p.scene, instruction: text, w: p.scene.w, h: p.scene.h });
       commit(out.scene, { raw: null });
-    } else toast('Esta escena no tiene especificación offline y el modo IA no está disponible.', 'error');
+      pushVersion(text);
+    } else toast('Esta escena no tiene plan editable y no hay IA que pueda modificarla.', 'error');
     $('#editText').value = '';
     setView('stage');
   });
+}
+
+// ---------- IA local: estado y ajustes ----------
+const LOCAL_DEFAULTS = { url: '', model: '', temperature: 0.2, maxTokens: 1200, timeout: 120, prefs: 'balanced' };
+function loadLocalCfg() { try { return { ...LOCAL_DEFAULTS, ...JSON.parse(localStorage.getItem('pf.local') || '{}') }; } catch { return { ...LOCAL_DEFAULTS }; } }
+function saveLocalCfg() { try { localStorage.setItem('pf.local', JSON.stringify(state.localCfg)); } catch { /* sin almacenamiento */ } }
+const gb = (b) => (b / 1e9).toFixed(1) + ' GB';
+async function refreshLocal() {
+  const cfg = state.localCfg;
+  $('#ollamaState').textContent = 'comprobando…'; $('#ollamaState').classList.remove('on');
+  const st = await localStatus(cfg.url);
+  state.local = st;
+  const sel = $('#ollamaModel');
+  if (st.available) {
+    const models = st.models || [];
+    if (!cfg.model || !models.some((m) => m.name === cfg.model)) { cfg.model = st.recommended || models[0]?.name || ''; saveLocalCfg(); }
+    fillSelect(sel, models.length ? models.map((m) => [m.name, `${m.name}${m.params ? ' · ' + m.params : ''} · ${gb(m.size)}${m.fits ? '' : ' · ⚠ memoria justa'}${m.name === st.recommended ? ' · recomendado' : ''}`]) : [['', 'No hay modelos instalados']], cfg.model);
+    $('#ollamaState').textContent = `conectado (v${st.version})${cfg.model ? ' · ' + cfg.model : ''}`; $('#ollamaState').classList.add('on');
+    const m = models.find((x) => x.name === cfg.model), sys = st.system;
+    const mem = sys ? `Equipo: ${gb(sys.totalRAM)} de RAM${sys.gpu ? ', GPU ' + sys.gpu.name + (sys.gpu.vram ? ' (' + gb(sys.gpu.vram) + ')' : '') : ', sin GPU detectada'}.` : '';
+    $('#ollamaRec').textContent = [mem, m ? `«${m.name}» necesita unos ${gb(m.needBytes)} de memoria${m.fits ? '' : ': puede ir lento o fallar en este equipo'}.` : '', st.suggestion ? `Sugerencia: «ollama pull ${st.suggestion.model}» (≈${st.suggestion.approxGB} GB, ${st.suggestion.why}). No se descarga nada sin que tú lo ejecutes.` : ''].filter(Boolean).join(' ');
+    $('#ollamaHelp').hidden = !!models.length;
+    if (!models.length) $('#ollamaHelp').replaceChildren('Ollama está en marcha pero no tiene modelos. Abre una terminal y ejecuta ', h('code', {}, `ollama pull ${st.suggestion?.model || 'qwen2.5:3b'}`), ' (descarga de varios GB; solo cuando tú quieras).');
+  } else {
+    fillSelect(sel, [['', '—']], '');
+    $('#ollamaState').textContent = 'no detectado';
+    $('#ollamaRec').textContent = st.system ? `Equipo: ${gb(st.system.totalRAM)} de RAM. Modelo sugerido al instalar: ${st.suggestion?.model} (≈${st.suggestion?.approxGB} GB).` : '';
+    $('#ollamaHelp').hidden = false;
+    $('#ollamaHelp').replaceChildren(h('b', {}, 'La IA local es opcional; el motor procedural funciona sin ella. '), 'Para activarla: instala Ollama desde ollama.com, ejecuta ', h('code', {}, 'ollama pull ' + (st.suggestion?.model || 'qwen2.5:3b')), ' y pulsa ⟳. Detalle: ' + (st.reason || 'sin respuesta') + '.');
+  }
+  const opt = $('#optMode').querySelector('[value=local]');
+  opt.disabled = !st.available || !cfg.model;
+  opt.textContent = 'IA local · Ollama' + (st.available ? (cfg.model ? '' : ' (sin modelo)') : ' (no detectado)');
+  if ($('#optMode').value === 'local' && opt.disabled) $('#optMode').value = 'auto';
+  updateBadge();
+}
+function bindLocal() {
+  const cfg = state.localCfg;
+  $('#ollamaUrl').value = cfg.url; $('#ollamaTemp').value = cfg.temperature; $('#ollamaTempOut').textContent = cfg.temperature;
+  $('#ollamaTokens').value = cfg.maxTokens; $('#ollamaTimeout').value = cfg.timeout; $('#ollamaPrefs').value = cfg.prefs;
+  const upd = (k, v) => { cfg[k] = v; saveLocalCfg(); };
+  $('#ollamaUrl').addEventListener('change', (e) => { upd('url', e.target.value.trim()); refreshLocal(); });
+  $('#ollamaModel').addEventListener('change', (e) => { upd('model', e.target.value); refreshLocal(); });
+  $('#ollamaTemp').addEventListener('input', (e) => { upd('temperature', +e.target.value); $('#ollamaTempOut').textContent = e.target.value; });
+  $('#ollamaTokens').addEventListener('change', (e) => upd('maxTokens', Math.max(200, Math.min(4096, +e.target.value || 1200))));
+  $('#ollamaTimeout').addEventListener('change', (e) => upd('timeout', Math.max(5, Math.min(600, +e.target.value || 120))));
+  $('#ollamaPrefs').addEventListener('change', (e) => upd('prefs', e.target.value));
+  $('#btnOllamaRefresh').addEventListener('click', refreshLocal);
+  $('#btnOllamaEval').addEventListener('click', () => busy(async () => {
+    if (!state.local.available || !cfg.model) { toast('Primero conecta Ollama y elige un modelo', 'error'); return; }
+    $('#ollamaEvalOut').textContent = `Evaluando ${cfg.model} con 3 descripciones de prueba… (puede tardar varios minutos sin GPU)`;
+    const r = await localEvaluate({ url: cfg.url || undefined, model: cfg.model, maxTokens: cfg.maxTokens, timeoutMs: cfg.timeout * 1000, prefs: 'strict' });
+    const pct = (v) => Math.round(v * 100) + ' %';
+    $('#ollamaEvalOut').replaceChildren(h('p', {}, `${r.model}: JSON válido ${pct(r.validJson)} · elementos esperados encontrados ${pct(r.recall)} (motor procedural: ${pct(r.baselineRecall)}) · ${(r.avgMs / 1000).toFixed(1)} s por descripción.`),
+      ...r.results.map((x) => h('p', {}, `${x.ok ? '✓' : '✗'} «${x.prompt.slice(0, 50)}…» ${x.ok ? `${pct(x.recall)}${x.missing.length ? ', falta: ' + x.missing.join(', ') : ''}, ${(x.ms / 1000).toFixed(1)} s${x.tokensPerSecond ? ', ' + x.tokensPerSecond + ' tok/s' : ''}` : x.error}`)));
+  }));
 }
 
 // ---------- Panel: capas ----------
@@ -423,6 +564,10 @@ function bind() {
 
   $('#btnPng').addEventListener('click', () => busy(exportPng));
   $('#btnSheet').addEventListener('click', () => busy(exportSheet));
+  $('#btnVersion').addEventListener('click', () => { const v = state.project?.versions?.[+$('#versionSel').value]; if (v) { commit(v.scene, { raw: v.raw }); toast('Versión recuperada: ' + v.label); } });
+  // Variante de color: gira el tono de los colores saturados sin tocar la geometría.
+  $('#btnVariant').addEventListener('click', () => { if (scene()) { commit(CE.colorVariant(scene(), randomSeed())); pushVersion('Variante de color'); } });
+  $('#themeSel').addEventListener('change', (e) => { if (scene() && e.target.value) { commit(applyTheme(scene(), e.target.value)); pushVersion('Paleta ' + e.target.value); e.target.value = ''; } });
   $('#btnGif').addEventListener('click', () => busy(exportGif));
   $('#btnStrip').addEventListener('click', () => busy(exportStrip));
   $('#btnPlay').addEventListener('click', () => { state.playing = !state.playing; drawPreview(); });
@@ -452,8 +597,17 @@ function bind() {
   }));
 }
 
+function updateBadge() {
+  const b = $('#aiBadge'), on = state.local.available && state.localCfg.model;
+  b.textContent = on ? 'IA local: ' + state.localCfg.model : state.ai.available ? 'Claude disponible' : 'Procedural';
+  b.title = on ? 'Ollama en ' + (state.local.url || '') : state.local.reason || '';
+  b.classList.toggle('on', !!on);
+}
+
 async function start() {
   initControls();
+  state.localCfg = loadLocalCfg();
+  bindLocal();
   $('#optSeed').value = randomSeed() || 1;
   bind();
   initCanvasTools();
@@ -469,19 +623,15 @@ async function start() {
   try { draft = await pm.loadDraft(); } catch { /* sin almacenamiento */ }
   if (draft?.scene && validateScene(draft.scene).ok) setProject(draft);
   else { $('#prompt').value = 'Un dragón rojo volando sobre un castillo medieval durante la noche'; $('#optSeed').value = 7; state.seedTyped = true; await generate({ newSeed: false }); setView('create'); }
+  // Claude es opcional: sus motores solo aparecen si el servidor tiene clave.
   aiStatus().then((st) => {
     state.ai = st;
-    const badge = $('#aiBadge');
-    badge.textContent = st.available ? 'IA disponible' : 'Offline';
-    badge.title = st.available ? `Modelo: ${st.model}` : st.reason;
-    badge.classList.toggle('on', st.available);
-    for (const opt of $('#optMode').querySelectorAll('[value=ai], [value=hybrid]')) {
-      opt.disabled = !st.available;
-      if (!st.available) opt.textContent = opt.textContent.replace(/\s*\(.*\)$/, '') + ' (no configurada)';
-    }
+    if (st.available) for (const [v, t] of [['claude', 'Claude interpreta (nube)'], ['claude-full', 'Claude dibuja (nube)']]) $('#optMode').append(h('option', { value: v }, t));
+    updateBadge();
   });
+  refreshLocal().then(updateBadge);
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
-  window.pixelforge = { state };   // punto de inspección para pruebas y depuración
+  window.pixelforge = { state, refreshLocal };   // punto de inspección para pruebas y depuración
 }
 
 start().catch((e) => { console.error(e); toast('Error al iniciar: ' + e.message, 'error'); });

@@ -1,12 +1,12 @@
 // Service worker: guarda el "cascarón" de la aplicación para que el modo
 // offline funcione sin red. Las llamadas a /api/ nunca se cachean.
-const CACHE = 'pixelforge-v3';
+const CACHE = 'pixelforge-v4';
 const SHELL = [
   './', 'index.html', 'styles.css', 'manifest.json', 'icons/icon-192.png', 'icons/icon-512.png',
   ...['core/dithering', 'core/geometry', 'core/lighting', 'core/paletteManager', 'core/pixelEngine', 'core/pixelScene', 'core/randomSeed', 'core/renderer',
-    'generator/proceduralGenerator', 'generator/promptParser', 'generator/sceneComposer', 'generator/spriteLibrary', 'generator/templates', 'generator/vocabulary',
+    'generator/proceduralGenerator', 'generator/spriteBase', 'generator/kits', 'generator/props', 'generator/environments', 'generator/qualityControl', 'generator/promptParser', 'generator/sceneComposer', 'generator/spriteLibrary', 'generator/templates', 'generator/vocabulary',
     'editor/canvasEditor', 'editor/colorEditor', 'editor/history', 'editor/layerManager', 'export/pngExporter', 'export/gifEncoder', 'export/projectExporter',
-    'storage/database', 'storage/projectManager', 'ai/aiClient', 'ai/specSchema', 'ui/app', 'ui/controls', 'ui/gallery'].map((m) => `src/${m}.js`),
+    'storage/database', 'storage/projectManager', 'ai/aiClient', 'ai/specSchema', 'ai/planSchema', 'ai/localClient', 'ui/app', 'ui/controls', 'ui/gallery'].map((m) => `src/${m}.js`),
 ];
 
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting())); });

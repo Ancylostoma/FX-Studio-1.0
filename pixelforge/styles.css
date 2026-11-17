@@ -143,3 +143,12 @@ canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
 @keyframes pop { from { transform: translateY(8px); opacity: 0; } }
 #examples { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
 #examples .chip { flex: none; }
+
+.qc { list-style: none; margin: 6px 0 0; padding: 0; font-size: 12px; }
+.qc li { padding: 2px 0; color: var(--muted); }
+.qc li.ok::before { content: '✓ '; color: var(--ok); }
+.qc li.bad::before { content: '✗ '; color: var(--danger); }
+.qc li.fixed::after { content: ' (corregido)'; color: var(--accent2); }
+#perf { color: var(--accent2); }
+#ollamaState.on { color: var(--ok); }
+#ollamaHelp code { display: inline; padding: 1px 4px; }

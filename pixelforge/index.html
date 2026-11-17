@@ -44,7 +44,7 @@
         <label>Paleta<select id="optPalette"></select></label>
         <label>Detalle<select id="optDetail"></select></label>
         <label>Animación<select id="optAnim"></select></label>
-        <label>Modo<select id="optMode"><option value="offline">Offline (local)</option><option value="hybrid">Híbrido (IA interpreta)</option><option value="ai">IA (dibuja todo)</option></select></label>
+        <label>Motor<select id="optMode"><option value="auto">Híbrido automático</option><option value="local">IA local · Ollama</option><option value="procedural">Procedural offline</option></select></label>
       </div>
       <label class="lbl" for="optSeed">Semilla</label>
       <div class="row">
@@ -57,7 +57,23 @@
         <p id="interpText"></p>
         <code id="interpCode"></code>
         <p id="interpNotes" class="warn"></p>
+        <details id="qcBox" hidden><summary id="qcSummary">Control de calidad</summary><ul class="qc" id="qcList"></ul></details>
       </section>
+      <details class="card" id="localCard">
+        <summary>IA local (Ollama) · <span id="ollamaState">comprobando…</span></summary>
+        <div id="ollamaHelp" class="hint" hidden></div>
+        <label>Dirección del servidor<input id="ollamaUrl" type="text" spellcheck="false" placeholder="http://127.0.0.1:11434"></label>
+        <label>Modelo<div class="row"><select id="ollamaModel"></select><button id="btnOllamaRefresh" class="btn icon" title="Volver a comprobar">⟳</button></div></label>
+        <p id="ollamaRec" class="hint"></p>
+        <div class="grid2">
+          <label>Temperatura <output id="ollamaTempOut"></output><input type="range" id="ollamaTemp" min="0" max="1" step="0.05"></label>
+          <label>Interpretación<select id="ollamaPrefs"><option value="strict">Fiel (solo lo pedido)</option><option value="balanced">Equilibrada</option><option value="creative">Creativa</option></select></label>
+          <label>Tokens máx.<input id="ollamaTokens" type="number" min="200" max="4096" step="100"></label>
+          <label>Tiempo límite (s)<input id="ollamaTimeout" type="number" min="5" max="600" step="5"></label>
+        </div>
+        <div class="row"><button id="btnOllamaEval" class="btn">Evaluar este modelo</button></div>
+        <div id="ollamaEvalOut" class="hint"></div>
+      </details>
       <section class="card">
         <h3>Modificar la escena</h3>
         <p class="hint">Solo se regeneran las capas afectadas; el resto se conserva.</p>
@@ -65,6 +81,7 @@
           <input id="editText" type="text" maxlength="300" placeholder="Conserva el castillo, cambia el cielo a púrpura y agrega una luna">
           <button id="btnEdit" class="btn">Aplicar</button>
         </div>
+        <label>Versiones<div class="row"><select id="versionSel"></select><button id="btnVersion" class="btn">Recuperar</button></div></label>
       </section>
       <details class="card">
         <summary>¿Qué entiende el modo offline?</summary>
@@ -104,7 +121,7 @@
           <canvas id="grid" width="64" height="64"></canvas>
         </div>
       </div>
-      <div class="status"><span id="info"></span><span id="cursorInfo"></span></div>
+      <div class="status"><span id="info"></span><span id="perf"></span><span id="cursorInfo"></span></div>
       <div class="variations" id="variations" hidden></div>
     </section>
 
@@ -134,6 +151,7 @@
           <button id="btnBgColor" class="btn">Usar como fondo</button>
           <button id="btnBgNone" class="btn">Fondo transparente</button>
         </div>
+        <div class="row"><button id="btnVariant" class="btn">Variante de color</button><select id="themeSel" title="Paleta temática"></select></div>
         <label>Restringir a paleta<select id="optPalette2"></select></label>
         <p class="hint">Los colores se guardan una sola vez y cada operación los referencia por índice: cambiar un color actualiza toda la imagen.</p>
       </section>

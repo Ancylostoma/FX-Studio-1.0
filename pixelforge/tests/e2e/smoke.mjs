@@ -9,11 +9,12 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 // require() admite instalaciones globales de Playwright (NODE_PATH).
 const { chromium } = createRequire(import.meta.url)('playwright');
+import { startFakeOllama } from '../support/fakeOllama.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const shots = process.argv[2];
-const PORT = 8911;
-const server = spawn(process.execPath, ['server/server.mjs'], { cwd: root, env: { ...process.env, PORT: String(PORT), ANTHROPIC_API_KEY: '', ANTHROPIC_AUTH_TOKEN: '' }, stdio: 'pipe' });
+const PORT = 8911, OLLAMA_PORT = 8933;
+const server = spawn(process.execPath, ['server/server.mjs'], { cwd: root, env: { ...process.env, PORT: String(PORT), OLLAMA_URL: `http://127.0.0.1:${OLLAMA_PORT}`, ANTHROPIC_API_KEY: '', ANTHROPIC_AUTH_TOKEN: '' }, stdio: 'pipe' });
 await new Promise((res) => server.stdout.on('data', (d) => String(d).includes('http') && res()));
 
 const browser = await chromium.launch();
@@ -33,8 +34,10 @@ try {
     await page.waitForFunction(() => window.pixelforge?.state.project?.scene);
     const s = await sceneOf();
     assert.equal(s.v, 1); assert.ok(s.layers.length > 5);
-    assert.equal(await page.locator('#aiBadge').textContent(), 'Offline');
-    await page.waitForFunction(() => document.querySelector('#optMode option[value=ai]').disabled);
+    await page.waitForFunction(() => document.querySelector('#ollamaState').textContent === 'no detectado');
+    assert.equal(await page.locator('#aiBadge').textContent(), 'Procedural');
+    assert.ok(await page.evaluate(() => document.querySelector('#optMode option[value=local]').disabled), 'sin Ollama, el motor local no se puede elegir');
+    assert.equal(await page.locator('#optMode option[value=claude]').count(), 0, 'sin clave, Claude no aparece');
   });
 
   await step('un prompt reconocido produce una escena e informa de la interpretación', async () => {
@@ -254,8 +257,8 @@ try {
       r.fulfill({ json: { raw, usage: { input_tokens: 40, output_tokens: 90, cache_read_input_tokens: 1200 }, model: 'simulado' } });
     });
     await hp.goto(`http://localhost:${PORT}/`);
-    await hp.waitForFunction(() => !document.querySelector('#optMode option[value=hybrid]').disabled && window.pixelforge?.state.project);
-    await hp.selectOption('#optMode', 'hybrid');
+    await hp.waitForFunction(() => document.querySelector('#optMode option[value=claude]') && window.pixelforge?.state.project);
+    await hp.selectOption('#optMode', 'claude');
     await hp.fill('#prompt', 'Un tigre junto a una catedral en la selva al caer la tarde');
     await hp.click('#btnGenerate');
     await hp.waitForFunction(() => window.pixelforge.state.project.raw?.interpreted === 'ai');
@@ -263,7 +266,7 @@ try {
     const s1 = await sc();
     assert.ok(s1.layers.some((l) => l.k === 'subj:lion') && s1.layers.some((l) => l.k === 'struct:temple'));
     assert.deepEqual(sent[0], { prompt: 'Un tigre junto a una catedral en la selva al caer la tarde' });
-    assert.match(await hp.locator('#interpText').textContent(), /interpretado por IA \(1240 tokens de entrada, 90 de salida\)/);
+    assert.match(await hp.locator('#perf').textContent(), /^Claude \(simulado\)/);
     assert.match(await hp.locator('#interpNotes').textContent(), /tigre → león naranja/);
     if (shots) await hp.screenshot({ path: path.join(shots, 'hibrido.png') });
     await hp.fill('#editText', 'que sea de noche'); await hp.click('#btnEdit');
@@ -275,6 +278,43 @@ try {
     await hp.click('#btnVary'); await hp.waitForSelector('#variations canvas');
     assert.equal(sent.length, 2, 'las variaciones no vuelven a llamar a la IA');
     await h.close();
+  });
+
+  await step('IA local con Ollama (simulador): detección, generación, edición, evaluación y caída', async () => {
+    const fake = await startFakeOllama({ port: OLLAMA_PORT });
+    try {
+      await page.selectOption('#optMode', 'auto');
+      await page.evaluate(() => window.pixelforge.refreshLocal());
+      await page.waitForFunction(() => document.querySelector('#ollamaState').textContent.startsWith('conectado'));
+      const opts = await page.locator('#ollamaModel option').allTextContents();
+      assert.ok(opts.some((t) => t.startsWith('qwen2.5:3b')) && !opts.some((t) => t.includes('embed')), opts.join(' | '));
+      assert.ok(!(await page.evaluate(() => document.querySelector('#optMode option[value=local]').disabled)));
+      await page.fill('#prompt', 'Un hada volando sobre un estanque con nenúfares');
+      await page.selectOption('#optAnim', 'none');
+      await page.click('#btnGenerate');
+      await page.waitForFunction(() => window.pixelforge.state.project.prompt.includes('hada'));
+      assert.match(await page.locator('#perf').textContent(), /IA local \(/);
+      assert.ok((await sceneOf()).layers.some((l) => l.n === 'hada'), 'el hada a medida está en la escena');
+      assert.match(await page.locator('#interpNotes').textContent(), /nenúfares/);
+      assert.ok(await page.locator('#qcBox').isVisible());
+      await page.fill('#editText', 'cambia el cielo a púrpura y agrega una luna');
+      await page.click('#btnEdit');
+      await page.waitForFunction(() => window.pixelforge.state.project.raw.celestial.includes('moon'));
+      assert.ok(fake.log.some((x) => x.path === '/api/chat' && x.body.messages.at(-1).content.startsWith('Plan actual')));
+      assert.ok((await page.locator('#versionSel option').count()) >= 2);
+      await page.click('#localCard summary');
+      await page.click('#btnOllamaEval');
+      await page.waitForFunction(() => /JSON válido 100 %/.test(document.querySelector('#ollamaEvalOut').textContent), null, { timeout: 15000 });
+      if (shots) await page.screenshot({ path: path.join(shots, 'ollama.png') });
+    } finally { await fake.close(); }
+    // Ollama se cae: el híbrido sigue funcionando con el motor procedural.
+    await page.evaluate(() => window.pixelforge.refreshLocal());
+    await page.waitForFunction(() => document.querySelector('#ollamaState').textContent === 'no detectado');
+    await page.fill('#prompt', 'Un tigre en una selva');
+    await page.click('#btnGenerate');
+    await page.waitForFunction(() => window.pixelforge.state.project.prompt.includes('tigre'));
+    assert.match(await page.locator('#perf').textContent(), /^Procedural/);
+    assert.ok((await sceneOf()).layers.some((l) => l.n === 'tigre'));
   });
 
   assert.deepEqual(errors, [], 'errores de consola');

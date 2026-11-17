@@ -7,6 +7,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { generateScene, interpretPrompt, aiConfigured, modelId, interpretModelId, AdapterError } from './aiAdapter.mjs';
+import * as local from './ollamaAdapter.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -54,7 +55,20 @@ const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://localhost');
     let p = decodeURIComponent(url.pathname);
-    if (p === '/api/status' && req.method === 'GET') return json(res, 200, { ai: aiConfigured(), model: aiConfigured() ? modelId() : null, interpretModel: aiConfigured() ? interpretModelId() : null });
+    if (p === '/api/status' && req.method === 'GET') return json(res, 200, { ai: aiConfigured(), model: aiConfigured() ? modelId() : null, interpretModel: aiConfigured() ? interpretModelId() : null, local: true });
+    // IA local (Ollama): sin claves ni servicios externos.
+    if (p.startsWith('/api/local/')) {
+      const origin = req.headers.origin;
+      if (origin && new URL(origin).host !== req.headers.host) return json(res, 403, { error: 'Origen no permitido' });
+      if (p === '/api/local/status' && req.method === 'GET') return json(res, 200, await local.status(url.searchParams.get('url')));
+      if (req.method !== 'POST') return json(res, 405, { error: 'Método no permitido' });
+      if (!/^application\/json/.test(req.headers['content-type'] || '')) return json(res, 415, { error: 'Se esperaba application/json' });
+      const body = await readBody(req);
+      const ctl = new AbortController(); req.on('close', () => { if (!res.writableEnded) ctl.abort(); });
+      if (p === '/api/local/interpret') return json(res, 200, await local.interpret(body, ctl.signal));
+      if (p === '/api/local/evaluate') return json(res, 200, await local.evaluateModel(body, ctl.signal));
+      return json(res, 404, { error: 'No encontrado' });
+    }
     if (p === '/api/pixelscene' || p === '/api/interpret') {
       if (req.method !== 'POST') return json(res, 405, { error: 'Método no permitido' });
       // Solo peticiones del mismo origen (evita que otras webs gasten tu clave).
@@ -76,6 +90,7 @@ const server = createServer(async (req, res) => {
     res.end(req.method === 'HEAD' ? undefined : await readFile(file));
   } catch (e) {
     if (e instanceof AdapterError) return json(res, e.status, { error: e.message });
+    if (e instanceof local.LocalError) return json(res, e.status, { error: e.message, code: e.code });
     console.error(e);
     json(res, 500, { error: 'Error interno' });
   }
@@ -83,5 +98,6 @@ const server = createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log(`PixelForge Studio → http://localhost:${PORT}`);
-  console.log(aiConfigured() ? `Modo IA activo (${modelId()})` : 'Modo IA desactivado (sin ANTHROPIC_API_KEY): la app funciona en modo offline.');
+  local.status().then((s) => console.log(s.available ? `Ollama ${s.version} detectado en ${s.url} · ${s.models.length} modelo(s)${s.recommended ? ' · recomendado: ' + s.recommended : ''}` : `Ollama no detectado (${s.reason}). El motor procedural funciona igualmente.`)).catch(() => {});
+  if (aiConfigured()) console.log(`Claude (opcional) configurado: ${modelId()}`);
 });

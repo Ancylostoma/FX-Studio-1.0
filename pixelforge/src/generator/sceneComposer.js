@@ -9,12 +9,12 @@ import { AMBIENTS } from '../core/lighting.js';
 import { VERSION, LIMITS, validateScene, mapLayerColors, mapOpColors, layerSignature, spriteRefs } from '../core/pixelScene.js';
 import { STYLES, BIOMES, SKIES, DETAIL_FACTOR, ANIMS } from './templates.js';
 import { LIB, defOf } from './spriteLibrary.js';
-import { genTown, genInterior, applyTheme } from './environments.js';
+import { genTown, genInterior, applyTheme, brighten } from './environments.js';
 import { THEMES } from './templates.js';
 import { Pen, Kit, L, skyColors, genSky, genStars, genCelestial, genClouds, genFar, genGround, genWater, genWeather } from './proceduralGenerator.js';
 import { finalize } from './promptParser.js';
 
-export const RESOLUTIONS = [16, 32, 48, 64, 96, 128, 256];
+export const RESOLUTIONS = [16, 32, 48, 64, 96, 128, 160, 256];
 export const ASPECTS = { '1:1': [1, 1], '16:9': [16, 9], '9:16': [9, 16], '4:3': [4, 3], '3:2': [3, 2] };
 
 // La resolución es el lado mayor; el otro se deriva de la proporción.
@@ -264,7 +264,8 @@ function layout(G, rng) {
   });
   fliers.forEach((s, i) => {
     const skyH = G.biome.noGround ? h : H;
-    const { bw, bh } = fit(s.def, Math.min(h * s.def.sz * sizeOf(G, s.e), skyH * 0.62), w * 0.58);
+    const big = (s.e.size || 0) > 0;
+    const { bw, bh } = fit(s.def, Math.min(h * s.def.sz * sizeOf(G, s.e), skyH * (big ? 0.85 : 0.62)), w * (big ? 0.8 : 0.58));
     const cx = Math.round(w * (0.5 - side * (main ? 0.2 : 0.08)) + (i % 2 ? 1 : -1) * Math.ceil(i / 2) * bw * 0.9);
     const cy = Math.round(skyH * (G.biome.noGround ? 0.5 : main ? 0.26 : 0.34) + (i ? rng.range(-0.1, 0.12) * skyH : 0));
     G.subs.push({ ...s, x: cx - (bw >> 1), y: Math.max(1, cy - (bh >> 1)), w: bw, h: bh, flip: side < 0 ? false : true, air: true, depth: 0 });
@@ -373,7 +374,7 @@ function genProps(G) {
       return;
     }
   };
-  for (const e of spec.flora) for (let i = 0; i < Math.max(1, Math.min(6, e.n)); i++) place(e.id, LIB[e.id].sz > 0.15, true, e);
+  for (const e of spec.flora) for (let i = 0; i < Math.max(1, Math.min(6, e.n)); i++) place(e.id, defOf(e).sz > 0.15, true, e);
   const pool = G.biome.flora.filter(([id]) => !spec.no?.includes(id));
   const total = pool.length ? Math.round((G.biome.dense ? 15 : 8) * G.detail * (iso ? 0.7 : 1) * Math.max(0.6, w / h)) : 0;
   const sum = pool.reduce((a, [, wt]) => a + wt, 0);
@@ -392,7 +393,7 @@ function genProps(G) {
     if (T === F && G.adjust?.clearFocus) { const fb = G.subs.find((b) => b.e.id === G.spec.focus); if (fb && it.x < fb.x + fb.w && it.x + it.bw > fb.x && it.by - it.bh < fb.y + fb.h) continue; }
     const attrs = { ...it.e.a, color: it.e.color, color2: it.e.color2, snowy: G.biome.snowy, mat: G.biome.ground === 'mars' ? 'mars' : G.biome.ground === 'moon' ? 'moon' : undefined };
     const pad = Math.ceil(it.bh * 0.3);
-    const sid = `${it.id}${it.lvl}${it.explicit ? 'x' : ''}${it.e.color ? '_' + it.e.color : ''}_${it.bw}x${it.bh}`;
+    const sid = `${it.def.id.replace(/[^\w]/g, '')}${it.lvl}${it.explicit ? 'x' : ''}${it.e.color ? '_' + it.e.color : ''}_${it.bw}x${it.bh}`;
     const kOf = (lit, glow) => ({ C: G.C, a: attrs, lit, glow, night: G.lights, rng: G.rng('prop:' + sid), neon: G.biome.neon, pose: G.pose });
     if (!G.sprites[sid] && !G.noSprite?.has(sid)) {
       const so = [], lo = [], go = [];
@@ -487,6 +488,7 @@ export function composeSceneEx(spec, options) {
   const qKey = o.palette !== 'auto' ? o.palette : G.style.q || th?.q;
   if (qKey && PALETTES[qKey]?.colors) scene.q = PALETTES[qKey].colors;
   scene = applyTheme(compactPalette(pruneSprites(scene)), spec.theme);
+  if (spec.bright) scene = brighten(scene, spec.bright);
   const v = validateScene(scene);
   if (!v.ok) throw new Error('El generador produjo una escena inválida: ' + v.errors.join('; '));
   return { scene, G };

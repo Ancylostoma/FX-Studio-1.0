@@ -1,6 +1,6 @@
 // Edición de color e iluminación: todo ocurre sobre la paleta y los
 // parámetros fx, nunca sobre píxeles, así que cualquier cambio es inmediato.
-import { PALETTES } from '../core/paletteManager.js';
+import { PALETTES, rgbToHsl, hslToRgb } from '../core/paletteManager.js';
 import { AMBIENTS } from '../core/lighting.js';
 import { LIMITS } from '../core/pixelScene.js';
 
@@ -28,6 +28,12 @@ export function quantKey(scene) {
   if (!scene.q) return 'auto';
   const sig = JSON.stringify(scene.q);
   return Object.keys(PALETTES).find((k) => PALETTES[k].colors && JSON.stringify(PALETTES[k].colors) === sig) || 'auto';
+}
+// Variante de color: rota el tono de los colores saturados (cielo y grises
+// incluidos quedan casi iguales) sin modificar ninguna capa.
+export function colorVariant(scene, seed = 1) {
+  const shift = 40 + (seed % 9) * 30;
+  return { ...scene, pal: scene.pal.map((c) => { const [h, s, l] = rgbToHsl(c); return s < 18 ? c : hslToRgb(h + shift, s, l); }) };
 }
 export function setDither(scene, level) { return { ...scene, fx: { ...scene.fx, dth: Math.max(0, Math.min(3, level | 0)) } }; }
 export function setLightDirection(scene, ld) { return { ...scene, fx: { ...scene.fx, ld: ld > 0 ? 1 : -1 } }; }

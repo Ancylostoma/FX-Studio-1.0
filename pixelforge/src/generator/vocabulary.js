@@ -81,7 +81,7 @@ const V = [
   ['jungle', 'selva|jungla|jungle|rainforest'], ['biome:forest', 'bosque|forest|woods|arboleda'],
   ['biome:desert', 'desierto|desert|dunas'], ['biome:mars', 'marte|mars|planeta rojo'],
   ['biome:moonland', 'en la luna|sobre la luna|superficie lunar|on the moon'],
-  ['biome:sea', 'mar|oceano|sea|ocean|alta mar'], ['biome:beach', 'playa|costa|isla|beach|island|orilla'],
+  ['biome:sea', 'mar|oceano|ocean|alta mar|the sea'], ['biome:beach', 'playa|costa|isla|beach|island|orilla'],
   ['biome:city', 'ciudad|urbano|urbana|calle|metropolis|city|street'],
   ['biome:cyber', 'cyberpunk|ciberpunk|neon'], ['biome:snow', 'nevado|nevada|invernal|invierno|winter|artico|tundra|polar'],
   ['biome:volcano', 'volcan|volcano|volcanico|volcanica'], ['biome:space', 'espacio exterior|espacio|galaxia|cosmos|universo|space|galaxy|orbita'],
@@ -114,7 +114,8 @@ const V = [
   ['size:big', 'grande|grandes|gran|enorme|gigante|inmenso|inmensa|big|huge|giant|large'],
   ['anim:walk', 'caminando|andando|corriendo|paseando|walking|running'], ['anim:attack', 'atacando|luchando|peleando|combatiendo|attacking|fighting'],
   // --- Posición y relaciones espaciales ---
-  ['side:left', 'a la izquierda|izquierda|on the left|to the left|left'], ['side:right', 'a la derecha|derecha|on the right|to the right|right'],
+  ['side:left', 'a la izquierda|al lado izquierdo|lado izquierdo|izquierda|izquierdo|on the left|to the left|left'], ['side:right', 'a la derecha|al lado derecho|lado derecho|derecha|derecho|on the right|to the right|right'],
+  ['bright:up', 'mas luz|mas iluminacion|incrementa la iluminacion|aumenta la iluminacion|aumenta la luz|mas brillante|mas luminoso|mas luminosa|ilumina|brighter|more light'], ['bright:down', 'menos luz|menos iluminacion|mas oscuro|mas oscura|oscurece|darker|less light'],
   ['side:center', 'en el centro|centro|en medio|in the middle|in the center|center|middle'],
   ['depth:back', 'al fondo|a lo lejos|en la distancia|en segundo plano|in the background|in the distance|far away'],
   ['depth:front', 'en primer plano|primer plano|in the foreground|foreground'],
