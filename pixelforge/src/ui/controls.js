@@ -1,6 +1,6 @@
 // Utilidades de interfaz: creación de nodos, selectores y avisos.
 import { RESOLUTIONS, ASPECTS } from '../generator/sceneComposer.js';
-import { STYLES, DETAIL_LEVELS } from '../generator/templates.js';
+import { STYLES, DETAIL_LEVELS, ANIMS } from '../generator/templates.js';
 import { PALETTES } from '../core/paletteManager.js';
 import { AMBIENTS } from '../core/lighting.js';
 import { LIB, CATEGORY_NAMES } from '../generator/spriteLibrary.js';
@@ -53,6 +53,7 @@ export function initControls() {
   fillSelect($('#optPalette'), pals, 'auto');
   fillSelect($('#optPalette2'), pals, 'auto');
   fillSelect($('#optDetail'), Object.entries(DETAIL_LEVELS), 2);
+  fillSelect($('#optAnim'), Object.entries(ANIMS).map(([k, a]) => [k, a.name]), 'none');
   fillSelect($('#ambPreset'), [...Object.entries(AMBIENTS).map(([k, a]) => [k, a.name]), ['custom', 'Personalizada']], 'day');
   fillSelect($('#zoomSel'), [['fit', 'Ajustar'], ['1', 'Original (1×)'], ...[2, 3, 4, 6, 8, 12, 16, 24].map((z) => [z, z + '×'])], 'fit');
   const ex = $('#examples');
@@ -72,13 +73,13 @@ export function initControls() {
 export function readOptions() {
   return {
     res: +$('#optRes').value, aspect: $('#optAspect').value, style: $('#optStyle').value, palette: $('#optPalette').value,
-    detail: +$('#optDetail').value, seed: Math.max(1, Math.min(999999, +$('#optSeed').value || 1)), mode: $('#optMode').value,
+    detail: +$('#optDetail').value, anim: $('#optAnim').value, seed: Math.max(1, Math.min(999999, +$('#optSeed').value || 1)), mode: $('#optMode').value,
   };
 }
 
 export function writeOptions(o) {
   if (!o) return;
   const set = (id, v) => { const el = $(id); if (v != null && [...el.options].some((op) => op.value === String(v))) el.value = String(v); };
-  set('#optRes', o.res); set('#optAspect', o.aspect); set('#optStyle', o.style); set('#optPalette', o.palette); set('#optPalette2', o.palette); set('#optDetail', o.detail);
+  set('#optRes', o.res); set('#optAspect', o.aspect); set('#optStyle', o.style); set('#optPalette', o.palette); set('#optPalette2', o.palette); set('#optDetail', o.detail); set('#optAnim', o.anim || 'none');
   if (o.seed) $('#optSeed').value = o.seed;
 }

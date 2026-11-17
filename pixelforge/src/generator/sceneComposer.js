@@ -7,7 +7,7 @@ import { RNG } from '../core/randomSeed.js';
 import { PaletteBuilder, compactPalette, PALETTES } from '../core/paletteManager.js';
 import { AMBIENTS } from '../core/lighting.js';
 import { VERSION, LIMITS, validateScene, mapLayerColors, mapOpColors, layerSignature, spriteRefs } from '../core/pixelScene.js';
-import { STYLES, BIOMES, SKIES, DETAIL_FACTOR } from './templates.js';
+import { STYLES, BIOMES, SKIES, DETAIL_FACTOR, ANIMS } from './templates.js';
 import { LIB } from './spriteLibrary.js';
 import { Pen, Kit, L, skyColors, genSky, genStars, genCelestial, genClouds, genFar, genGround, genWater, genWeather } from './proceduralGenerator.js';
 import { finalize } from './promptParser.js';
@@ -30,18 +30,21 @@ export function normalizeOptions(o = {}) {
     detail: DETAIL_FACTOR[o.detail] ? +o.detail : 2,
     seed: (o.seed >>> 0) || 1,
     palette: PALETTES[o.palette] ? o.palette : 'auto',
+    anim: ANIMS[o.anim] ? o.anim : 'none',
   };
 }
 
 const SIZE = { '-1': 0.72, 0: 1, 1: 1.35 };
 
-function buildContext(spec, o) {
+function buildContext(spec, o, pb, frame) {
   const st = STYLES[o.style];
   const root = new RNG(o.seed);
-  const pb = new PaletteBuilder();
   const C = new Kit(pb, st);
   const { w, h } = o;
   const G = { w, h, spec, style: st, C, pb, sprites: {}, detail: st.detail * DETAIL_FACTOR[o.detail] * (w < 48 ? 0.6 : 1), rng: (l) => root.fork(l) };
+  // Animación: todos los fotogramas comparten semillas, así que solo cambia lo que cada generador decide mover.
+  G.frames = ANIMS[o.anim].n; G.frame = frame;
+  G.pose = G.frames > 1 ? { kind: o.anim, f: frame, n: G.frames } : null;
   G.layoutKind = st.layout === 'sprite' || !spec.biome ? 'portrait' : st.layout === 'iso' ? 'iso' : 'scene';
   G.transparent = st.layout === 'sprite';
   G.biome = BIOMES[spec.biome || 'meadow'];
@@ -184,7 +187,7 @@ function drawEntity(G, box, key, rngLabel) {
   const { def, e } = box;
   const main = [], lit = [], glow = [];
   const p = new Pen(main, box.x, box.y, box.w, box.h, box.flip);
-  const k = { C: G.C, a: { ...e.a, color: e.color, color2: e.color2, fly: box.air, snowy: G.biome.snowy, mat: G.biome.ground === 'mars' ? 'mars' : G.biome.ground === 'moon' ? 'moon' : undefined }, lit: p.on(lit), glow, night: G.lights, rng: G.rng(rngLabel), neon: G.biome.neon, space: G.biome.noGround, beamDir: box.flip ? -1 : 1, sprites: G.sprites };
+  const k = { C: G.C, a: { ...e.a, color: e.color, color2: e.color2, fly: box.air, snowy: G.biome.snowy, mat: G.biome.ground === 'mars' ? 'mars' : G.biome.ground === 'moon' ? 'moon' : undefined }, lit: p.on(lit), glow, night: G.lights, rng: G.rng(rngLabel), neon: G.biome.neon, space: G.biome.noGround, beamDir: box.flip ? -1 : 1, sprites: G.sprites, pose: G.pose };
   def.build(p, k);
   const name = def.name + (box.i ? ' ' + (box.i + 1) : '');
   const out = [];
@@ -194,8 +197,11 @@ function drawEntity(G, box, key, rngLabel) {
   if (glow.length) out.push(L('halo de ' + name, key, glow, { nl: 1, a: 0.2 }));
   const props = outlineProps(G, def.cat === 'structure' ? 'struct' : 'subj');
   if (def.alpha) props.a = def.alpha;
+  // Lo que vuela o flota se mece: desplazamiento de capa por fotograma.
+  const mv = !G.pose || G.layoutKind === 'portrait' && !box.air ? null : box.air ? [[0, 1], [0, 0], [0, -1], [0, 0]] : box.floating ? [[0, 0], [0, 0], [0, 1], [0, 1]] : null;
+  if (mv) { props.mv = mv; for (const l of out) l.mv = mv; }
   out.push(L(name, key, main, props));
-  if (lit.length) out.push(L('luces de ' + name, key, lit, { nl: 1 }));
+  if (lit.length) out.push(L('luces de ' + name, key, lit, { nl: 1, ...(mv ? { mv } : {}) }));
   return out;
 }
 
@@ -254,7 +260,7 @@ function genProps(G) {
     const attrs = { ...it.e.a, color: it.e.color, color2: it.e.color2, snowy: G.biome.snowy, mat: G.biome.ground === 'mars' ? 'mars' : G.biome.ground === 'moon' ? 'moon' : undefined };
     const pad = Math.ceil(it.bh * 0.3);
     const sid = `${it.id}${it.lvl}${it.explicit ? 'x' : ''}${it.e.color ? '_' + it.e.color : ''}_${it.bw}x${it.bh}`;
-    const kOf = (lit, glow) => ({ C: G.C, a: attrs, lit, glow, night: G.lights, rng: G.rng('prop:' + sid), neon: G.biome.neon });
+    const kOf = (lit, glow) => ({ C: G.C, a: attrs, lit, glow, night: G.lights, rng: G.rng('prop:' + sid), neon: G.biome.neon, pose: G.pose });
     if (!G.sprites[sid] && !G.noSprite?.has(sid)) {
       const so = [], lo = [], go = [];
       const sp = new Pen(so, pad, pad, it.bw, it.bh);
@@ -276,9 +282,8 @@ function genProps(G) {
 }
 
 // Genera la escena completa a partir de una especificación ya finalizada.
-export function composeScene(spec, options) {
-  const o = normalizeOptions(options);
-  const G = buildContext(spec, o);
+function composeFrame(spec, o, pb, frame) {
+  const G = buildContext(spec, o, pb, frame);
   const { C } = G;
   let layers = [];
   const add = (ls) => { for (const l of ls) if (l.o.length) layers.push(l); };
@@ -306,11 +311,36 @@ export function composeScene(spec, options) {
   if (G.layoutKind !== 'portrait') add(genWeather(G));
   if (G.style.magic && G.layoutKind === 'portrait' && !G.transparent) add(genWeather({ ...G, spec: { ...spec, weather: [], fx: ['sparkles'] }, biome: { ...G.biome, noGround: 1 } }));
   if (layers.length > LIMITS.maxLayers) layers = layers.slice(0, LIMITS.maxLayers);
+  return { G, layers };
+}
+
+export function composeScene(spec, options) {
+  const o = normalizeOptions(options);
+  const pb = new PaletteBuilder();
+  const anim = ANIMS[o.anim];
+  const { G, layers } = composeFrame(spec, o, pb, 0);
+  // Animación: se compone cada fotograma y solo se guardan como "fo" las
+  // capas cuyas operaciones cambian; el resto queda una sola vez.
+  if (anim.n > 1) {
+    const key = (l) => (l.k || '') + '|' + l.n;
+    const rest = [];
+    for (let f = 1; f < anim.n; f++) {
+      const fr = composeFrame(spec, o, pb, f);
+      rest.push(new Map(fr.layers.map((l) => [key(l), l.o])));
+      for (const [id, sp] of Object.entries(fr.G.sprites)) if (!G.sprites[id]) G.sprites[id] = sp;
+    }
+    for (const l of layers) {
+      const frames = rest.map((m) => m.get(key(l)) || []);
+      const base = JSON.stringify(l.o);
+      if (frames.some((fo) => JSON.stringify(fo) !== base)) l.fo = frames;
+    }
+  }
   let scene = {
     v: VERSION, w: G.w, h: G.h, pal: G.pb.pal, bg: G.transparent ? -1 : G.skyHorizon, rmp: G.pb.rmp,
     fx: { ld: -1, dth: G.style.dth, ...(G.amb ? { amb: G.amb } : {}) },
     sprites: G.sprites, layers,
   };
+  if (anim.n > 1 && layers.some((l) => l.fo || l.mv)) scene.an = { n: anim.n, fps: anim.fps };
   const qKey = o.palette !== 'auto' ? o.palette : G.style.q;
   if (qKey && PALETTES[qKey]?.colors) scene.q = PALETTES[qKey].colors;
   scene = compactPalette(pruneSprites(scene));
@@ -321,7 +351,7 @@ export function composeScene(spec, options) {
 
 function pruneSprites(scene) {
   const used = new Set();
-  for (const l of scene.layers) for (const id of spriteRefs(l.o)) used.add(id);
+  for (const l of scene.layers) for (const id of spriteRefs(l)) used.add(id);
   const sprites = {};
   for (const id of Object.keys(scene.sprites || {})) if (used.has(id)) sprites[id] = scene.sprites[id];
   return { ...scene, sprites };
@@ -346,7 +376,7 @@ export function editScene(scene, rawOld, rawNew, options) {
     const k = l.k || l.n;
     if (changed.has(k)) {
       layers.push(mapLayerColors(l, map));
-      for (const id of spriteRefs(l.o)) sprites[id] = { ...B.sprites[id], o: B.sprites[id].o.map((op) => mapOpColors(op, map)) };
+      for (const id of spriteRefs(l)) sprites[id] = { ...B.sprites[id], o: B.sprites[id].o.map((op) => mapOpColors(op, map)) };
     } else if (!seen.has(k)) { for (const c of cur.get(k) || []) layers.push(c); }
     seen.add(k);
   }
@@ -354,6 +384,7 @@ export function editScene(scene, rawOld, rawNew, options) {
   for (const l of scene.layers) { const k = l.k || l.n; if (!sb.has(k) && !sa.has(k)) layers.push(l); }
   for (const r of B.rmp || []) pb.rmp.push(r.map(map));
   let out = { ...scene, pal: pb.pal, rmp: pb.rmp, bg: B.bg < 0 ? -1 : map(B.bg), fx: { ...B.fx, ld: scene.fx?.ld ?? B.fx.ld, dth: scene.fx?.dth ?? B.fx.dth }, sprites, layers: layers.slice(0, LIMITS.maxLayers) };
+  if (B.an) out.an = B.an; else delete out.an;
   if (out.pal.length > LIMITS.maxPal) out.pal = out.pal.slice(0, LIMITS.maxPal);
   out = compactPalette(pruneSprites(out));
   const v = validateScene(out);

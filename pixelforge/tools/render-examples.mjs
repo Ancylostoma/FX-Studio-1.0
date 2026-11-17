@@ -8,6 +8,7 @@ import { composeScene, dimensions } from '../src/generator/sceneComposer.js';
 import { renderScene } from '../src/core/renderer.js';
 import { scaleNearest } from '../src/core/geometry.js';
 import { encodePNG } from './png.mjs';
+import { animationToGif } from '../src/export/pngExporter.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const out = path.join(root, 'docs', 'examples');
@@ -40,6 +41,18 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const { scene, png } = draw(prompt, style, seed, aspect, res, 512);
     writeFileSync(path.join(out, name + '.png'), png);
     console.log(name.padEnd(20), `${scene.w}×${scene.h}`, `${JSON.stringify(scene).length} B de PixelScene`);
+  }
+  // Ejemplos animados (GIF codificado por src/export/gifEncoder.js).
+  for (const [name, prompt, style, anim, res, scale] of [
+    ['anim-dragon-lluvia', 'Un dragón rojo volando sobre un castillo de noche con lluvia', 'bit16', 'idle', 96, 3],
+    ['anim-caballero-ataque', 'Un caballero con una espada de fuego', 'sprite', 'attack', 48, 4],
+    ['anim-caballo', 'Un caballo', 'sprite', 'walk', 48, 4],
+    ['anim-bosque', 'Un bosque encantado con una pequeña casa, luciérnagas y una hoguera', 'fantasy', 'idle', 96, 3],
+  ]) {
+    const scene = composeScene(parsePrompt(prompt).spec, { w: res, h: res, style, seed: 7, detail: 2, anim });
+    const gif = animationToGif(scene, { scale });
+    writeFileSync(path.join(out, name + '.gif'), gif);
+    console.log(name.padEnd(24), `${scene.an.n} fotogramas`, `${JSON.stringify(scene).length} B de PixelScene`, `${gif.length} B de GIF`);
   }
   writeFileSync(path.join(root, 'icons', 'icon-192.png'), draw('Un dragón rojo de noche', 'bit16', 5, '1:1', 32, 192).png);
   writeFileSync(path.join(root, 'icons', 'icon-512.png'), draw('Un dragón rojo de noche', 'bit16', 5, '1:1', 32, 512).png);

@@ -80,6 +80,7 @@ const V = [
   ['style:detailed', 'detallado|detallada|detailed'], ['style:fantasy', 'fantasia|fantasy'], ['style:sprite', 'sprite|icono|icon'],
   ['size:small', 'pequeno|pequena|pequenos|pequenas|chico|chica|diminuto|diminuta|small|tiny|little'],
   ['size:big', 'grande|grandes|gran|enorme|gigante|inmenso|inmensa|big|huge|giant|large'],
+  ['anim:walk', 'caminando|andando|corriendo|paseando|walking|running'], ['anim:attack', 'atacando|luchando|peleando|combatiendo|attacking|fighting'],
   ['fly', 'volando|vuela|volador|voladora|sobrevolando|flying|flies|en el aire|flotando'],
   ['n:2', 'dos|two|par de'], ['n:3', 'tres|three'], ['n:4', 'cuatro|four|varios|varias|several'], ['n:5', 'cinco|five|muchos|muchas|many'],
   ['part:armor', 'armadura|coraza|armor|armour'], ['part:helmet', 'casco|yelmo|helmet'], ['part:hat', 'sombrero|gorro|hat'],
@@ -95,7 +96,7 @@ const V = [
   ['verb:keep', 'conserva|conservar|manten|mantener|preserva|deja|keep|preserve'],
 ];
 
-const STOP = 'un una unos unas el la los las lo de del al a en con y e o u que por para su sus se es esta este son muy mas como sobre bajo frente junto cerca entre durante hacia desde tras encima debajo lado the an of on in at with and to over under near front by is its from into behind above below pixel art pixelart estilo style paisaje landscape escena scene imagen image dibujo ilustracion fondo background caminando walking sosteniendo holding corriendo running sentado sentada mirando parado standing llevando wearing usando tiene hay color colores tipo algo mientras donde cual cuyo todo toda color'.split(' ');
+const STOP = 'un una unos unas el la los las lo de del al a en con y e o u que por para su sus se es esta este son muy mas como sobre bajo frente junto cerca entre durante hacia desde tras encima debajo lado the an of on in at with and to over under near front by is its from into behind above below pixel art pixelart estilo style paisaje landscape escena scene imagen image dibujo ilustracion fondo background sosteniendo holding sentado sentada mirando parado standing llevando wearing usando tiene hay color colores tipo algo mientras donde cual cuyo todo toda color'.split(' ');
 
 export const PHRASES = new Map();
 for (const [tag, words] of V) for (const w of words.split('|')) if (!PHRASES.has(w)) PHRASES.set(w, tag);

@@ -12,7 +12,7 @@ import { History } from '../editor/history.js';
 import * as LM from '../editor/layerManager.js';
 import * as CE from '../editor/colorEditor.js';
 import { paintPixels, pickIndex, strokePixels } from '../editor/canvasEditor.js';
-import { exportImage, scaleForTarget, collectSprites, buildSpriteSheet, imageToBlob, downloadBlob, downloadText } from '../export/pngExporter.js';
+import { exportImage, exportFrames, buildFrameStrip, animationToGif, scaleForTarget, collectSprites, buildSpriteSheet, imageToBlob, downloadBlob, downloadText } from '../export/pngExporter.js';
 import { sceneToJSON, serializeProject, parseProjectFile, safeFileName } from '../export/projectExporter.js';
 import * as pm from '../storage/projectManager.js';
 import { aiStatus, aiGenerate, aiInterpret } from '../ai/aiClient.js';
@@ -22,9 +22,10 @@ const state = {
   history: new History(),
   zoom: 'fit', grid: false, tool: 'move', color: 0,
   openLayer: -1, ai: { available: false },
+  frame: 0, playing: true,
 };
 const scene = () => state.project?.scene;
-const composeOpts = (o) => ({ ...dimensions(o.res, o.aspect), style: o.style, detail: o.detail, seed: o.seed, palette: o.palette });
+const composeOpts = (o) => ({ ...dimensions(o.res, o.aspect), style: o.style, detail: o.detail, seed: o.seed, palette: o.palette, anim: o.anim });
 
 // ---------- Estado e historial ----------
 function commit(newScene, { raw, record = true } = {}) {
@@ -67,7 +68,12 @@ function drawPreview() {
   const s = scene();
   if (!s) return;
   const z = currentZoom();
-  imageToCanvas(render(s), $('#view'), z);
+  const n = s.an?.n || 1;
+  state.frame %= n;
+  imageToCanvas(render(s, { frame: state.frame }), $('#view'), z);
+  $('#animBar').hidden = n < 2; $('#animExport').hidden = n < 2;
+  $('#frameInfo').textContent = n > 1 ? `${state.frame + 1}/${n} · ${s.an.fps} fps` : '';
+  $('#btnPlay').textContent = state.playing ? '⏸' : '▶';
   const g = $('#grid');
   g.width = s.w * z; g.height = s.h * z;
   if (state.grid && z >= 4) {
@@ -78,7 +84,7 @@ function drawPreview() {
     ctx.stroke();
   }
   const st = sceneStats(s);
-  $('#info').textContent = `${s.w}×${s.h} · ${st.colors} colores · ${st.layers} capas · ${st.ops} ops · ${(st.bytes / 1024).toFixed(1)} KB · zoom ${z}×`;
+  $('#info').textContent = `${s.w}×${s.h} · ${st.frames > 1 ? st.frames + ' fotogramas · ' : ''}${st.colors} colores · ${st.layers} capas · ${st.ops} ops · ${(st.bytes / 1024).toFixed(1)} KB · zoom ${z}×`;
 }
 
 function refresh() {
@@ -131,6 +137,7 @@ function generate({ newSeed }) {
     } else {
       const parsed = parsePrompt(prompt);
       raw = parsed.raw;
+      if (parsed.raw.anim && !state.animTouched && opts.anim === 'none') { opts.anim = parsed.raw.anim; $('#optAnim').value = opts.anim; }
       const style = parsed.raw.style && !state.styleTouched ? parsed.raw.style : opts.style;
       if (style !== opts.style) { opts.style = style; $('#optStyle').value = style; }
       sceneOut = composeScene(parsed.spec, composeOpts(opts));
@@ -277,6 +284,19 @@ async function exportPng() {
   downloadBlob(blob, safeFileName(`${state.project.name}-${s.w * k}x${s.h * k}`, 'png'));
   toast(`PNG exportado a ${s.w * k}×${s.h * k}`);
 }
+async function exportGif() {
+  const s = scene(), k = Math.min(+$('#expScale').value || 1, Math.max(1, Math.floor(1024 / Math.max(s.w, s.h))));
+  const gif = animationToGif(s, { scale: k, transparent: $('#expTransparent').checked });
+  downloadBlob(new Blob([gif], { type: 'image/gif' }), safeFileName(`${state.project.name}-${s.w * k}x${s.h * k}`, 'gif'));
+  toast(`GIF de ${s.an.n} fotogramas a ${s.w * k}×${s.h * k} (${(gif.length / 1024).toFixed(0)} KB)`);
+}
+async function exportStrip() {
+  const s = scene(), frames = exportFrames(s, { transparent: $('#expTransparent').checked }), strip = buildFrameStrip(frames);
+  const k = Math.min(+$('#expScale').value || 1, Math.max(1, Math.floor(4096 / strip.w)));
+  downloadBlob(await imageToBlob(strip, k), safeFileName(state.project.name + '-fotogramas', 'png'));
+  downloadText(JSON.stringify({ frames: frames.length, fps: s.an.fps, frameWidth: s.w * k, frameHeight: s.h * k, loop: true }), safeFileName(state.project.name + '-fotogramas', 'json'));
+  toast(`Tira de ${frames.length} fotogramas de ${s.w * k}×${s.h * k}`);
+}
 async function exportLayer(i) {
   const s = scene(), k = +$('#expScale').value || 1;
   downloadBlob(await imageToBlob(render(s, { transparent: true, only: [i], showHidden: true }), k), safeFileName(`${state.project.name}-${s.layers[i].n}`, 'png'));
@@ -318,21 +338,21 @@ function initCanvasTools() {
     const pts = last ? strokePixels(last[0], last[1], x, y) : [[x, y]];
     working = paintPixels(working, pts, state.tool === 'eraser' ? -1 : state.color);
     last = [x, y];
-    imageToCanvas(render(working), cv, currentZoom());
+    imageToCanvas(render(working, { frame: state.frame }), cv, currentZoom());
   };
   cv.addEventListener('pointerdown', (e) => {
     const [x, y] = pixelAt(e);
     if (state.tool === 'picker') { const c = pickIndex(scene(), x, y); if (c >= 0) { state.color = c; renderPalette(); toast('Color ' + c + ' seleccionado'); } return; }
     if (state.tool === 'move') return;
     e.preventDefault(); cv.setPointerCapture(e.pointerId);
-    working = scene(); last = null; apply(x, y);
+    working = scene(); last = null; state.painting = true; apply(x, y);
   });
   cv.addEventListener('pointermove', (e) => {
     const [x, y] = pixelAt(e);
     $('#cursorInfo').textContent = `x ${x} · y ${y}`;
     if (working && (!last || last[0] !== x || last[1] !== y)) apply(x, y);
   });
-  const end = () => { if (working) { const w = working; working = null; last = null; if (w !== scene()) commit(w); } };
+  const end = () => { state.painting = false; if (working) { const w = working; working = null; last = null; if (w !== scene()) commit(w); } };
   cv.addEventListener('pointerup', end);
   cv.addEventListener('pointercancel', end);
   cv.addEventListener('pointerleave', () => { $('#cursorInfo').textContent = ''; });
@@ -403,6 +423,11 @@ function bind() {
 
   $('#btnPng').addEventListener('click', () => busy(exportPng));
   $('#btnSheet').addEventListener('click', () => busy(exportSheet));
+  $('#btnGif').addEventListener('click', () => busy(exportGif));
+  $('#btnStrip').addEventListener('click', () => busy(exportStrip));
+  $('#btnPlay').addEventListener('click', () => { state.playing = !state.playing; drawPreview(); });
+  $('#btnFrame').addEventListener('click', () => { state.playing = false; state.frame++; drawPreview(); });
+  $('#optAnim').addEventListener('change', () => { state.animTouched = true; });
   $('#btnJson').addEventListener('click', () => downloadText(sceneToJSON(scene()), safeFileName(state.project.name, 'pixelscene.json')));
   $('#btnProject').addEventListener('click', () => downloadText(serializeProject(state.project), safeFileName(state.project.name, 'pfproj.json')));
   $('#btnImport').addEventListener('click', () => $('#fileImport').click());
@@ -432,6 +457,14 @@ async function start() {
   $('#optSeed').value = randomSeed() || 1;
   bind();
   initCanvasTools();
+  // Reproducción: avanza un fotograma según los fps de la escena (se pausa al dibujar o con la pestaña oculta).
+  let lastTick = 0;
+  const tick = (t) => {
+    const s = scene();
+    if (s?.an && state.playing && !state.painting && !document.hidden && t - lastTick >= 1000 / s.an.fps) { lastTick = t; state.frame = (state.frame + 1) % s.an.n; drawPreview(); }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
   let draft = null;
   try { draft = await pm.loadDraft(); } catch { /* sin almacenamiento */ }
   if (draft?.scene && validateScene(draft.scene).ok) setProject(draft);

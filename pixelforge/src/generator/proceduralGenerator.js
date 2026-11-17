@@ -93,7 +93,7 @@ export function genStars(G) {
   if (dens <= 0) return [];
   const { w, H, C } = G, rng = G.rng('stars');
   const sh = Math.round((G.biome.noGround ? G.h : H) * 0.92);
-  const o = [];
+  const o = [], tw = [];
   const dim = C.rgb([150, 160, 200]), bright = C.rgb([240, 240, 255]), warm = C.rgb([255, 230, 170]);
   const seed = rng.int(1, 999999);
   if (dens >= 1) {
@@ -103,10 +103,11 @@ export function genStars(G) {
   const n = Math.round(((w * sh) / 900) * dens * (dens >= 1 ? 1 : 4));
   if (w >= 48) {
     G.sprites['star'] = { w: 3, h: 3, o: [['R', 1, 0, 1, 3, bright], ['R', 0, 1, 3, 1, bright]] };
-    for (let i = 0; i < n; i++) o.push(['S', 'star', rng.int(0, w - 3), rng.int(0, Math.round(sh * 0.75))]);
+    for (let i = 0; i < n; i++) { const op = ['S', 'star', rng.int(0, w - 3), rng.int(0, Math.round(sh * 0.75))]; if (G.frames > 1 && i % 3 === 0) { if ((i / 3 + G.frame) % G.frames) tw.push(op); } else o.push(op); }
   }
-  for (let i = 0; i < n; i++) o.push(['R', rng.int(0, w - 1), rng.int(0, sh), 1, 1, rng.chance(0.3) ? warm : bright]);
-  return [L('estrellas', 'stars', o, { nl: 1 })];
+  for (let i = 0; i < n; i++) { const op = ['R', rng.int(0, w - 1), rng.int(0, sh), 1, 1, rng.chance(0.3) ? warm : bright]; if (G.frames > 1 && i % 3 === 1) { if (((i - 1) / 3 + G.frame + 2) % G.frames) tw.push(op); } else o.push(op); }
+  // Animado: un tercio de las estrellas va a una capa aparte que parpadea; el resto no se duplica.
+  return G.frames > 1 ? [L('estrellas', 'stars', o, { nl: 1 }), L('centelleo', 'stars', tw, { nl: 1 })] : [L('estrellas', 'stars', o, { nl: 1 })];
 }
 
 export function genCelestial(G) {
@@ -440,9 +441,11 @@ export function genWater(G) {
   else o.push(['G', 0, H, w, bottom - H, [wt[3], wt[2], wt[2], wt[1]]]);
   o.push(['R', 0, H, w, 1, wt[4]]);
   const n = Math.round(((w * (bottom - H)) / 160) * G.detail);
+  // Animado: los brillos alternan entre dos estados (rielar del agua).
+  const drng = G.frames > 1 ? G.rng('water:' + (G.frame & 1)) : rng;
   for (let i = 0; i < n; i++) {
-    const y = rng.int(H + 2, bottom - 1), len = Math.max(1, Math.round((1 + ((y - H) / (bottom - H)) * 4) * (w / 64)));
-    o.push(['R', rng.int(0, w - 1), y, len, 1, wt[rng.chance(0.5) ? 3 : 4]]);
+    const y = drng.int(H + 2, bottom - 1), len = Math.max(1, Math.round((1 + ((y - H) / (bottom - H)) * 4) * (w / 64)));
+    o.push(['R', drng.int(0, w - 1), y, len, 1, wt[drng.chance(0.5) ? 3 : 4]]);
   }
   const layers = [L(G.waterKind === 'lake' ? 'lago' : 'mar', 'water', o, { rf: [H + 1, G.style.flat ? 22 : 38] })];
   // Estela de luz del astro sobre el agua.
@@ -450,7 +453,7 @@ export function genWater(G) {
     const lo = [], c = C.rgb(G.spec.celestial.includes('moon') ? [238, 236, 214] : [255, 220, 140]);
     for (let y = H + 2; y < bottom; y += 2) {
       const sp = Math.round((1 + (y - H) * 0.12) * (w / 64));
-      lo.push(['R', G.bodyX - sp + rng.int(-1, 1), y, Math.max(1, sp * 2 - rng.int(0, 2)), 1, c]);
+      lo.push(['R', G.bodyX - sp + drng.int(-1, 1), y, Math.max(1, sp * 2 - drng.int(0, 2)), 1, c]);
     }
     layers.push(L('destello', 'water', lo, { nl: 1, a: 0.55 }));
   }
@@ -466,25 +469,30 @@ export function genWater(G) {
 export function genWeather(G) {
   const { w, h, H, C, spec } = G, rng = G.rng('weather');
   const out = [];
-  const tile = Math.max(8, Math.min(32, Math.round(w / 4)));
+  const anim = G.frames > 1, F = G.frame;
+  // Con animación la tesela es múltiplo del nº de fotogramas para que el ciclo cierre sin salto.
+  let tile = Math.max(8, Math.min(32, Math.round(w / 4)));
+  if (anim) tile = Math.max(G.frames * 2, Math.round(tile / G.frames) * G.frames);
+  const off = anim ? (F * tile) / G.frames : 0;
+  const scroll = (id, dx, dy) => (anim ? ['B', -2 * tile + dx, -2 * tile + dy, w + 4 * tile, h + 4 * tile, id] : ['B', 0, 0, w, h, id]);
   if (spec.weather.includes('rain') || spec.weather.includes('storm')) {
     const c = C.rgb([176, 196, 235]), so = [], len = Math.max(2, Math.round(tile / 5));
     for (let i = 0; i < Math.round(4 * G.detail) + 2; i++) { const x = rng.int(0, tile - 1), y = rng.int(0, tile - 1); so.push(['L', x, y, x - Math.max(1, len >> 1), y + len, c]); }
     G.sprites['rain'] = { w: tile, h: tile, o: so };
-    out.push(L('lluvia', 'weather', [['B', 0, 0, w, h, 'rain']], { nl: 1, a: 0.5 }));
+    out.push(L('lluvia', 'weather', [scroll('rain', -off, 2 * off)], { nl: 1, a: 0.5 }));
   }
   if (spec.weather.includes('storm')) {
     const c = C.rgb([255, 252, 220]), o = [];
     let x = Math.round(w * (G.moonSide > 0 ? 0.3 : 0.7)), y = 0;
     const seg = Math.max(3, Math.round(H / 6));
     while (y < H * 0.8) { const nx = x + rng.int(-seg, seg), ny = y + seg; o.push(['L', x, y, nx, ny, c]); if (w >= 96) o.push(['L', x + 1, y, nx + 1, ny, c]); if (rng.chance(0.3)) o.push(['L', nx, ny, nx + rng.int(-seg, seg), ny + (seg >> 1), c]); x = nx; y = ny; }
-    out.push(L('relámpago', 'weather', o, { nl: 1 }));
+    if (!anim || F === 0) out.push(L('relámpago', 'weather', o, { nl: 1 }));
   }
   if (spec.weather.includes('snow')) {
     const c = C.rgb([250, 252, 255]), so = [];
     for (let i = 0; i < Math.round(5 * G.detail) + 2; i++) so.push(['R', rng.int(0, tile - 1), rng.int(0, tile - 1), w >= 128 && rng.chance(0.3) ? 2 : 1, 1, c]);
     G.sprites['snowfall'] = { w: tile, h: tile, o: so };
-    out.push(L('nevada', 'weather', [['B', 0, 0, w, h, 'snowfall']], { nl: 1, a: 0.9 }));
+    out.push(L('nevada', 'weather', [scroll('snowfall', [0, 1, 0, -1][F % 4], off)], { nl: 1, a: 0.9 }));
   }
   if (spec.weather.includes('fog')) {
     const c = C.rgb([226, 232, 240]), o = [], y0 = Math.round(H * 0.55), bands = 5, bh = Math.max(2, Math.round((h * 0.5) / bands));
@@ -496,7 +504,8 @@ export function genWeather(G) {
     const n = Math.round(((w * h) / 380) * Math.min(1.6, G.detail));
     const yTop = G.biome.noGround ? 0 : H * 0.55;
     for (let i = 0; i < n; i++) {
-      const x = rng.int(1, w - 2), y = rng.int(Math.round(yTop), h - 3);
+      let x = rng.int(1, w - 2); const y = rng.int(Math.round(yTop), h - 3);
+      if (anim) { if ((i + F) % 3 === 0) continue; x += [0, 1, 0, -1][(i + F) % 4]; }
       o.push(['R', x, y, 1, 1, c]);
       if (w >= 48) go.push(['R', x - 1, y, 3, 1, c], ['R', x, y - 1, 1, 3, c]);
     }
@@ -507,9 +516,10 @@ export function genWeather(G) {
     const cols = [C.rgb([255, 240, 170]), C.rgb([200, 170, 255]), C.rgb([150, 240, 255])], o = [];
     const n = Math.round(((w * h) / 700) * Math.min(1.6, G.detail));
     for (let i = 0; i < n; i++) {
-      const x = rng.int(1, w - 2), y = rng.int(2, h - 3), c = rng.pick(cols);
+      const x = rng.int(1, w - 2), y = rng.int(2, h - 3), c = rng.pick(cols), big = rng.chance(0.4);
+      if (anim && (i + F) % 2) continue;
       o.push(['R', x, y, 1, 1, c]);
-      if (w >= 64 && rng.chance(0.4)) o.push(['R', x - 1, y, 3, 1, c], ['R', x, y - 1, 1, 3, c]);
+      if (w >= 64 && big) o.push(['R', x - 1, y, 3, 1, c], ['R', x, y - 1, 1, 3, c]);
     }
     out.push(L('destellos mágicos', 'weather', o, { nl: 1, a: 0.85 }));
   }

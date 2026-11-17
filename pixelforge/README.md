@@ -7,6 +7,12 @@ Generador de Pixel Art **por código**. Escribes una descripción («un dragón 
 | ![Dragón sobre un castillo](docs/examples/dragon-castillo.png) | ![Paisaje japonés](docs/examples/paisaje-japones.png) | ![Ciudad cyberpunk](docs/examples/cyberpunk.png) |
 | ![Bosque encantado](docs/examples/bosque-encantado.png) | ![Astronauta en Marte](docs/examples/astronauta-marte.png) | ![Isla isométrica](docs/examples/isla-isometrica.png) |
 
+Con animación (GIF exportado por la propia aplicación):
+
+| | | | |
+|---|---|---|---|
+| ![Dragón con lluvia](docs/examples/anim-dragon-lluvia.gif) | ![Bosque con luciérnagas](docs/examples/anim-bosque.gif) | ![Ataque con espada de fuego](docs/examples/anim-caballero-ataque.gif) | ![Caballo caminando](docs/examples/anim-caballo.gif) |
+
 Todas las imágenes de `docs/examples/` las genera el modo offline (`npm run examples`). La escena del dragón a 128×128 ocupa **5,7 KB** de JSON.
 
 ## Cómo iniciarla
@@ -62,6 +68,24 @@ En el modo híbrido el modelo recibe la lista de los 79 sprites, entornos, clima
 5. **Lápiz, borrador y cuentagotas** para retoques píxel a píxel; se guardan en una capa propia.
 6. **Guardar / Galería**: proyectos en IndexedDB, en tu dispositivo. Se pueden abrir, duplicar, renombrar, eliminar y exportar.
 
+### Animación
+
+El selector **Animación** (Reposo, Caminar, Atacar) genera un ciclo de 4 fotogramas. Si el prompt dice «caminando» o «atacando» se elige solo. Se anima:
+
+- **Sprites**: paso alterno de piernas y brazos en personajes, paso en diagonal en cuadrúpedos, aleteo en dragón, pájaro, murciélago y mariposa, golpe de espada o conjuro de bastón en el ataque, respiración en reposo. Lo que vuela o flota se mece.
+- **Ambiente**: lluvia y nieve que caen en bucle sin salto, estrellas que parpadean, brillos del agua, luciérnagas, destellos, llamas y relámpagos.
+
+La barra del lienzo permite pausar y avanzar fotograma a fotograma. En **Exportar** aparecen **GIF animado** y **Tira de fotogramas** (PNG con los fotogramas en fila más un JSON con `fps` y tamaño de cuadro, para motores de juego).
+
+La animación forma parte del formato: `an` indica fotogramas y velocidad, y solo las capas que se mueven guardan fotogramas extra (`fo`) o un desplazamiento por fotograma (`mv`). Una escena de 4 fotogramas ocupa alrededor de un 50 % más que la estática, no cuatro veces más.
+
+Límites de la animación:
+- Son ciclos procedurales sencillos de 4 fotogramas, no animación dibujada a mano; el paso de los personajes es de 1–2 píxeles a 48 px.
+- «Atacar» solo tiene gesto propio en personajes con espada o bastón; el resto hace el ciclo de reposo.
+- Las nubes y los astros no se mueven.
+- El GIF tiene transparencia de 1 bit: las sombras semitransparentes se pierden al exportar con fondo transparente. La tira PNG las conserva.
+- El modo «IA (dibuja todo)» no genera animaciones; el híbrido sí, porque dibuja el motor local.
+
 ### Exportación
 
 - PNG a tamaño original o ampliado con factor entero (hasta 4096 px), siempre por vecino más cercano.
@@ -85,8 +109,9 @@ En el modo híbrido el modelo recibe la lista de los 79 sprites, entornos, clima
 | `rmp` | Rampas de índices (oscuro → claro) para el sombreado |
 | `q` | Paleta de cuantización final (opcional) |
 | `fx` | `ld` dirección de la luz, `amb` luz ambiental `[r,g,b,%]`, `dth` dithering 0–3 |
+| `an` | Animación (opcional): `n` fotogramas (2–12) y `fps` |
 | `sprites` | Sprites reutilizables `{id:{w,h,o}}` |
-| `layers` | Capas en orden de dibujo: `n` nombre, `k` parte, `v` visible, `a` opacidad, `sh` sombreado de borde, `ol` contorno (`-2` selectivo), `nl` emisiva, `f` bruma, `rf` reflejo, `o` operaciones |
+| `layers` | Capas en orden de dibujo: `n` nombre, `k` parte, `v` visible, `a` opacidad, `sh` sombreado de borde, `ol` contorno (`-2` selectivo), `nl` emisiva, `f` bruma, `rf` reflejo, `o` operaciones, `fo` fotogramas siguientes (`o` es el 0), `mv` desplazamiento `[dx,dy]` por fotograma |
 
 | Op | Parámetros | |
 |---|---|---|
@@ -114,7 +139,7 @@ src/core        Motor: formato y validación, renderizador a búfer de índices,
 src/generator   Modo offline: vocabulario, parser, biblioteca de sprites
                 procedurales, generadores de entorno, compositor por partes
 src/editor      Operaciones puras de capas, color, historial y retoque
-src/export      PNG (canvas.toBlob), hojas de sprites, proyectos
+src/export      PNG (canvas.toBlob), GIF animado, hojas de sprites, proyectos
 src/storage     IndexedDB (con respaldo en memoria)
 src/ai          Especificación para el modelo y cliente del backend
 src/ui          Interfaz
@@ -148,10 +173,10 @@ Para ampliar el vocabulario: añade sinónimos en `src/generator/vocabulary.js`;
 npm test
 ```
 
-59 pruebas unitarias: parser, modo híbrido, validación de PixelScene, geometría, renderizador, generador (todas las combinaciones de estilo, resolución y bioma, y los 79 sprites), edición parcial, exportación y adaptador de IA.
+69 pruebas unitarias: parser, modo híbrido, animación y codificador GIF (verificado con un decodificador independiente), validación de PixelScene, geometría, renderizador, generador (todas las combinaciones de estilo, resolución y bioma, y los 79 sprites), edición parcial, exportación y adaptador de IA.
 
 ```bash
 npm run test:e2e
 ```
 
-Prueba en navegador real con Playwright (debe estar instalado): arranque, generación, nitidez del escalado, semillas, variaciones, edición por instrucción, capas, paleta, luz, lápiz, exportación PNG/JSON, galería con IndexedDB, vista móvil y modo híbrido con el backend de IA simulado.
+Prueba en navegador real con Playwright (debe estar instalado): arranque, generación, nitidez del escalado, semillas, variaciones, edición por instrucción, capas, paleta, luz, lápiz, exportación PNG/JSON, galería con IndexedDB, vista móvil, animación (reproducción, GIF, tira) y modo híbrido con el backend de IA simulado.

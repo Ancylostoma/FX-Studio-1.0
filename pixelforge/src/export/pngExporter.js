@@ -2,7 +2,8 @@
 // El escalado es siempre por vecino más cercano y con factor entero.
 import { render, imageToCanvas, clampScale, MAX_EXPORT } from '../core/pixelEngine.js';
 import { renderSprite } from '../core/renderer.js';
-import { opaqueBounds } from '../core/geometry.js';
+import { opaqueBounds, scaleNearest } from '../core/geometry.js';
+import { encodeGIF } from './gifEncoder.js';
 import { elementGroups } from '../editor/layerManager.js';
 
 // Mayor factor entero cuyo resultado no supera `target` px en el lado mayor.
@@ -11,10 +12,28 @@ export function scaleForTarget(scene, target) {
 }
 
 // Imagen de la escena para exportar. transparent: sin color de fondo ni cielo.
-export function exportImage(scene, { transparent = false } = {}) {
-  if (!transparent) return render(scene);
+export function exportImage(scene, { transparent = false, frame = 0 } = {}) {
+  if (!transparent) return render(scene, { frame });
   const only = scene.layers.map((l, i) => i).filter((i) => scene.layers[i].k !== 'sky');
-  return render(scene, { transparent: true, only });
+  return render(scene, { transparent: true, only, frame });
+}
+
+// Todos los fotogramas de una escena (uno solo si no está animada).
+export function exportFrames(scene, opts = {}) {
+  return Array.from({ length: scene.an?.n || 1 }, (_, frame) => exportImage(scene, { ...opts, frame }));
+}
+
+// Tira horizontal de fotogramas, sin separación: lista para un motor de juego.
+export function buildFrameStrip(frames) {
+  const { w, h } = frames[0], data = new Uint8ClampedArray(w * frames.length * h * 4);
+  frames.forEach((f, n) => { for (let y = 0; y < h; y++) data.set(f.data.subarray(y * w * 4, (y + 1) * w * 4), (y * w * frames.length + n * w) * 4); });
+  return { w: w * frames.length, h, data };
+}
+
+// GIF animado ampliado por vecino más cercano (factor entero).
+export function animationToGif(scene, { scale = 1, transparent = false } = {}) {
+  const frames = exportFrames(scene, { transparent }).map((f) => scaleNearest(f.data, f.w, f.h, scale));
+  return encodeGIF(frames, { fps: scene.an?.fps || 6 });
 }
 
 export function cropImage(img, b) {

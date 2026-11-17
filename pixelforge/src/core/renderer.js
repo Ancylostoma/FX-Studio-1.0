@@ -117,10 +117,18 @@ function makeContext(scene) {
 }
 
 // Búfer de índices de una capa (255 = transparente), con sombreado y contorno.
-export function renderLayerIndices(scene, layer, cx = makeContext(scene)) {
+export function renderLayerIndices(scene, layer, cx = makeContext(scene), frame = 0) {
   const { w, h } = scene;
-  const buf = new Uint8Array(w * h).fill(EMPTY);
-  rasterOps(layer.o, buf, w, h, cx);
+  let buf = new Uint8Array(w * h).fill(EMPTY);
+  // Fotograma 0 = layer.o; los siguientes están en layer.fo.
+  const fi = layer.fo ? frame % (layer.fo.length + 1) : 0;
+  rasterOps(fi ? layer.fo[fi - 1] : layer.o, buf, w, h, cx);
+  const mv = layer.mv ? layer.mv[frame % layer.mv.length] : null;
+  if (mv && (mv[0] || mv[1])) {
+    const moved = new Uint8Array(w * h).fill(EMPTY);
+    for (let y = 0; y < h; y++) { const sy = y - mv[1]; if (sy < 0 || sy >= h) continue; for (let x = 0; x < w; x++) { const sx = x - mv[0]; if (sx >= 0 && sx < w) moved[y * w + x] = buf[sy * w + sx]; } }
+    buf = moved;
+  }
   if (layer.sh) shadeLayer(buf, w, h, cx.rt, cx.ld);
   if (layer.ol !== undefined) outlineLayer(buf, w, h, layer.ol, cx.rt, cx.ld);
   return buf;
@@ -153,6 +161,7 @@ function blend(out, i, c, a) {
 
 // opts.transparent: ignora el color de fondo.
 // opts.only: lista de índices de capa a dibujar (las demás se omiten).
+// opts.frame: fotograma a dibujar en escenas animadas (por defecto 0).
 export function renderScene(scene, opts = {}) {
   const { w, h } = scene;
   const out = new Uint8ClampedArray(w * h * 4);
@@ -166,7 +175,7 @@ export function renderScene(scene, opts = {}) {
   scene.layers.forEach((layer, li) => {
     if (layer.v === 0 && !opts.showHidden) return;
     if (opts.only && !opts.only.includes(li)) return;
-    const buf = renderLayerIndices(scene, layer, cx);
+    const buf = renderLayerIndices(scene, layer, cx, opts.frame || 0);
     const pal = layerPalette(scene, layer, pals);
     const a = layer.a ?? 1;
     const snap = layer.rf ? out.slice() : null;

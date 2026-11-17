@@ -9,7 +9,7 @@ import { BIOMES, COLOR_NAMES } from './templates.js';
 export const MAX_PROMPT = 600;
 
 export function emptyRaw() {
-  return { subjects: [], structures: [], flora: [], features: [], biome: null, time: null, weather: [], celestial: [], fx: [], themes: [], sky: {}, style: null, moonPhase: null, no: [], unknown: [] };
+  return { subjects: [], structures: [], flora: [], features: [], biome: null, time: null, weather: [], celestial: [], fx: [], themes: [], sky: {}, style: null, moonPhase: null, anim: null, no: [], unknown: [] };
 }
 
 function tokenize(text) {
@@ -74,6 +74,7 @@ export function extract(text) {
       case 'fx': if (!raw.fx.includes(id)) raw.fx.push(id); break;
       case 'theme': if (!raw.themes.includes(id)) raw.themes.push(id); break;
       case 'style': raw.style = id; break;
+      case 'anim': raw.anim = id; break;
       case 'col':
         if (isNoun(prev) && lastEnt()) setColor(lastEnt(), id);
         else if (isNoun(next)) pre.color = id;

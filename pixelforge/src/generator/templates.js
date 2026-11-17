@@ -53,6 +53,15 @@ export const STYLES = {
   sprite: { name: 'Personajes y sprites', map: [0, 1, 2, 3, 4], ol: 'dark', sh: 1, dth: 1, detail: 1, layout: 'sprite' },
 };
 
+// Animaciones: nº de fotogramas y velocidad. El ciclo afecta a los sprites
+// (pose) y al ambiente (lluvia, nieve, estrellas, agua, luciérnagas).
+export const ANIMS = {
+  none: { name: 'Ninguna', n: 1, fps: 0 },
+  idle: { name: 'Reposo', n: 4, fps: 4 },
+  walk: { name: 'Caminar', n: 4, fps: 7 },
+  attack: { name: 'Atacar', n: 4, fps: 8 },
+};
+
 export const DETAIL_LEVELS = { 1: 'Bajo', 2: 'Medio', 3: 'Alto', 4: 'Máximo' };
 export const DETAIL_FACTOR = { 1: 0.5, 2: 1, 3: 1.4, 4: 1.9 };
 

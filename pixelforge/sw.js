@@ -1,11 +1,11 @@
 // Service worker: guarda el "cascarón" de la aplicación para que el modo
 // offline funcione sin red. Las llamadas a /api/ nunca se cachean.
-const CACHE = 'pixelforge-v2';
+const CACHE = 'pixelforge-v3';
 const SHELL = [
   './', 'index.html', 'styles.css', 'manifest.json', 'icons/icon-192.png', 'icons/icon-512.png',
   ...['core/dithering', 'core/geometry', 'core/lighting', 'core/paletteManager', 'core/pixelEngine', 'core/pixelScene', 'core/randomSeed', 'core/renderer',
     'generator/proceduralGenerator', 'generator/promptParser', 'generator/sceneComposer', 'generator/spriteLibrary', 'generator/templates', 'generator/vocabulary',
-    'editor/canvasEditor', 'editor/colorEditor', 'editor/history', 'editor/layerManager', 'export/pngExporter', 'export/projectExporter',
+    'editor/canvasEditor', 'editor/colorEditor', 'editor/history', 'editor/layerManager', 'export/pngExporter', 'export/gifEncoder', 'export/projectExporter',
     'storage/database', 'storage/projectManager', 'ai/aiClient', 'ai/specSchema', 'ui/app', 'ui/controls', 'ui/gallery'].map((m) => `src/${m}.js`),
 ];
 

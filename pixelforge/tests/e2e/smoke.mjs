@@ -199,6 +199,47 @@ try {
     await m.close();
   });
 
+  await step('animación: reproducción, GIF y tira de fotogramas', async () => {
+    await page.fill('#prompt', 'Un caballero caminando frente a un castillo de noche con lluvia');
+    await page.selectOption('#optRes', '64');
+    await page.click('#btnGenerate');
+    await page.waitForFunction(() => window.pixelforge.state.project.scene.an);
+    assert.equal(await page.locator('#optAnim').inputValue(), 'walk', 'el prompt sugiere la animación');
+    const s = await sceneOf();
+    assert.deepEqual(s.an, { n: 4, fps: 7 });
+    assert.ok(await page.locator('#animBar').isVisible());
+    const shot = () => page.evaluate(() => document.querySelector('#view').toDataURL());
+    const seen = new Set();
+    for (let i = 0; i < 12; i++) { seen.add(await shot()); await page.waitForTimeout(90); }
+    assert.ok(seen.size >= 3, 'el lienzo reproduce varios fotogramas: ' + seen.size);
+    await page.click('#btnPlay');
+    const a = await shot(); await page.waitForTimeout(400);
+    assert.equal(await shot(), a, 'la pausa detiene la animación');
+    await page.click('#btnFrame');
+    assert.notEqual(await shot(), a);
+    if (shots) await page.screenshot({ path: path.join(shots, 'animacion.png') });
+    await page.click('#editTabs [data-tab=export]');
+    const [g] = await Promise.all([page.waitForEvent('download'), page.click('#btnGif')]);
+    const gif = readFileSync(await g.path());
+    assert.equal(gif.subarray(0, 6).toString(), 'GIF89a');
+    const k = +(await page.locator('#expScale').inputValue());
+    const [d1, d2] = await Promise.all([page.waitForEvent('download'), page.waitForEvent('download', { predicate: (d) => d.suggestedFilename().endsWith('.json') }), page.click('#btnStrip')]);
+    const strip = [d1, d2].find((d) => d.suggestedFilename().endsWith('.png'));
+    const png = readFileSync(await strip.path());
+    assert.equal(png.readUInt32BE(16), 64 * 4 * Math.min(k, Math.floor(4096 / 256))); 
+    // El navegador decodifica el GIF generado: cuatro fotogramas del tamaño esperado.
+    const info = await page.evaluate(async (b64) => {
+      const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+      if (!('ImageDecoder' in window)) return null;
+      const dec = new ImageDecoder({ data: bytes, type: 'image/gif' });
+      await dec.tracks.ready;
+      const { image } = await dec.decode({ frameIndex: 3 });
+      return { frames: dec.tracks.selectedTrack.frameCount, w: image.displayWidth };
+    }, gif.toString('base64'));
+    if (info) { assert.equal(info.frames, 4); assert.equal(info.w % 64, 0); }
+    await page.selectOption('#optAnim', 'none');
+  });
+
   await step('modo híbrido (backend de IA simulado): interpreta, dibuja en local y edita por capas', async () => {
     const h = await browser.newContext({ viewport: { width: 1360, height: 860 } });
     const hp = await h.newPage();

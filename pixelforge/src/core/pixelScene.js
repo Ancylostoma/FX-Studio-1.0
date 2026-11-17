@@ -7,9 +7,12 @@
 //   "rmp":[[i0,i1,...],...],      rampas (oscuro → claro) para sombreado
 //   "q":[[r,g,b],...],            (opc.) paleta de cuantización final
 //   "fx":{"ld":-1,"amb":[r,g,b,k],"dth":2},  luz: dirección, ambiente, dithering
+//   "an":{"n":4,"fps":8},        (opc.) animación: nº de fotogramas y velocidad
 //   "sprites":{"id":{"w":8,"h":8,"o":[ops]}},
 //   "layers":[{"n":"cielo","k":"sky","v":1,"a":1,"sh":0,"ol":-2,"nl":0,
-//              "f":[c,k],"rf":[y,k],"o":[ops]}]
+//              "f":[c,k],"rf":[y,k],"o":[ops],
+//              "fo":[[ops],…],      (opc.) fotogramas siguientes: "o" es el 0 y fo[i] el i+1
+//              "mv":[[dx,dy],…]}]   (opc.) desplazamiento de la capa por fotograma
 // }
 //
 // Operaciones (tuplas; el último parámetro `modo` es opcional:
@@ -32,7 +35,7 @@ export const VERSION = 1;
 export const LIMITS = Object.freeze({
   minDim: 8, maxDim: 256, maxPal: 96, maxQ: 64, maxLayers: 64, maxOps: 8000,
   maxSprites: 64, maxSpriteDim: 128, maxPts: 64, maxCoord: 1024,
-  maxJson: 2_000_000, maxName: 48, maxGradient: 16,
+  maxJson: 2_000_000, maxName: 48, maxGradient: 16, maxFrames: 12, maxFps: 24, maxShift: 64,
 });
 
 export const SYMS = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -143,6 +146,7 @@ export function validateScene(s) {
       }
     }
   }
+  if (s.an !== undefined && !(isObj(s.an) && intIn(s.an.n, 2, LIMITS.maxFrames) && intIn(s.an.fps, 1, LIMITS.maxFps))) err(`"an" debe ser {n:2..${LIMITS.maxFrames}, fps:1..${LIMITS.maxFps}}`);
   let ops = 0;
   const sprites = isObj(s.sprites) ? s.sprites : {};
   if (s.sprites !== undefined) {
@@ -172,6 +176,11 @@ export function validateScene(s) {
     if (l.rf !== undefined && !(Array.isArray(l.rf) && l.rf.length === 2 && intIn(l.rf[0], 0, LIMITS.maxDim) && intIn(l.rf[1], 0, 100))) err(`${at}: "rf" inválido`);
     ops += l.o.length;
     l.o.forEach((op, i) => { const e = checkOp(op, { palN, sprites, inSprite: false }); if (e) err(`${at}, op ${i}: ${e}`); });
+    if (l.fo !== undefined) {
+      if (!Array.isArray(l.fo) || l.fo.length < 1 || l.fo.length > LIMITS.maxFrames - 1 || !l.fo.every(Array.isArray)) err(`${at}: "fo" debe tener entre 1 y ${LIMITS.maxFrames - 1} fotogramas`);
+      else l.fo.forEach((fr, fi) => { ops += fr.length; fr.forEach((op, i) => { const e = checkOp(op, { palN, sprites, inSprite: false }); if (e) err(`${at}, fotograma ${fi + 1}, op ${i}: ${e}`); }); });
+    }
+    if (l.mv !== undefined && !(Array.isArray(l.mv) && l.mv.length >= 2 && l.mv.length <= LIMITS.maxFrames && l.mv.every((m) => Array.isArray(m) && m.length === 2 && m.every((v) => intIn(v, -LIMITS.maxShift, LIMITS.maxShift))))) err(`${at}: "mv" inválido`);
   });
   if (ops > LIMITS.maxOps) err(`Demasiadas operaciones (${ops} > ${LIMITS.maxOps})`);
   return { ok: errors.length === 0, errors };
@@ -282,6 +291,7 @@ export function mapOpColors(op, fn) {
 
 export function mapLayerColors(layer, fn) {
   const l = { ...layer, o: layer.o.map((op) => mapOpColors(op, fn)) };
+  if (layer.fo) l.fo = layer.fo.map((fr) => fr.map((op) => mapOpColors(op, fn)));
   if (l.ol !== undefined && l.ol >= 0) l.ol = fn(l.ol);
   if (l.f) l.f = [fn(l.f[0]), l.f[1]];
   return l;
@@ -300,9 +310,13 @@ export function mapSceneColors(scene, fn) {
   return s;
 }
 
-export function spriteRefs(ops) {
+// Todas las operaciones de una capa, incluidos sus fotogramas.
+export const layerOps = (layer) => (layer.fo ? layer.o.concat(...layer.fo) : layer.o);
+
+// Acepta una lista de operaciones o una capa completa.
+export function spriteRefs(opsOrLayer) {
   const ids = new Set();
-  for (const op of ops) { if (op[0] === 'S') ids.add(op[1]); else if (op[0] === 'B') ids.add(op[5]); }
+  for (const op of Array.isArray(opsOrLayer) ? opsOrLayer : layerOps(opsOrLayer)) { if (op[0] === 'S') ids.add(op[1]); else if (op[0] === 'B') ids.add(op[5]); }
   return ids;
 }
 
@@ -312,7 +326,7 @@ export function layerSignature(scene, layer) {
   const hex = (i) => '#' + scene.pal[i].map((v) => v.toString(16).padStart(2, '0')).join('');
   const res = (l) => { const m = mapLayerColorsRaw(l, hex); return m; };
   const sprites = {};
-  for (const id of spriteRefs(layer.o)) sprites[id] = { ...scene.sprites[id], o: scene.sprites[id].o.map((op) => mapOpColorsRaw(op, hex)) };
+  for (const id of spriteRefs(layer)) sprites[id] = { ...scene.sprites[id], o: scene.sprites[id].o.map((op) => mapOpColorsRaw(op, hex)) };
   return JSON.stringify([res(layer), sprites]);
 }
 
@@ -329,6 +343,7 @@ function mapOpColorsRaw(op, fn) {
 }
 function mapLayerColorsRaw(layer, fn) {
   const l = { ...layer, o: layer.o.map((op) => mapOpColorsRaw(op, fn)) };
+  if (layer.fo) l.fo = layer.fo.map((fr) => fr.map((op) => mapOpColorsRaw(op, fn)));
   if (l.ol !== undefined && l.ol >= 0) l.ol = fn(l.ol);
   if (l.f) l.f = [fn(l.f[0]), l.f[1]];
   return l;
@@ -336,9 +351,9 @@ function mapLayerColorsRaw(layer, fn) {
 
 export function sceneStats(scene) {
   let ops = 0;
-  for (const l of scene.layers) ops += l.o.length;
+  for (const l of scene.layers) ops += layerOps(l).length;
   for (const sp of Object.values(scene.sprites || {})) ops += sp.o.length;
-  return { ops, layers: scene.layers.length, colors: scene.pal.length, sprites: Object.keys(scene.sprites || {}).length, bytes: JSON.stringify(scene).length };
+  return { frames: scene.an?.n || 1, ops, layers: scene.layers.length, colors: scene.pal.length, sprites: Object.keys(scene.sprites || {}).length, bytes: JSON.stringify(scene).length };
 }
 
 export const cloneScene = (s) => JSON.parse(JSON.stringify(s));
