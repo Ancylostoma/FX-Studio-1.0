@@ -57,6 +57,14 @@ En el modo híbrido el modelo recibe la lista de los 79 sprites, entornos, clima
 - La respuesta se sanea y valida en el servidor y otra vez en el cliente; si no es válida se hace un único reintento con los errores.
 - Los endpoints solo aceptan peticiones del mismo origen y están limitados a 12 peticiones por minuto e IP.
 
+#### Probar el modo híbrido con tu clave
+
+```bash
+npm run probe
+```
+
+Ejecuta 12 descripciones pensadas para caer fuera del vocabulario offline (un tigre, una catedral gótica, un hada, un submarino…) y compara lo que entiende el motor offline con lo que entiende la IA. Deja en `docs/probe/` un informe (`informe.md`), una imagen por prompt y modo, y `comparativa.png` (offline a la izquierda, híbrido a la derecha). Cuesta en torno a 4–6 céntimos de dólar con el modelo por defecto. Para probar tus propias frases: `npm run probe -- "tu descripción" "otra"`. Con `-- --offline` hace solo la parte gratuita.
+
 > Los dos modos con IA están implementados y sus partes deterministas (saneado, validación, petición, flujo de interfaz con el backend simulado) tienen pruebas, pero **no se han ejecutado contra la API real** en el entorno donde se construyeron, porque no había clave disponible. La calidad de la interpretación del modelo está, por tanto, sin medir.
 
 ## Uso
