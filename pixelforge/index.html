@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>PixelForge Studio</title>
+  <meta name="description" content="Generador de Pixel Art por código: convierte descripciones en escenas PixelScene y las dibuja en Canvas.">
+  <meta name="theme-color" content="#14111f">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><img src="icons/icon-192.png" alt="" width="28" height="28"><span>PixelForge <b>Studio</b></span></div>
+    <nav class="mobile-tabs" id="mobileTabs" aria-label="Secciones">
+      <button data-view="create" class="on">Crear</button>
+      <button data-view="stage">Lienzo</button>
+      <button data-view="edit">Editar</button>
+    </nav>
+    <div class="top-actions">
+      <span id="aiBadge" class="badge" title="">Offline</span>
+      <button id="btnSave" class="btn" title="Guardar en la galería local">Guardar</button>
+      <button id="btnGallery" class="btn">Galería</button>
+    </div>
+  </header>
+
+  <main id="app" data-view="create">
+    <!-- Panel principal -->
+    <aside class="panel" id="panelCreate">
+      <label class="lbl" for="prompt">Describe la imagen</label>
+      <textarea id="prompt" rows="4" maxlength="600" placeholder="Un dragón rojo volando sobre un castillo medieval durante la noche"></textarea>
+      <div class="chips" id="examples" aria-label="Ejemplos"></div>
+      <div class="row actions">
+        <button id="btnGenerate" class="btn primary" title="Ctrl+Intro">GENERAR</button>
+        <button id="btnVary" class="btn" title="Cuatro variaciones con otras semillas">VARIAR</button>
+        <button id="btnRegen" class="btn" title="Misma descripción, semilla nueva">REGENERAR</button>
+      </div>
+      <div class="grid2">
+        <label>Resolución<select id="optRes"></select></label>
+        <label>Proporción<select id="optAspect"></select></label>
+        <label>Estilo<select id="optStyle"></select></label>
+        <label>Paleta<select id="optPalette"></select></label>
+        <label>Detalle<select id="optDetail"></select></label>
+        <label>Modo<select id="optMode"><option value="offline">Offline (local)</option><option value="ai">IA (Claude)</option></select></label>
+      </div>
+      <label class="lbl" for="optSeed">Semilla</label>
+      <div class="row">
+        <input id="optSeed" type="number" min="1" max="999999" inputmode="numeric">
+        <button id="btnDice" class="btn icon" title="Semilla aleatoria">🎲</button>
+        <label class="check" title="Si está activo, GENERAR reutiliza esta semilla"><input type="checkbox" id="optLock"> fijar</label>
+      </div>
+      <section class="card" id="interp" hidden>
+        <h3>Interpretación</h3>
+        <p id="interpText"></p>
+        <code id="interpCode"></code>
+        <p id="interpNotes" class="warn"></p>
+      </section>
+      <section class="card">
+        <h3>Modificar la escena</h3>
+        <p class="hint">Solo se regeneran las capas afectadas; el resto se conserva.</p>
+        <div class="row">
+          <input id="editText" type="text" maxlength="300" placeholder="Conserva el castillo, cambia el cielo a púrpura y agrega una luna">
+          <button id="btnEdit" class="btn">Aplicar</button>
+        </div>
+      </section>
+      <details class="card">
+        <summary>¿Qué entiende el modo offline?</summary>
+        <div id="vocab" class="vocab"></div>
+      </details>
+    </aside>
+
+    <!-- Previsualización -->
+    <section class="stage" id="stage">
+      <div class="toolbar">
+        <div class="group" role="group" aria-label="Herramienta">
+          <button class="btn icon on" data-tool="move" title="Mover / inspeccionar">✋</button>
+          <button class="btn icon" data-tool="pencil" title="Lápiz (capa de retoques)">✏️</button>
+          <button class="btn icon" data-tool="eraser" title="Borrador de retoques">🧽</button>
+          <button class="btn icon" data-tool="picker" title="Cuentagotas">💧</button>
+          <span id="curColor" class="swatch" title="Color de dibujo"></span>
+        </div>
+        <div class="group">
+          <button id="btnUndo" class="btn icon" title="Deshacer (Ctrl+Z)">↶</button>
+          <button id="btnRedo" class="btn icon" title="Rehacer (Ctrl+Y)">↷</button>
+        </div>
+        <div class="group">
+          <button id="btnZoomOut" class="btn icon" title="Alejar">−</button>
+          <select id="zoomSel" title="Zoom"></select>
+          <button id="btnZoomIn" class="btn icon" title="Acercar">+</button>
+          <label class="check"><input type="checkbox" id="optGrid"> cuadrícula</label>
+        </div>
+      </div>
+      <div class="canvas-wrap" id="canvasWrap">
+        <div class="canvas-box" id="canvasBox">
+          <canvas id="view" width="64" height="64"></canvas>
+          <canvas id="grid" width="64" height="64"></canvas>
+        </div>
+      </div>
+      <div class="status"><span id="info"></span><span id="cursorInfo"></span></div>
+      <div class="variations" id="variations" hidden></div>
+    </section>
+
+    <!-- Panel de edición -->
+    <aside class="panel" id="panelEdit">
+      <nav class="tabs" id="editTabs">
+        <button data-tab="layers" class="on">Capas</button>
+        <button data-tab="palette">Paleta</button>
+        <button data-tab="light">Luz</button>
+        <button data-tab="export">Exportar</button>
+        <button data-tab="json">JSON</button>
+      </nav>
+      <section class="tab on" id="tab-layers">
+        <h3>Elementos</h3>
+        <div class="chips" id="elements"></div>
+        <h3>Capas <small>(arriba = delante)</small></h3>
+        <ul class="layers" id="layerList"></ul>
+      </section>
+      <section class="tab" id="tab-palette">
+        <h3>Paleta de la escena <small id="palCount"></small></h3>
+        <div class="swatches" id="swatches"></div>
+        <div class="row">
+          <input type="color" id="colorInput" title="Cambiar el color seleccionado">
+          <span id="colorLabel" class="mono"></span>
+        </div>
+        <div class="row">
+          <button id="btnBgColor" class="btn">Usar como fondo</button>
+          <button id="btnBgNone" class="btn">Fondo transparente</button>
+        </div>
+        <label>Restringir a paleta<select id="optPalette2"></select></label>
+        <p class="hint">Los colores se guardan una sola vez y cada operación los referencia por índice: cambiar un color actualiza toda la imagen.</p>
+      </section>
+      <section class="tab" id="tab-light">
+        <h3>Iluminación</h3>
+        <label>Dirección de la luz
+          <select id="lightDir"><option value="-1">Desde la izquierda</option><option value="1">Desde la derecha</option></select>
+        </label>
+        <label>Luz ambiental<select id="ambPreset"></select></label>
+        <label>Intensidad <output id="ambOut"></output><input type="range" id="ambInt" min="0" max="100" step="1"></label>
+        <label>Color del ambiente <input type="color" id="ambColor"></label>
+        <label>Dithering <output id="dthOut"></output><input type="range" id="dthRange" min="0" max="3" step="1"></label>
+        <p class="hint">La luz se aplica al renderizar, sobre la paleta: no modifica las capas.</p>
+      </section>
+      <section class="tab" id="tab-export">
+        <h3>Exportar imagen</h3>
+        <label>Tamaño<select id="expScale"></select></label>
+        <label class="check"><input type="checkbox" id="expTransparent"> fondo transparente (sin cielo)</label>
+        <div class="row wrap">
+          <button id="btnPng" class="btn primary">Descargar PNG</button>
+          <button id="btnSheet" class="btn">Hoja de sprites</button>
+        </div>
+        <h3>Datos</h3>
+        <div class="row wrap">
+          <button id="btnJson" class="btn">PixelScene (.json)</button>
+          <button id="btnProject" class="btn">Proyecto completo</button>
+          <button id="btnImport" class="btn">Importar…</button>
+          <input type="file" id="fileImport" accept=".json,application/json" hidden>
+        </div>
+        <p class="hint">El PNG se amplía por vecino más cercano con factor entero: los píxeles conservan sus bordes.</p>
+      </section>
+      <section class="tab" id="tab-json">
+        <h3>PixelScene v1 <small id="jsonStats"></small></h3>
+        <textarea id="jsonText" rows="14" spellcheck="false"></textarea>
+        <div class="row">
+          <button id="btnJsonApply" class="btn">Validar y aplicar</button>
+          <button id="btnJsonCopy" class="btn">Copiar</button>
+        </div>
+        <p id="jsonMsg" class="hint"></p>
+      </section>
+    </aside>
+  </main>
+
+  <dialog id="galleryDlg" class="dialog">
+    <header><h2>Galería local</h2><button class="btn icon" id="btnGalleryClose" aria-label="Cerrar">✕</button></header>
+    <p class="hint" id="galleryHint"></p>
+    <div class="gallery" id="galleryGrid"></div>
+  </dialog>
+  <div id="toasts" aria-live="polite"></div>
+  <noscript>PixelForge Studio necesita JavaScript.</noscript>
+  <script type="module" src="src/ui/app.js"></script>
+</body>
+</html>

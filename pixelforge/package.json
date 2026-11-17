@@ -1,0 +1,19 @@
+{
+  "name": "pixelforge-studio",
+  "version": "1.0.0",
+  "description": "Generador de Pixel Art por código: prompt → PixelScene → Canvas",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node server/server.mjs",
+    "test": "node --test --test-reporter=spec tests/*.test.mjs",
+    "test:e2e": "node tests/e2e/smoke.mjs",
+    "examples": "node tools/render-examples.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.9.0"
+  }
+}
