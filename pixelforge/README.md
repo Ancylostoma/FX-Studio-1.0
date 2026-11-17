@@ -35,14 +35,23 @@ npm install
 cp .env.example .env
 ```
 
-Escribe tu clave en `ANTHROPIC_API_KEY` dentro de `.env` y reinicia `npm start`. El selector **Modo → IA (Claude)** se habilita solo cuando el servidor detecta la clave. Sin clave la aplicación sigue funcionando completa en offline.
+Escribe tu clave en `ANTHROPIC_API_KEY` dentro de `.env` y reinicia `npm start`. Los modos con IA del selector **Modo** se habilitan solo cuando el servidor detecta la clave. Sin clave la aplicación sigue funcionando completa en offline.
 
-- La clave vive únicamente en el servidor (`server/`); el navegador solo habla con `/api/pixelscene`.
+Hay dos modos con IA:
+
+| Modo | Qué hace la IA | Salida del modelo | Cuándo usarlo |
+|---|---|---|---|
+| **Híbrido (IA interpreta)** | Traduce la descripción al catálogo del motor; el dibujo es local | Una especificación de ~100 tokens | Por defecto: entiende cualquier redacción e idioma a un coste mínimo |
+| **IA (dibuja todo)** | Escribe la escena PixelScene completa | Miles de tokens | Cuando lo pedido no existe en el catálogo ni tiene sustituto razonable |
+
+En el modo híbrido el modelo recibe la lista de los 79 sprites, entornos, clima y colores, y responde con una estructura restringida por esquema JSON (`src/ai/specSchema.js`). Si algo no está en el catálogo elige lo más parecido y lo declara («tigre → león naranja»), y ese aviso se muestra en la interpretación. Como el resultado es la misma especificación que produce el parser offline, VARIAR, las semillas y la edición por capas funcionan igual y **sin volver a llamar a la IA**; solo «Modificar la escena» hace otra llamada para interpretar la instrucción. El modelo de este modo se puede fijar aparte con `PIXELFORGE_INTERPRET_MODEL`.
+
+- La clave vive únicamente en el servidor (`server/`); el navegador solo habla con `/api/interpret` y `/api/pixelscene`.
 - El modelo (por defecto `claude-opus-5-5`, configurable con `PIXELFORGE_MODEL`) **no genera imágenes**: devuelve un JSON PixelScene que el motor local dibuja.
 - La respuesta se sanea y valida en el servidor y otra vez en el cliente; si no es válida se hace un único reintento con los errores.
-- El endpoint solo acepta peticiones del mismo origen y está limitado a 12 peticiones por minuto e IP.
+- Los endpoints solo aceptan peticiones del mismo origen y están limitados a 12 peticiones por minuto e IP.
 
-> El modo IA está implementado y sus partes deterministas (saneado, validación, petición) tienen pruebas, pero **no se ha ejecutado contra la API real** en el entorno donde se construyó, porque no había clave disponible.
+> Los dos modos con IA están implementados y sus partes deterministas (saneado, validación, petición, flujo de interfaz con el backend simulado) tienen pruebas, pero **no se han ejecutado contra la API real** en el entorno donde se construyeron, porque no había clave disponible. La calidad de la interpretación del modelo está, por tanto, sin medir.
 
 ## Uso
 
@@ -139,10 +148,10 @@ Para ampliar el vocabulario: añade sinónimos en `src/generator/vocabulary.js`;
 npm test
 ```
 
-51 pruebas unitarias: parser, validación de PixelScene, geometría, renderizador, generador (todas las combinaciones de estilo, resolución y bioma, y los 79 sprites), edición parcial, exportación y adaptador de IA.
+59 pruebas unitarias: parser, modo híbrido, validación de PixelScene, geometría, renderizador, generador (todas las combinaciones de estilo, resolución y bioma, y los 79 sprites), edición parcial, exportación y adaptador de IA.
 
 ```bash
 npm run test:e2e
 ```
 
-Prueba en navegador real con Playwright (debe estar instalado): arranque, generación, nitidez del escalado, semillas, variaciones, edición por instrucción, capas, paleta, luz, lápiz, exportación PNG/JSON, galería con IndexedDB y vista móvil.
+Prueba en navegador real con Playwright (debe estar instalado): arranque, generación, nitidez del escalado, semillas, variaciones, edición por instrucción, capas, paleta, luz, lápiz, exportación PNG/JSON, galería con IndexedDB, vista móvil y modo híbrido con el backend de IA simulado.

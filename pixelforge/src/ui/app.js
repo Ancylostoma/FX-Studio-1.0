@@ -15,7 +15,7 @@ import { paintPixels, pickIndex, strokePixels } from '../editor/canvasEditor.js'
 import { exportImage, scaleForTarget, collectSprites, buildSpriteSheet, imageToBlob, downloadBlob, downloadText } from '../export/pngExporter.js';
 import { sceneToJSON, serializeProject, parseProjectFile, safeFileName } from '../export/projectExporter.js';
 import * as pm from '../storage/projectManager.js';
-import { aiStatus, aiGenerate } from '../ai/aiClient.js';
+import { aiStatus, aiGenerate, aiInterpret } from '../ai/aiClient.js';
 
 const state = {
   project: null,            // { id?, name, prompt, opts, raw, scene }
@@ -89,9 +89,9 @@ function refresh() {
 }
 
 // ---------- Generación ----------
-function showInterpretation(spec, opts) {
+function showInterpretation(spec, opts, ai) {
   $('#interp').hidden = false;
-  $('#interpText').textContent = explainSpec(spec);
+  $('#interpText').textContent = explainSpec(spec) + (ai ? ` · interpretado por IA${ai.usage ? ` (${ai.usage.input_tokens + ai.usage.cache_read_input_tokens} tokens de entrada, ${ai.usage.output_tokens} de salida)` : ''}` : '');
   $('#interpCode').textContent = describeSpec(spec, { style: opts.style, seed: opts.seed });
   $('#interpNotes').textContent = spec.notes.join(' ');
 }
@@ -120,6 +120,14 @@ function generate({ newSeed }) {
       $('#interpText').textContent = `Escena interpretada por la IA (${out.model || 'Claude'}).`;
       $('#interpCode').textContent = out.usage ? `tokens: entrada ${out.usage.input_tokens} · salida ${out.usage.output_tokens}` : '';
       $('#interpNotes').textContent = out.warnings.length ? `${out.warnings.length} operación(es) descartadas al validar.` : '';
+    } else if (opts.mode === 'hybrid') {
+      if (!state.ai.available) { toast('Modo híbrido no disponible: ' + state.ai.reason, 'error'); return; }
+      toast('La IA está interpretando la descripción…');
+      const out = await aiInterpret({ prompt });
+      raw = out.raw;
+      const spec = finalize(raw);
+      sceneOut = composeScene(spec, composeOpts(opts));
+      showInterpretation(spec, opts, out);
     } else {
       const parsed = parsePrompt(prompt);
       raw = parsed.raw;
@@ -159,12 +167,18 @@ function editByInstruction() {
     const text = $('#editText').value.trim(), p = state.project;
     if (!p) { toast('Genera primero una imagen'); return; }
     if (!text) { toast('Escribe qué quieres cambiar'); return; }
-    if (p.raw && readOptions().mode !== 'ai') {
-      const { raw, done } = applyEdit(p.raw, text);
+    const mode = readOptions().mode;
+    if (p.raw && mode !== 'ai') {
+      let raw, done, ai = null;
+      if (mode === 'hybrid' && state.ai.available) {
+        toast('La IA está interpretando el cambio…');
+        ai = await aiInterpret({ raw: p.raw, instruction: text });
+        raw = ai.raw; done = ['Instrucción interpretada por IA'];
+      } else ({ raw, done } = applyEdit(p.raw, text));
       const res = editScene(p.scene, p.raw, raw, composeOpts(p.opts));
       if (!res.changed.length) { toast('No encontré nada que cambiar en esa instrucción'); return; }
       commit(res.scene, { raw });
-      showInterpretation(finalize(raw), p.opts);
+      showInterpretation(finalize(raw), p.opts, ai);
       const kept = new Set(res.scene.layers.map((l) => l.k)).size - res.changed.length;
       toast(res.rebuilt ? 'La escena se regeneró completa.' : `${done.join(' · ')} — regeneradas ${res.changed.length} parte(s), conservadas ${Math.max(0, kept)}.`);
     } else if (state.ai.available) {
@@ -428,9 +442,10 @@ async function start() {
     badge.textContent = st.available ? 'IA disponible' : 'Offline';
     badge.title = st.available ? `Modelo: ${st.model}` : st.reason;
     badge.classList.toggle('on', st.available);
-    const opt = $('#optMode').querySelector('[value=ai]');
-    opt.disabled = !st.available;
-    if (!st.available) opt.textContent = 'IA (no configurada)';
+    for (const opt of $('#optMode').querySelectorAll('[value=ai], [value=hybrid]')) {
+      opt.disabled = !st.available;
+      if (!st.available) opt.textContent = opt.textContent.replace(/\s*\(.*\)$/, '') + ' (no configurada)';
+    }
   });
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
   window.pixelforge = { state };   // punto de inspección para pruebas y depuración

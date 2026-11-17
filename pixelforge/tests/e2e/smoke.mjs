@@ -199,6 +199,43 @@ try {
     await m.close();
   });
 
+  await step('modo híbrido (backend de IA simulado): interpreta, dibuja en local y edita por capas', async () => {
+    const h = await browser.newContext({ viewport: { width: 1360, height: 860 } });
+    const hp = await h.newPage();
+    hp.on('pageerror', (e) => errors.push('híbrido: ' + e.message));
+    const sent = [];
+    const ent = (id, extra = {}) => ({ id, color: null, color2: null, n: 1, size: 0, fly: null, a: {}, ...extra });
+    const base = { subjects: [ent('lion', { color: 'orange' })], structures: [ent('temple')], flora: [], features: [], biome: 'forest', time: 'sunset', weather: [], celestial: [], fx: [], themes: [], sky: {}, style: null, moonPhase: null, no: [], unknown: ['tigre → león naranja'], interpreted: 'ai' };
+    await hp.route('**/api/status', (r) => r.fulfill({ json: { ai: true, model: 'simulado', interpretModel: 'simulado' } }));
+    await hp.route('**/api/interpret', (r) => {
+      const body = r.request().postDataJSON(); sent.push(body);
+      const raw = body.raw ? { ...base, time: 'night', subjects: [ent('lion', { color: 'orange' }), ent('constructor')] } : base;
+      r.fulfill({ json: { raw, usage: { input_tokens: 40, output_tokens: 90, cache_read_input_tokens: 1200 }, model: 'simulado' } });
+    });
+    await hp.goto(`http://localhost:${PORT}/`);
+    await hp.waitForFunction(() => !document.querySelector('#optMode option[value=hybrid]').disabled && window.pixelforge?.state.project);
+    await hp.selectOption('#optMode', 'hybrid');
+    await hp.fill('#prompt', 'Un tigre junto a una catedral en la selva al caer la tarde');
+    await hp.click('#btnGenerate');
+    await hp.waitForFunction(() => window.pixelforge.state.project.raw?.interpreted === 'ai');
+    const sc = () => hp.evaluate(() => window.pixelforge.state.project.scene);
+    const s1 = await sc();
+    assert.ok(s1.layers.some((l) => l.k === 'subj:lion') && s1.layers.some((l) => l.k === 'struct:temple'));
+    assert.deepEqual(sent[0], { prompt: 'Un tigre junto a una catedral en la selva al caer la tarde' });
+    assert.match(await hp.locator('#interpText').textContent(), /interpretado por IA \(1240 tokens de entrada, 90 de salida\)/);
+    assert.match(await hp.locator('#interpNotes').textContent(), /tigre → león naranja/);
+    if (shots) await hp.screenshot({ path: path.join(shots, 'hibrido.png') });
+    await hp.fill('#editText', 'que sea de noche'); await hp.click('#btnEdit');
+    await hp.waitForFunction(() => window.pixelforge.state.project.raw.time === 'night');
+    assert.equal(sent[1].instruction, 'que sea de noche'); assert.equal(sent[1].raw.subjects[0].id, 'lion');
+    const s2 = await sc(), sig = (s, k) => JSON.stringify(s.layers.filter((l) => l.k === k).map((l) => l.o));
+    assert.equal(sig(s2, 'struct:temple').length, sig(s1, 'struct:temple').length);
+    assert.equal(await hp.evaluate(() => window.pixelforge.state.project.raw.subjects.length), 1, 'el cliente descarta ids fuera del catálogo');
+    await hp.click('#btnVary'); await hp.waitForSelector('#variations canvas');
+    assert.equal(sent.length, 2, 'las variaciones no vuelven a llamar a la IA');
+    await h.close();
+  });
+
   assert.deepEqual(errors, [], 'errores de consola');
   console.log(`\n${passed} comprobaciones superadas, sin errores de consola.`);
 } catch (e) {

@@ -1,13 +1,14 @@
 // Cliente del modo IA. Habla únicamente con el backend propio (/api/…);
 // la clave de la API vive en el servidor y nunca se expone al navegador.
 import { validateScene } from '../core/pixelScene.js';
+import { sanitizeRaw, rawToSpecJSON } from './specSchema.js';
 
 export async function aiStatus() {
   try {
     const r = await fetch('api/status', { cache: 'no-store' });
     if (!r.ok) return { available: false, reason: 'El servidor no ofrece el modo IA' };
     const j = await r.json();
-    return { available: !!j.ai, model: j.model, reason: j.ai ? '' : 'Falta configurar ANTHROPIC_API_KEY en el servidor' };
+    return { available: !!j.ai, model: j.model, interpretModel: j.interpretModel, reason: j.ai ? '' : 'Falta configurar ANTHROPIC_API_KEY en el servidor' };
   } catch {
     return { available: false, reason: 'Sin servidor de IA (la app funciona en modo offline)' };
   }
@@ -23,4 +24,16 @@ export async function aiGenerate(body, signal) {
   const v = validateScene(j.scene);
   if (!v.ok) throw new Error('La IA devolvió una escena inválida: ' + v.errors.slice(0, 3).join('; '));
   return { scene: j.scene, warnings: j.warnings || [], usage: j.usage || null, model: j.model };
+}
+
+// Modo híbrido. body: { prompt } o { raw, instruction }. Devuelve un "raw"
+// del parser, saneado de nuevo en el cliente contra el catálogo local.
+export async function aiInterpret(body, signal) {
+  const r = await fetch('api/interpret', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal });
+  let j = null;
+  try { j = await r.json(); } catch { /* respuesta sin cuerpo JSON */ }
+  if (!r.ok || !j?.raw) throw new Error(j?.error || `El servidor respondió ${r.status}`);
+  const raw = sanitizeRaw({ ...rawToSpecJSON(j.raw), unsupported: j.raw.unknown });
+  if (!raw) throw new Error('La IA devolvió una especificación inválida');
+  return { raw, usage: j.usage || null, model: j.model };
 }

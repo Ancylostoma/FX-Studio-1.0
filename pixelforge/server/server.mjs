@@ -6,7 +6,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { generateScene, aiConfigured, modelId, AdapterError } from './aiAdapter.mjs';
+import { generateScene, interpretPrompt, aiConfigured, modelId, interpretModelId, AdapterError } from './aiAdapter.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -54,15 +54,15 @@ const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://localhost');
     let p = decodeURIComponent(url.pathname);
-    if (p === '/api/status' && req.method === 'GET') return json(res, 200, { ai: aiConfigured(), model: aiConfigured() ? modelId() : null });
-    if (p === '/api/pixelscene') {
+    if (p === '/api/status' && req.method === 'GET') return json(res, 200, { ai: aiConfigured(), model: aiConfigured() ? modelId() : null, interpretModel: aiConfigured() ? interpretModelId() : null });
+    if (p === '/api/pixelscene' || p === '/api/interpret') {
       if (req.method !== 'POST') return json(res, 405, { error: 'Método no permitido' });
       // Solo peticiones del mismo origen (evita que otras webs gasten tu clave).
       const origin = req.headers.origin;
       if (origin && new URL(origin).host !== req.headers.host) return json(res, 403, { error: 'Origen no permitido' });
       if (!/^application\/json/.test(req.headers['content-type'] || '')) return json(res, 415, { error: 'Se esperaba application/json' });
       if (limited(req.socket.remoteAddress || '?')) return json(res, 429, { error: 'Demasiadas peticiones; espera un minuto' });
-      const out = await generateScene(await readBody(req));
+      const out = await (p === '/api/interpret' ? interpretPrompt : generateScene)(await readBody(req));
       return json(res, 200, out);
     }
     if (req.method !== 'GET' && req.method !== 'HEAD') return json(res, 405, { error: 'Método no permitido' });

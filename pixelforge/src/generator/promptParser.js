@@ -177,7 +177,7 @@ export function finalize(raw) {
     if (e.fly == null) e.fly = !!def?.air;
     e.n = Math.max(1, Math.min(5, e.n || 1));
   }
-  if (s.unknown.length) s.notes.push('Palabras no reconocidas por el motor offline: ' + s.unknown.join(', ') + '.');
+  if (s.unknown.length) s.notes.push((s.interpreted === 'ai' ? 'Adaptado al catálogo del motor: ' : 'Palabras no reconocidas por el motor offline: ') + s.unknown.join(s.interpreted === 'ai' ? '; ' : ', ') + '.');
   return s;
 }
 
