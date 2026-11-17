@@ -123,7 +123,7 @@ Decisiones que se apartan de la estructura propuesta, y por qué:
 
 ## Límites del modo offline
 
-El motor offline **no entiende lenguaje libre**: reconoce un vocabulario cerrado en español e inglés (73 sprites procedurales, 13 entornos, relieve, hora, clima, astros, 14 colores) y lo compone con reglas. Lo que no reconoce lo ignora y lo dice; no finge haberlo dibujado. La lista completa está en la aplicación, en «¿Qué entiende el modo offline?».
+El motor offline **no entiende lenguaje libre**: reconoce un vocabulario cerrado en español e inglés (79 sprites procedurales, 13 entornos, relieve, hora, clima, astros, 14 colores) y lo compone con reglas. Lo que no reconoce lo ignora y lo dice; no finge haberlo dibujado. La lista completa está en la aplicación, en «¿Qué entiende el modo offline?».
 
 - Las relaciones espaciales («detrás de», «a la izquierda») no se interpretan; la colocación sigue reglas fijas de composición.
 - Los sprites son procedurales y estilizados: sirven como base, no sustituyen a un artista.
@@ -139,7 +139,7 @@ Para ampliar el vocabulario: añade sinónimos en `src/generator/vocabulary.js`;
 npm test
 ```
 
-51 pruebas unitarias: parser, validación de PixelScene, geometría, renderizador, generador (todas las combinaciones de estilo, resolución y bioma, y los 73 sprites), edición parcial, exportación y adaptador de IA.
+51 pruebas unitarias: parser, validación de PixelScene, geometría, renderizador, generador (todas las combinaciones de estilo, resolución y bioma, y los 79 sprites), edición parcial, exportación y adaptador de IA.
 
 ```bash
 npm run test:e2e
