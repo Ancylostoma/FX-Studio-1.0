@@ -26,6 +26,8 @@ export const EXAMPLES = [
   ['cabana-nevada', 'Una cabaña en un paisaje nevado con pinos, nevando', 'detailed', 4, '1:1', 96],
   ['isla-isometrica', 'Castillo con un caballero y un dragón', 'iso', 6, '1:1', 96],
   ['cohete-espacio', 'Un cohete en el espacio con planetas', 'bit16', 1, '9:16', 96],
+  ['posiciones', 'Una casa, tres pinos a la izquierda de la casa, un gato encima de la casa y un oso a la derecha de la casa, nevando', 'bit16', 7, '1:1', 128],
+  ['jinete', 'Una princesa sobre un unicornio a la izquierda de un castillo al atardecer', 'bit16', 7, '1:1', 128],
   ['sprite-mago', 'Un mago', 'sprite', 2, '1:1', 32],
   ['sprite-cofre', 'Un cofre', 'sprite', 2, '1:1', 16],
 ];

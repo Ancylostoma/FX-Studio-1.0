@@ -37,7 +37,7 @@ test('una respuesta válida del modelo produce una escena', () => {
 test('saneado: descarta todo lo que no esté en el catálogo', () => {
   const raw = sanitizeRaw({ subjects: [{ id: 'castle' }, { id: 'constructor' }, { id: 'cat', color: 'rainbow', n: 99, size: -7, fly: 'yes', armor: 'gold', breathesFire: true }, null, 'x'], structures: [{ id: 'dragon' }, { id: 'tower', color: 'blue' }], flora: 'no', biome: '__proto__', features: ['lake', 'lake', 'ocean'], time: 7, weather: ['rain'], celestial: ['moon', 'ufo'], fx: null, skyColor: 'purple', exclude: ['moon', 'cat'], unsupported: ['a'.repeat(500), 5, '  '] });
   assert.deepEqual(raw.subjects.map((s) => s.id), ['cat']);
-  assert.deepEqual(raw.subjects[0], { id: 'cat', color: null, color2: null, n: 5, size: -1, fly: null, a: {} });
+  assert.deepEqual(raw.subjects[0], { id: 'cat', color: null, color2: null, n: 5, size: -1, fly: null, side: null, depth: null, rel: null, a: {} });
   assert.deepEqual(raw.structures.map((s) => [s.id, s.color]), [['tower', 'blue']]);
   assert.deepEqual([raw.flora, raw.biome, raw.features, raw.time, raw.celestial, raw.no], [[], null, ['lake'], null, [], ['moon']]);
   assert.equal(raw.sky.color, 'purple'); assert.equal(raw.unknown.length, 1); assert.equal(raw.unknown[0].length, 80);

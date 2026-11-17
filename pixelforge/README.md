@@ -68,6 +68,25 @@ En el modo híbrido el modelo recibe la lista de los 79 sprites, entornos, clima
 5. **Lápiz, borrador y cuentagotas** para retoques píxel a píxel; se guardan en una capa propia.
 6. **Guardar / Galería**: proyectos en IndexedDB, en tu dispositivo. Se pueden abrir, duplicar, renombrar, eliminar y exportar.
 
+### Posición de los elementos
+
+El modo offline entiende dónde quieres cada cosa (en español o inglés):
+
+| Se escribe | Efecto |
+|---|---|
+| «a la izquierda», «a la derecha», «en el centro» | Lado del lienzo |
+| «al fondo», «a lo lejos» / «en primer plano» | Más pequeño y alto / más grande y bajo |
+| «encima de», «sobre» | Posado en el tejado, montado en un animal o sobrevolando |
+| «detrás de» / «delante de», «frente a» | Se dibuja antes o después y se solapa |
+| «junto a», «a la izquierda de…», «a la derecha de…» | Pegado al otro elemento |
+| «debajo de» | Se interpreta al revés: el otro elemento queda encima |
+
+Las relaciones se encadenan («un caballero sobre un caballo junto a una torre») y una segunda mención con artículo definido se refiere al mismo elemento («una casa… detrás de **la** casa»). Con «Modificar la escena» se pueden mover cosas ya generadas: «mueve el dragón a la izquierda». La interpretación muestra lo entendido: `cat→on:house`, `castle@left`.
+
+![Posiciones relativas](docs/examples/posiciones.png) ![Jinete junto a un castillo](docs/examples/jinete.png)
+
+Límites: un elemento que vuela no puede posarse sobre vegetación (un pájaro «encima del árbol» simplemente vuela); el jinete va de pie sobre la montura, no sentado; en el estilo isométrico las posiciones se ignoran y en retratos sin escenario solo se aplica «encima de»; si lo pedido no cabe, el elemento se recorta al borde del lienzo en lugar de recolocar el resto.
+
 ### Animación
 
 El selector **Animación** (Reposo, Caminar, Atacar) genera un ciclo de 4 fotogramas. Si el prompt dice «caminando» o «atacando» se elige solo. Se anima:
@@ -159,7 +178,6 @@ Decisiones que se apartan de la estructura propuesta, y por qué:
 
 El motor offline **no entiende lenguaje libre**: reconoce un vocabulario cerrado en español e inglés (79 sprites procedurales, 13 entornos, relieve, hora, clima, astros, 14 colores) y lo compone con reglas. Lo que no reconoce lo ignora y lo dice; no finge haberlo dibujado. La lista completa está en la aplicación, en «¿Qué entiende el modo offline?».
 
-- Las relaciones espaciales («detrás de», «a la izquierda») no se interpretan; la colocación sigue reglas fijas de composición.
 - Los sprites son procedurales y estilizados: sirven como base, no sustituyen a un artista.
 - El estilo isométrico usa una isla en perspectiva con los objetos como figuras frontales, no modelos isométricos reales.
 - El borrador solo elimina retoques hechos con el lápiz, no píxeles de las capas generadas (para eso, oculta o elimina la capa).
@@ -173,7 +191,7 @@ Para ampliar el vocabulario: añade sinónimos en `src/generator/vocabulary.js`;
 npm test
 ```
 
-69 pruebas unitarias: parser, modo híbrido, animación y codificador GIF (verificado con un decodificador independiente), validación de PixelScene, geometría, renderizador, generador (todas las combinaciones de estilo, resolución y bioma, y los 79 sprites), edición parcial, exportación y adaptador de IA.
+81 pruebas unitarias: parser, posiciones y relaciones espaciales, modo híbrido, animación y codificador GIF (verificado con un decodificador independiente), validación de PixelScene, geometría, renderizador, generador (todas las combinaciones de estilo, resolución y bioma, y los 79 sprites), edición parcial, exportación y adaptador de IA.
 
 ```bash
 npm run test:e2e

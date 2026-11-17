@@ -35,6 +35,65 @@ export function normalizeOptions(o = {}) {
 }
 
 const SIZE = { '-1': 0.72, 0: 1, 1: 1.35 };
+const SIDE_X = { left: 0.24, center: 0.5, right: 0.76 };
+const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
+const cxOf = (b) => b.x + b.w / 2;
+
+// Posiciones pedidas por el usuario: lado, profundidad y relaciones entre
+// elementos ("a la izquierda", "al fondo", "encima de", "detrás de"…).
+// Se aplican sobre la composición por defecto, moviendo solo lo indicado.
+function applyPositions(G, relOnly = false) {
+  const { w, h } = G, all = [...G.structs, ...G.subs];
+  const isStruct = (b) => G.structs.includes(b);
+  const put = (b, cx, base, scale = 1) => {
+    if (scale !== 1) { b.w = Math.max(3, Math.round(b.w * scale)); b.h = Math.max(3, Math.round(b.h * scale)); }
+    b.x = Math.round(clampN(cx, b.w / 2 + 1, w - b.w / 2 - 1) - b.w / 2);
+    if (b.air) { if (base != null) b.y = Math.max(1, base - b.h); } else { if (base != null) b.by = base; b.y = b.by - b.h; }
+  };
+  for (const b of all) {
+    const e = b.e;
+    if (relOnly || (!e.side && !e.depth)) continue;
+    let base = null, sc = 1;
+    if (e.depth && !b.air && !b.floating) {
+      sc = e.depth === 'back' ? 0.72 : 1.14;
+      if (!isStruct(b)) base = Math.round(G.gTop + (h - G.gTop) * (e.depth === 'back' ? 0.16 : 0.9));
+    }
+    const spread = (b.i || 0) * b.w * 1.1 * (e.side === 'right' ? -1 : 1);
+    put(b, e.side ? w * SIDE_X[e.side] + spread : cxOf(b), base, sc);
+  }
+  // Orden de dependencias: primero se coloca aquello de lo que otros dependen
+  // ("un caballero sobre un caballo junto a una torre": caballo y después jinete).
+  const target = (b) => b.e.rel && all.find((t) => t.e !== b.e && t.e.id === b.e.rel.of);
+  const depth = (b, seen = new Set()) => { const T = target(b); return !T || seen.has(b) ? 0 : 1 + depth(T, seen.add(b)); };
+  for (const b of [...all].sort((p, q) => depth(p) - depth(q))) {
+    const r = b.e.rel;
+    const T = target(b);
+    if (!T) continue;
+    const tcx = cxOf(T), gap = Math.round(b.w * 0.6) + 1, tS = isStruct(T);
+    const at = (dir) => (dir < 0 ? T.x - gap : T.x + T.w + gap) + (b.i || 0) * b.w * dir;
+    const inward = tcx > w / 2 ? -1 : 1;
+    if (r.type === 'on' && b.air) {            // sobrevolar: centrado y rozando la parte alta
+      const bottom = T.y + Math.round(T.h * 0.22);
+      // Ligeramente desplazado hacia el lado contrario al astro para no taparlo.
+      put(b, tcx - G.moonSide * T.w * 0.3, bottom, b.h > bottom - 1 ? Math.max(0.5, (bottom - 1) / b.h) : 1);
+    } else if (r.type === 'on' && !isStruct(b)) {  // posado o montado
+      const base = T.y + Math.round(T.h * (T.def.top ?? 0.04)), lim = Math.min(base - 2, tS ? T.h * 0.7 : h);
+      put(b, tcx + (T.def.topX || 0) * T.w * (T.flip ? -1 : 1) + (b.i || 0) * b.w, base, b.h > lim ? Math.max(0.35, lim / b.h) : 1);
+      b.onTop = true; b.z = (T.z ?? T.by ?? 0) + 0.5;   // se dibuja justo después de su apoyo
+    } else if (r.type === 'behind') {
+      put(b, tcx + inward * T.w * 0.42, b.air ? null : T.by - Math.max(1, Math.round(h * 0.02)), b.air ? 1 : 0.9);
+      if (tS) { if (isStruct(b)) { G.structs.splice(G.structs.indexOf(b), 1); G.structs.splice(G.structs.indexOf(T), 0, b); } else b.behind = true; }
+    } else if (r.type === 'front') put(b, tcx, b.air || isStruct(b) ? null : Math.max(b.by, T.by + Math.round(h * 0.07)));
+    else if (r.type === 'leftof' || r.type === 'rightof' || r.type === 'beside' || r.type === 'on') {
+      const dir = r.type === 'leftof' ? -1 : r.type === 'rightof' ? 1 : inward;
+      put(b, at(dir), b.air || isStruct(b) ? null : tS ? Math.max(b.by, T.by + 1) : T.by);
+    }
+    if (!isStruct(b) && Math.abs(cxOf(b) - tcx) > 2) b.flip = cxOf(b) > tcx;   // mira hacia el otro elemento
+  }
+  const boxed = [...G.structs, ...G.subs.filter((s) => s.ground && !s.onTop)];
+  G.boxes = boxed.map((b) => [b.x - 1, b.x + b.w + 1, b.by]);
+  if (G.waterKind === 'sea') G.islets = boxed.map((b) => ({ x: Math.round(cxOf(b)), y: b.by, w: b.w }));
+}
 
 function buildContext(spec, o, pb, frame) {
   const st = STYLES[o.style];
@@ -99,12 +158,18 @@ function layout(G, rng) {
   const fit = (def, hh, maxW) => { let bh = Math.round(hh); let bw = Math.round(bh * def.ar); if (bw > maxW) { bw = Math.round(maxW); bh = Math.round(bw / def.ar); } return { bw: Math.max(3, bw), bh: Math.max(3, bh) }; };
   G.structs = []; G.subs = [];
   if (G.layoutKind === 'portrait') {
-    const n = subs.length || 1;
-    subs.forEach((s, i) => {
-      const { bw, bh } = fit(s.def, h * (s.def.cat === 'object' ? 0.62 : 0.72) * (n > 1 ? 0.8 : 1), (w * 0.86) / n);
-      const cx = Math.round((w * (i + 0.5)) / n);
-      G.subs.push({ ...s, x: cx - (bw >> 1), y: (s.e.fly && s.def.cat !== 'vehicle' ? Math.round(h * 0.82) : G.baseY) - bh, w: bw, h: bh, flip: false, air: s.e.fly, depth: 1 });
+    // Quien va "encima de" otro (un jinete) no ocupa columna propia y su montura se reduce para que quepan.
+    const rides = (s) => s.e.rel?.type === 'on' && !s.e.fly && subs.some((t) => t.e !== s.e && t.e.id === s.e.rel.of);
+    const cols = subs.filter((s) => !rides(s)), n = cols.length || 1;
+    subs.forEach((s) => {
+      const mount = subs.some((t) => rides(t) && t.e.rel.of === s.e.id), col = Math.max(0, cols.indexOf(rides(s) ? subs.find((t) => t.e.id === s.e.rel.of) : s));
+      const { bw, bh } = fit(s.def, h * (s.def.cat === 'object' ? 0.62 : 0.72) * (n > 1 ? 0.8 : 1) * (mount ? 0.62 : rides(s) ? 0.6 : 1), (w * 0.86) / n);
+      const cx = Math.round((w * (col + 0.5)) / n);
+      const base = s.e.fly && s.def.cat !== 'vehicle' ? Math.round(h * 0.82) : G.baseY;
+      G.subs.push({ ...s, x: cx - (bw >> 1), y: base - bh, w: bw, h: bh, by: base, flip: false, air: s.e.fly, depth: 1, ground: !s.e.fly });
     });
+    // En el retrato solo se aplican las relaciones entre elementos (p. ej. un jinete).
+    G.gTop = G.baseY; applyPositions(G, true);
     return;
   }
   if (G.layoutKind === 'iso') {
@@ -151,7 +216,7 @@ function layout(G, rng) {
     const { bw, bh } = fit(s.def, Math.min(h * s.def.sz * 1.2 * SIZE[s.e.size], by - 2), w * 0.5);
     const base = main ? 0.5 - side * 0.22 : 0.5 + (grounded.length > 1 ? 0 : -side * 0.06);
     const cx = Math.max((bw >> 1) + 1, Math.min(w - (bw >> 1) - 1, Math.round(w * (grounded.length > 2 && !main ? 0.5 : base) + (i - (grounded.length - 1) / 2) * Math.min(bw * 1.25, (w * 0.9) / grounded.length))));
-    const b = { ...s, x: cx - (bw >> 1), y: by - bh, w: bw, h: bh, by, flip: main ? cx > main.x + main.w / 2 : cx > w / 2, depth: 1 };
+    const b = { ...s, x: cx - (bw >> 1), y: by - bh, w: bw, h: bh, by, flip: main ? cx > main.x + main.w / 2 : cx > w / 2, depth: 1, ground: true };
     G.subs.push(b); G.boxes.push([b.x - 1, b.x + bw + 1, by]);
     if (sea) G.islets.push({ x: cx, y: by, w: bw });
   });
@@ -169,6 +234,8 @@ function layout(G, rng) {
     const cy = Math.round(skyH * (G.biome.noGround ? 0.5 : main ? 0.26 : 0.34) + (i ? rng.range(-0.1, 0.12) * skyH : 0));
     G.subs.push({ ...s, x: cx - (bw >> 1), y: Math.max(1, cy - (bh >> 1)), w: bw, h: bh, flip: side < 0 ? false : true, air: true, depth: 0 });
   });
+  G.gTop = gTop;
+  applyPositions(G);
   const pathOk = main && !G.waterKind && ['grass', 'snow'].includes(G.biome.ground) && ['castle', 'house', 'tower', 'temple', 'windmill'].includes(main.def.id);
   if (pathOk) G.path = { x0: main.x + (main.w >> 1), y0: main.by, x1: Math.round(w * (0.5 - side * 0.1)), wide: Math.max(2, Math.round(w * 0.07)) };
   G.gTop = gTop;
@@ -191,7 +258,7 @@ function drawEntity(G, box, key, rngLabel) {
   def.build(p, k);
   const name = def.name + (box.i ? ' ' + (box.i + 1) : '');
   const out = [];
-  if (box.by != null && !box.air && !box.floating && G.layoutKind !== 'portrait' && def.cat !== 'structure') {
+  if (box.by != null && !box.air && !box.floating && !box.onTop && G.layoutKind !== 'portrait' && def.cat !== 'structure') {
     out.push(L('sombra de ' + name, key, [['E', box.x + (box.w >> 1), box.by, Math.max(1, Math.round(box.w * 0.42)), Math.max(0, Math.round(box.w * 0.07)), G.C.dark]], { a: 0.28, nl: 1 }));
   }
   if (glow.length) out.push(L('halo de ' + name, key, glow, { nl: 1, a: 0.2 }));
@@ -208,7 +275,7 @@ function drawEntity(G, box, key, rngLabel) {
 // Flora y atrezo: instancias de sprites reutilizables (S) en tres tamaños.
 function genProps(G) {
   const { w, h, H, spec } = G, rng = G.rng('props');
-  if (G.layoutKind === 'portrait' || G.biome.noGround) return { back: [], front: [] };
+  if (G.layoutKind === 'portrait' || G.biome.noGround) return { behind: [], back: [], front: [] };
   const items = [];
   const iso = G.layoutKind === 'iso';
   const sea = G.waterKind === 'sea';
@@ -234,10 +301,30 @@ function genProps(G) {
       const lvl = t < 0.33 ? 0 : t < 0.66 ? 1 : 2;
       const scale = (iso ? 0.7 : [0.72, 0.95, 1.25][lvl]) * (explicit ? 1.15 : 1) * (e ? SIZE[e.size] : 1);
       const bh = Math.max(3, Math.round(h * def.sz * scale)), bw = Math.max(3, Math.round(bh * def.ar));
+      // Posición pedida por el usuario para este elemento.
+      let forced = false, behind = false;
+      if (explicit && e && !iso) {
+        const nth = items.filter((it) => it.e === e).length;
+        if (e.side) { x = (SIDE_X[e.side] + rng.range(-0.07, 0.07)) * w + nth * bw * 0.7 * (e.side === 'right' ? -1 : 1); forced = true; }
+        if (e.depth) { by = Math.round(gTop + gH * (e.depth === 'back' ? rng.range(0.03, 0.12) : rng.range(0.74, 0.94))); forced = true; }
+        const T = e.rel && [...G.structs, ...G.subs].find((b) => b.e.id === e.rel.of && b.by != null);
+        if (T) {
+          const dir = e.rel.type === 'leftof' ? -1 : e.rel.type === 'rightof' ? 1 : (nth & 1 ? -1 : 1) * (cxOf(T) > w / 2 ? -1 : 1);
+          if (e.rel.type === 'behind') { x = T.x + (nth & 1 ? 0.9 : 0.1) * T.w; by = T.by - 1; behind = true; }
+          else if (e.rel.type === 'front') { x = cxOf(T) + (nth - 0.5) * bw; by = Math.min(h - 1, T.by + Math.round(h * 0.08)); }
+          else { x = (dir < 0 ? T.x - bw * 0.55 : T.x + T.w + bw * 0.55) + dir * (nth >> 1) * bw * 0.8; by = T.by + (dir < 0 ? 1 : 2); }
+          forced = true;
+        }
+        // Relación inversa: un sujeto en tierra se refiere a este elemento
+        // ("un gato debajo de un árbol"): se planta justo detrás del sujeto.
+        const S = !T && G.subs.find((b) => b.e.rel?.of === id && b.ground && !b.onTop);
+        if (S) { x = cxOf(S) + (cxOf(S) > w / 2 ? -1 : 1) * bw * 0.22 + nth * bw; by = S.by - 1; forced = true; }
+      }
+      if (forced) x = clampN(x, bw * 0.3, w - bw * 0.3);   // que al menos la mayor parte quede en el lienzo
       x = Math.round(x - bw / 2);
-      if (blocked(x, bw, by) && !(big && t > 0.5)) continue;
+      if (!forced && blocked(x, bw, by) && !(big && t > 0.5)) continue;
       if (G.waterKind && !iso && by < G.shoreY + 2) continue;
-      items.push({ id, def, x, by, bw, bh, lvl, e: e || { a: {} }, flip: rng.chance(0.5), explicit });
+      items.push({ id, def, x, by, bw, bh, lvl, e: e || { a: {} }, flip: rng.chance(0.5), explicit, behind });
       if (explicit) G.boxes.push([x - 1, x + bw + 1, by]);
       return;
     }
@@ -254,9 +341,9 @@ function genProps(G) {
   items.sort((a, b) => a.by - b.by);
   const frontY = Math.max(...G.subs.filter((s) => s.by != null).map((s) => s.by), ...G.structs.map((s) => s.by + 2), 0);
   const mk = () => ({ main: [], lit: [], glow: [] });
-  const B = mk(), F = mk();
+  const B = mk(), F = mk(), Z = mk();
   for (const it of items) {
-    const T = it.by > frontY ? F : B;
+    const T = it.behind ? Z : it.by > frontY ? F : B;
     const attrs = { ...it.e.a, color: it.e.color, color2: it.e.color2, snowy: G.biome.snowy, mat: G.biome.ground === 'mars' ? 'mars' : G.biome.ground === 'moon' ? 'moon' : undefined };
     const pad = Math.ceil(it.bh * 0.3);
     const sid = `${it.id}${it.lvl}${it.explicit ? 'x' : ''}${it.e.color ? '_' + it.e.color : ''}_${it.bw}x${it.bh}`;
@@ -278,7 +365,7 @@ function genProps(G) {
     if (T.lit.length) out.push(L('luces de ' + name, key, T.lit, { nl: 1 }));
     return out;
   };
-  return { back: pack(B, 'vegetación', 'props'), front: pack(F, 'primer plano', 'front') };
+  return { behind: pack(Z, 'vegetación de fondo', 'props'), back: pack(B, 'vegetación', 'props'), front: pack(F, 'primer plano', 'front') };
 }
 
 // Genera la escena completa a partir de una especificación ya finalizada.
@@ -302,10 +389,13 @@ function composeFrame(spec, o, pb, frame) {
     add([L('orilla lejana', 'far', [['R', 0, G.H - 1, G.w, 3, g[1]], ['T', 0, G.H - 2, G.w, 1, g[1], 40, 7]], { f: [G.skyHorizon, 20] })]);
   }
   const props = genProps(G);
-  G.structs.forEach((b, i) => add(drawEntity(G, b, 'struct:' + b.def.id + (i ? i : ''), 'struct' + i)));
+  const subKey = (b) => 'subj:' + b.def.id + (b.i ? b.i : '');
+  add(props.behind);
+  G.subs.filter((b) => b.behind).forEach((b) => add(drawEntity(G, b, subKey(b), 'subj:' + b.def.id + b.i)));
+  G.structs.forEach((b) => { const i = G.spec.structures.indexOf(b.e); add(drawEntity(G, b, 'struct:' + b.def.id + (i ? i : ''), 'struct' + i)); });
   if (water) { add(genWater(G)); add(genGround(G)); }
   add(props.back);
-  const order = [...G.subs].sort((a, b) => (a.air ? 1 : 0) - (b.air ? 1 : 0) || (a.by || 0) - (b.by || 0));
+  const order = G.subs.filter((b) => !b.behind).sort((a, b) => (a.air ? 1 : 0) - (b.air ? 1 : 0) || (a.z ?? a.by ?? 0) - (b.z ?? b.by ?? 0));
   order.forEach((b) => add(drawEntity(G, b, 'subj:' + b.def.id + (b.i ? b.i : ''), 'subj:' + b.def.id + b.i)));
   add(props.front);
   if (G.layoutKind !== 'portrait') add(genWeather(G));

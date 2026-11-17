@@ -10,7 +10,7 @@ test('dragón rojo volando sobre un castillo de noche', () => {
   assert.deepEqual(ids(spec.structures), ['castle']); assert.equal(spec.time, 'night'); assert.equal(spec.biome, 'meadow');
   assert.ok(spec.celestial.includes('moon') && spec.celestial.includes('stars'));
   assert.deepEqual(spec.unknown, []);
-  assert.match(describeSpec(spec, { style: 'bit16' }), /^SUBJECT=dragon\(red\);SCENE=castle;BIOME=meadow;LIGHT=night;SKY=.*STYLE=bit16$/);
+  assert.match(describeSpec(spec, { style: 'bit16' }), /^SUBJECT=dragon\(red\)→on:castle;SCENE=castle;BIOME=meadow;LIGHT=night;SKY=.*STYLE=bit16$/);
 });
 
 test('caballero con armadura dorada y espada frente a un castillo al atardecer', () => {

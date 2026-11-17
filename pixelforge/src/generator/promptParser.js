@@ -31,7 +31,9 @@ function tokenize(text) {
   return out;
 }
 
-const ent = (id) => ({ id, color: null, color2: null, n: 1, size: 0, fly: null, a: {} });
+// side: 'left'|'center'|'right' · depth: 'back'|'front' · rel: { type, of } respecto a otra entidad
+export const ent = (id) => ({ id, color: null, color2: null, n: 1, size: 0, fly: null, side: null, depth: null, rel: null, a: {} });
+export const REL_TYPES = ['on', 'behind', 'front', 'beside', 'leftof', 'rightof'];
 const HUMANOID = (e) => LIB[e.id]?.cat === 'humanoid';
 
 export function extract(text) {
@@ -42,24 +44,56 @@ export function extract(text) {
   const parts = [];
   const isNoun = (t) => t && /^(s|b|f|part):/.test(t.tag);
   const lastEnt = () => ents[ents.length - 1];
+  const lastBody = () => { for (let j = ents.length - 1; j >= 0; j--) if (!ents[j].part) return ents[j]; return null; };
+  const nounSoon = (i) => { let j = i + 1, skipped = 0; while (toks[j] && skipped < 3 && /^(stop|unk$|col:|size:|n:)/.test(toks[j].tag)) { j++; skipped++; } return isNoun(toks[j]); };
+  let pend = null;               // relación a la espera de su segundo término ("detrás de" → …)
+  // ¿Sigue "de/del/of" + sustantivo? Distingue "a la izquierda del castillo" de "a la izquierda".
+  const ofNoun = (i) => { let j = i + 1; if (!(toks[j]?.tag === 'stop' && /^(de|del|of)$/.test(toks[j].word))) return false; j++; if (toks[j]?.tag === 'stop') j++; while (toks[j] && /^(col|size|n):/.test(toks[j].tag)) j++; return isNoun(toks[j]) && !toks[j].tag.startsWith('part:'); };
   const setColor = (e, c) => { if (!e.color) e.color = c; else if (!e.color2) e.color2 = c; };
   toks.forEach((t, i) => {
     const [kind, id] = t.tag.split(':');
     const prev = toks[i - 1], next = toks[i + 1];
+    // "la casa", "del castillo": un artículo definido ante algo ya mencionado es una
+    // referencia a ese elemento, no uno nuevo.
+    const refer = (list) => {
+      if (!(prev?.tag === 'stop' && /^(el|la|los|las|del|al|the)$/.test(prev.word))) return false;
+      const cur = list.find((x) => x.id === id);
+      if (!cur) return false;
+      if (pend && pend.a !== cur) { if (pend.type === 'below') cur.rel = { type: 'on', of: pend.a.id }; else pend.a.rel = { type: pend.type, of: cur.id }; }
+      pend = null; pre = {}; cur._i = i; ents.push(cur);
+      return true;
+    };
     const add = (list, e) => {
       if (pre.n) e.n = pre.n;
       if (pre.size) e.size = pre.size;
       if (pre.color) e.color = pre.color;
       if (pre.fly) e.fly = true;
+      if (pre.side) e.side = pre.side;
+      if (pre.depth) e.depth = pre.depth;
+      if (pend && list !== parts && pend.a !== e) {
+        if (pend.type === 'below') e.rel = { type: 'on', of: pend.a.id }; else pend.a.rel = { type: pend.type, of: e.id };
+        pend = null;
+      }
       pre = {};
       e._i = i;
       list.push(e); ents.push(e);
       return e;
     };
+    if (pend && (--pend.ttl < 0 || /^(biome|feat|time|w|c|fx)$/.test(kind))) pend = null;
     switch (kind) {
-      case 's': add(raw.subjects, ent(id)); break;
-      case 'b': add(raw.structures, ent(id)); break;
-      case 'f': add(raw.flora, ent(id)); break;
+      case 'side': case 'depth': {
+        const a = lastBody();
+        if (kind === 'side' && id !== 'center' && a && ofNoun(i)) pend = { type: id === 'left' ? 'leftof' : 'rightof', a, ttl: 5 };
+        // Si el elemento anterior ya tiene ese dato y enseguida viene otro sustantivo,
+        // la posición es del que viene ("…a la izquierda, a la derecha un dragón").
+        else if (a && !isNoun(next) && !(a[kind] && nounSoon(i))) a[kind] = id;
+        else pre[kind] = id;
+        break;
+      }
+      case 'rel': { const a = lastBody(); if (a) pend = { type: id, a, ttl: 5 }; break; }
+      case 's': if (!refer(raw.subjects)) add(raw.subjects, ent(id)); break;
+      case 'b': if (!refer(raw.structures)) add(raw.structures, ent(id)); break;
+      case 'f': if (!refer(raw.flora)) add(raw.flora, ent(id)); break;
       case 'part': { const p = add(parts, ent(id)); p.part = id; break; }
       case 'biome': raw.biome = id; break;
       case 'feat': if (!raw.features.includes(id)) raw.features.push(id); break;
@@ -117,12 +151,15 @@ export function extract(text) {
   if (hero) {
     raw.subjects = raw.subjects.filter((s) => {
       if (s === hero) return true;
-      if (s.id === 'sword') { hero.a.weapon = 'sword'; if (s.a.weaponFx) hero.a.weaponFx = s.a.weaponFx; return false; }
-      if (s.id === 'shield') { hero.a.shield = true; if (s.color) hero.color2 = s.color; return false; }
+      const inherit = () => { for (const f of ['rel', 'side', 'depth']) if (s[f] && !hero[f]) hero[f] = s[f]; };
+      if (s.id === 'sword') { hero.a.weapon = 'sword'; if (s.a.weaponFx) hero.a.weaponFx = s.a.weaponFx; inherit(); return false; }
+      if (s.id === 'shield') { hero.a.shield = true; if (s.color) hero.color2 = s.color; inherit(); return false; }
       return true;
     });
   }
-  for (const list of [raw.subjects, raw.structures, raw.flora]) for (const e of list) delete e._i;
+  // Una relación solo es válida si su destino sigue en la escena y no es la propia entidad.
+  const present = new Set([...raw.subjects, ...raw.structures, ...raw.flora].map((e) => e.id));
+  for (const list of [raw.subjects, raw.structures, raw.flora]) for (const e of list) { delete e._i; if (e.rel && (!present.has(e.rel.of) || e.rel.of === e.id)) e.rel = null; }
   return raw;
 }
 
@@ -173,6 +210,7 @@ export function finalize(raw) {
   s.celestial = s.celestial.filter((c) => !no.has(c));
   s.weather = s.weather.filter((c) => !no.has(c));
   s.fx = s.fx.filter((c) => !no.has(c));
+  for (const e of [...s.subjects, ...s.structures, ...s.flora]) { e.side ??= null; e.depth ??= null; e.rel ??= null; }
   for (const e of s.subjects) {
     const def = LIB[e.id];
     if (e.fly == null) e.fly = !!def?.air;
@@ -190,7 +228,7 @@ export function parsePrompt(text) {
 // Representación conceptual compacta, p. ej.
 // SUBJECT=dragon(red);SCENE=castle;BIOME=meadow;LIGHT=night;SKY=stars,moon
 export function describeSpec(spec, opts = {}) {
-  const e = (x) => x.id + (x.n > 1 ? '×' + x.n : '') + (x.color ? `(${x.color})` : '') + (Object.keys(x.a || {}).length ? '{' + Object.entries(x.a).map(([k, v]) => (v === true ? k : `${k}:${v}`)).join(',') + '}' : '');
+  const e = (x) => x.id + (x.n > 1 ? '×' + x.n : '') + (x.color ? `(${x.color})` : '') + (x.side ? '@' + x.side : '') + (x.depth ? '@' + x.depth : '') + (x.rel ? `→${x.rel.type}:${x.rel.of}` : '') + (Object.keys(x.a || {}).length ? '{' + Object.entries(x.a).map(([k, v]) => (v === true ? k : `${k}:${v}`)).join(',') + '}' : '');
   const out = [];
   if (spec.subjects.length) out.push('SUBJECT=' + spec.subjects.map(e).join('+'));
   if (spec.structures.length) out.push('SCENE=' + spec.structures.map(e).join('+'));
@@ -245,7 +283,8 @@ export function applyEdit(rawIn, instruction) {
     for (const l of lists) for (const e of part[l]) {
       const cur = raw[l].find((x) => x.id === e.id);
       raw.no = raw.no.filter((n) => n !== e.id);
-      if (cur && verb === 'change') { if (e.color) cur.color = e.color; if (e.color2) cur.color2 = e.color2; if (e.size) cur.size = e.size; if (e.fly != null) cur.fly = e.fly; Object.assign(cur.a, e.a); }
+      const moved = e.side || e.depth || e.rel;
+      if (cur && (verb === 'change' || moved)) { if (e.color) cur.color = e.color; if (e.color2) cur.color2 = e.color2; if (e.size) cur.size = e.size; if (e.fly != null) cur.fly = e.fly; if (e.side) cur.side = e.side; if (e.depth) cur.depth = e.depth; if (e.rel) cur.rel = e.rel; Object.assign(cur.a, e.a); }
       else if (cur && e.color) cur.color = e.color;
       else if (!cur) raw[l].push(e);
       else cur.n = Math.min(5, cur.n + e.n);

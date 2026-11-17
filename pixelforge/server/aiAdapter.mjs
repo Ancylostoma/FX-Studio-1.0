@@ -77,7 +77,7 @@ export function parseInterpretRequest(body) {
 }
 // El cliente envía un "raw" del parser; se normaliza a identificadores del catálogo.
 function rawEcho(raw) {
-  const flat = (x) => ({ ...x, armor: x?.a?.armor, weapon: x?.a?.weapon, weaponFx: x?.a?.weaponFx, shield: x?.a?.shield, cape: !!x?.a?.cape, wizardHat: x?.a?.hat === 'wizard', breathesFire: x?.a?.fire });
+  const flat = (x) => ({ ...x, relation: x?.rel ? { type: x.rel.type, to: x.rel.of } : null, armor: x?.a?.armor, weapon: x?.a?.weapon, weaponFx: x?.a?.weaponFx, shield: x?.a?.shield, cape: !!x?.a?.cape, wizardHat: x?.a?.hat === 'wizard', breathesFire: x?.a?.fire });
   const l = (v) => (Array.isArray(v) ? v.map(flat) : []);
   return { ...raw, subjects: l(raw.subjects), structures: l(raw.structures), flora: l(raw.flora), skyColor: raw.sky?.color, crescentMoon: raw.moonPhase === 'crescent', exclude: raw.no, unsupported: [] };
 }

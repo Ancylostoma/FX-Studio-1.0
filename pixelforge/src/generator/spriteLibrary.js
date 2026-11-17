@@ -564,3 +564,10 @@ obj('skull', 'calavera', (p, k) => { const C = k.C, b = C.mat('bone'), d = C.dar
 obj('starobj', 'estrella', (p, k) => { const g = k.C.tint(k.a.color, 'yellow'); p.poly([[0.5, 0.02], [0.62, 0.36], [0.98, 0.38], [0.7, 0.6], [0.8, 0.96], [0.5, 0.76], [0.2, 0.96], [0.3, 0.6], [0.02, 0.38], [0.38, 0.36]], g[2]); p.poly([[0.5, 0.02], [0.5, 0.76], [0.2, 0.96], [0.3, 0.6], [0.02, 0.38], [0.38, 0.36]], g[3]); });
 
 export const CATEGORY_NAMES = { humanoid: 'Personajes', animal: 'Animales', creature: 'Criaturas', structure: 'Edificios', flora: 'Naturaleza y atrezo', vehicle: 'Vehículos', object: 'Objetos' };
+
+// Punto de apoyo para "encima de": fracción de la altura (desde arriba) donde
+// se posa otro elemento y desplazamiento horizontal respecto al centro.
+Object.assign(LIB.castle, { top: 0.51, topX: -0.2 }); Object.assign(LIB.house, { top: 0.3, topX: -0.24 }); Object.assign(LIB.windmill, { top: 0.24 });
+Object.assign(LIB.lighthouse, { top: 0.1 }); Object.assign(LIB.car, { top: 0.14 }); Object.assign(LIB.boat, { top: 0.72, topX: 0.2 }); Object.assign(LIB.chest, { top: 0.14 });
+for (const id of ['fish', 'shark', 'whale']) LIB[id].float = 1;   // en escenas con agua, nadan
+for (const d of Object.values(LIB)) if (d.cat === 'animal' && d.ar === 1.4) Object.assign(d, { top: 0.32, topX: -0.07 });

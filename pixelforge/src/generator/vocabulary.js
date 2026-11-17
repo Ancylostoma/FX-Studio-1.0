@@ -81,6 +81,14 @@ const V = [
   ['size:small', 'pequeno|pequena|pequenos|pequenas|chico|chica|diminuto|diminuta|small|tiny|little'],
   ['size:big', 'grande|grandes|gran|enorme|gigante|inmenso|inmensa|big|huge|giant|large'],
   ['anim:walk', 'caminando|andando|corriendo|paseando|walking|running'], ['anim:attack', 'atacando|luchando|peleando|combatiendo|attacking|fighting'],
+  // --- Posición y relaciones espaciales ---
+  ['side:left', 'a la izquierda|izquierda|on the left|to the left|left'], ['side:right', 'a la derecha|derecha|on the right|to the right|right'],
+  ['side:center', 'en el centro|centro|en medio|in the middle|in the center|center|middle'],
+  ['depth:back', 'al fondo|a lo lejos|en la distancia|en segundo plano|in the background|in the distance|far away'],
+  ['depth:front', 'en primer plano|primer plano|in the foreground|foreground'],
+  ['rel:on', 'encima de|encima|sobre|arriba de|on top of|atop|above|over|on'], ['rel:below', 'debajo de|debajo|bajo|under|below|beneath'],
+  ['rel:behind', 'detras de|detras|tras|behind'], ['rel:front', 'delante de|delante|frente a|frente|in front of'],
+  ['rel:beside', 'junto a|junto|al lado de|al lado|cerca de|next to|beside|near'],
   ['fly', 'volando|vuela|volador|voladora|sobrevolando|flying|flies|en el aire|flotando'],
   ['n:2', 'dos|two|par de'], ['n:3', 'tres|three'], ['n:4', 'cuatro|four|varios|varias|several'], ['n:5', 'cinco|five|muchos|muchas|many'],
   ['part:armor', 'armadura|coraza|armor|armour'], ['part:helmet', 'casco|yelmo|helmet'], ['part:hat', 'sombrero|gorro|hat'],
@@ -92,11 +100,11 @@ const V = [
   // --- Verbos de edición ---
   ['verb:add', 'agrega|agregar|anade|anadir|incluye|incluir|pon|poner|coloca|colocar|add|put|suma'],
   ['verb:remove', 'quita|quitar|elimina|eliminar|borra|borrar|remove|delete|sin'],
-  ['verb:change', 'cambia|cambiar|haz|vuelve|convierte|pinta|change|make|turn|modifica'],
+  ['verb:change', 'cambia|cambiar|haz|vuelve|convierte|pinta|change|make|turn|modifica|mueve|mover|move|desplaza|situa|ubica'],
   ['verb:keep', 'conserva|conservar|manten|mantener|preserva|deja|keep|preserve'],
 ];
 
-const STOP = 'un una unos unas el la los las lo de del al a en con y e o u que por para su sus se es esta este son muy mas como sobre bajo frente junto cerca entre durante hacia desde tras encima debajo lado the an of on in at with and to over under near front by is its from into behind above below pixel art pixelart estilo style paisaje landscape escena scene imagen image dibujo ilustracion fondo background sosteniendo holding sentado sentada mirando parado standing llevando wearing usando tiene hay color colores tipo algo mientras donde cual cuyo todo toda color'.split(' ');
+const STOP = 'un una unos unas el la los las lo de del al a en con y e o u que por para su sus se es esta este son muy mas como sobre bajo frente junto cerca entre durante hacia desde tras encima debajo lado the an of on in at with and to over under near front by is its from into behind above below pixel art pixelart estilo style paisaje landscape escena scene imagen image dibujo ilustracion fondo background sosteniendo holding montado montada riding posado posada sentado sentada mirando parado standing llevando wearing usando tiene hay color colores tipo algo mientras donde cual cuyo todo toda color'.split(' ');
 
 export const PHRASES = new Map();
 for (const [tag, words] of V) for (const w of words.split('|')) if (!PHRASES.has(w)) PHRASES.set(w, tag);
