@@ -106,7 +106,13 @@ export function extract(text) {
         break;
       }
       case 'rel': { const a = id === 'from' || id === 'on' ? lastActor() : lastBody(); if (a) pend = { type: id, a, ttl: 5 }; break; }
-      case 's': if (!refer(raw.subjects)) add(raw.subjects, ent(id)); break;
+      case 's': {
+        // «guerrera elfa», «elfa guerrera», «orco guerrero»: «guerrero» describe al otro, no es un caballero aparte.
+        const RACE = /^s:(elf|orc|goblin|troll|viking|samurai|ninja|skeleton|zombie|vampire|demon|angel|fairy|robot|alien|pirate|princess|king|archer|witch|wizard|monk|golem)$/;
+        if (id === 'knight' && /^(guerrer[oa]s?|warriors?)$/.test(t.word) && (RACE.test(next?.tag || '') || RACE.test(prev?.tag || ''))) break;
+        if (!refer(raw.subjects)) add(raw.subjects, ent(id));
+        break;
+      }
       case 'b': if (!refer(raw.structures)) add(raw.structures, ent(id)); break;
       case 'f': if (!refer(raw.flora)) add(raw.flora, ent(id)); break;
       case 'part': { const p = add(parts, ent(id)); p.part = id; break; }

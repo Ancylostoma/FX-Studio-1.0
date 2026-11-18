@@ -400,12 +400,19 @@ export function genGround(G) {
   const g = C.hsl(...shiftL(MATERIALS[biome.ground], biome.groundL || 0));
   let top = H;
   if (water === 'sea') {
-    // Sin orilla: solo islotes bajo lo que deba apoyarse en tierra.
-    const r = C.mat('stone');
+    // Sin orilla: solo islotes bajo lo que deba apoyarse en tierra. Rocas con cima clara,
+    // flancos oscuros e irregulares que se hunden en el agua y espuma en la línea de flotación
+    // (antes eran losas planas que parecían baldosas flotando).
+    const r = C.mat('stone'), foam = C.rgb([228, 238, 248]), rng = G.rng('islets');
+    const top = biome.ground === 'snow' ? C.mat('snow') : null;
     for (const s of G.islets) {
-      const rw = Math.round(s.w * 0.75), y = s.y;
-      o.push(['P', [s.x - rw, y + Math.round(rw * 0.35), s.x - Math.round(rw * 0.7), y - 1, s.x + Math.round(rw * 0.6), y - 2, s.x + rw, y + Math.round(rw * 0.35)], r[2]]);
-      o.push(['P', [s.x, y - 2, s.x + Math.round(rw * 0.6), y - 2, s.x + rw, y + Math.round(rw * 0.35), s.x + Math.round(rw * 0.2), y + Math.round(rw * 0.35)], r[1]]);
+      const rw = Math.max(3, Math.round(s.w * 0.62)), y = s.y, rh = Math.max(2, Math.round(rw * 0.32)), th = Math.max(1, Math.round(rw * 0.16));
+      const jag = (k) => rng.int(0, Math.max(1, Math.round(rh * 0.35))) * k;
+      o.push(['P', [s.x - rw, y + rh, s.x - rw + jag(1), y + 1, s.x - Math.round(rw * 0.55), y - th + 1, s.x + Math.round(rw * 0.5), y - th + 1, s.x + rw - jag(1), y + 1, s.x + rw, y + rh], r[1]]);
+      o.push(['P', [s.x - Math.round(rw * 0.2), y - th + 1, s.x + Math.round(rw * 0.5), y - th + 1, s.x + rw - 1, y + rh, s.x + Math.round(rw * 0.3), y + rh], r[0]]);
+      o.push(['E', s.x - Math.round(rw * 0.05), y, Math.round(rw * 0.78), th, top ? top[3] : r[3]]);
+      o.push(['R', s.x - Math.round(rw * 0.5), y - th, Math.round(rw * 0.6), 1, top ? top[4] || top[3] : r[4] || r[3]]);
+      for (let k = 0; k < 3; k++) o.push(['R', s.x - rw - 1 + rng.int(0, Math.round(rw * 1.6)), y + rh, rng.int(2, Math.max(2, Math.round(rw * 0.5))), 1, foam]);
     }
     return o.length ? [L('islote', 'ground', o, { sh: G.style.sh })] : [];
   }

@@ -124,16 +124,16 @@ for (const [i, c] of compactCases.entries()) {
 // con "|". Etiquetas: id del catálogo, biome:, feature:, weather:, sky:,
 // time:, town, focus:, rel:<a>:<tipo>:<b>.
 const SCENES = [
-  ['personaje', 'Una guerrera elfa con capa verde y un arco, de pie en un claro del bosque, mirando hacia la izquierda.', ['elf|archer|custom', 'biome:forest', 'facing:left']],
-  ['paisaje', 'Un valle con un río serpenteante, montañas nevadas al fondo y niebla al amanecer.', ['feature:mountains', 'feature:lake', 'weather:fog', 'time:dawn', '!town']],
+  ['personaje', 'Una guerrera elfa con capa verde y un arco, de pie en un claro del bosque, mirando hacia la izquierda.', ['elf|archer|custom', 'biome:forest', 'facing:left', '!knight']],
+  ['paisaje', 'Un valle con un río serpenteante, montañas nevadas al fondo y niebla al amanecer.', ['feature:mountains', 'feature:river', 'weather:fog', 'time:dawn', '!town']],
   ['arquitectura', 'Una catedral gótica con vidrieras iluminadas en la plaza de una ciudad medieval bajo la lluvia.', ['cathedral', 'town', 'weather:rain']],
-  ['fantasia-compleja', 'Un enorme dragón rojo volando sobre un castillo medieval durante una noche de luna llena, mientras un mago lanza un hechizo desde la torre y unos murciélagos huyen.', ['dragon', 'castle', 'wizard', 'bat', 'sky:moon', 'time:night', 'focus:dragon']],
+  ['fantasia-compleja', 'Un enorme dragón rojo volando sobre un castillo medieval durante una noche de luna llena, mientras un mago lanza un hechizo desde la torre y unos murciélagos huyen.', ['dragon', 'castle', 'wizard', 'bat', 'sky:moon', 'time:night', 'focus:dragon', 'rel:wizard:on:tower', '!biome:interior']],
   ['ambigua', 'algo antiguo y olvidado', []],
-  ['fuera-del-catalogo', 'Un samurái montado en un oso polar junto a un faro, con una aurora boreal en el cielo.', ['samurai', 'bear', 'lighthouse', 'sky:aurora', 'rel:samurai:on:bear']],
+  ['fuera-del-catalogo', 'Un samurái montado en un oso polar junto a un faro, con una aurora boreal en el cielo.', ['samurai', 'bear', 'lighthouse', 'sky:aurora', 'rel:samurai:on:bear', 'color:bear:white', '!biome:interior']],
 ];
 function tagsOf(spec) {
   const t = new Set(), ents = [...spec.subjects, ...spec.structures, ...spec.flora];
-  for (const e of ents) { t.add(e.kit ? 'custom' : e.id); if (e.rel) t.add(`rel:${e.id}:${e.rel.type}:${e.rel.of}`); if (e.facing) t.add('facing:' + e.facing); }
+  for (const e of ents) { t.add(e.kit ? 'custom' : e.id); if (e.rel) t.add(`rel:${e.id}:${e.rel.type}:${e.rel.of}`); if (e.facing) t.add('facing:' + e.facing); if (e.color) t.add(`color:${e.id}:${e.color}`); }
   if (spec.biome) t.add('biome:' + spec.biome);
   for (const f of spec.features) t.add('feature:' + f);
   for (const w of spec.weather) t.add('weather:' + w);

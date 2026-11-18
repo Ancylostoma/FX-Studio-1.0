@@ -9,7 +9,7 @@ import { LIB } from '../generator/spriteLibrary.js';
 import { BIOMES, COLORS, MATERIALS, THEMES } from '../generator/templates.js';
 import { emptyRaw, REL_TYPES } from '../generator/promptParser.js';
 import { KIT_BASES, KIT_PARAMS, sanitizeKit } from '../generator/kits.js';
-import { ROOM_KINDS } from '../generator/environments.js';
+import { ROOM_KINDS, ROOM_ITEMS } from '../generator/environments.js';
 
 const idsOf = (...cats) => Object.values(LIB).filter((d) => cats.includes(d.cat)).map((d) => d.id);
 export const PLAN_CATALOG = Object.freeze({
@@ -274,12 +274,23 @@ export function applyCertainties(planRaw, prompt, prefs = 'balanced', parse) {
   }
   // Hacia dónde mira: si la frase lo dice, manda.
   for (const pe of [...p.subjects, ...p.structures]) if (pe.facing) for (const e of raw.subjects.filter((x) => x.id === pe.id || x.id === raw.focus)) if (e.facing !== pe.facing) { e.facing = pe.facing; fixes.push(`«${e.id}» mira hacia la ${pe.facing === 'left' ? 'izquierda' : 'derecha'} (lo dice la descripción)`); }
+  // Interior que la frase no pide (p. ej. un dragón «volando sobre un castillo» metido en una mazmorra).
+  const INDOOR = /\b(interior|dentro|habitaci[oó]n|cuarto|sala|sal[oó]n|mazmorra|calabozo|celda|biblioteca|taberna|posada|cocina|laboratorio|cueva|caverna|room|inside|indoors|dungeon|library|tavern|kitchen|cave)\b/i;
+  if ((raw.setting === 'interior' || raw.room) && p.setting !== 'interior' && !p.room && !INDOOR.test(prompt) && prefs !== 'creative') {
+    fixes.push(`interior «${raw.room || 'interior'}» quitado: la descripción es de exterior`);
+    raw.setting = p.setting || null; raw.room = null; if (!raw.biome) raw.biome = p.biome || null;
+    const items = new Set(ROOM_ITEMS), askedF = new Set(p.flora.map((e) => e.id));
+    const nF = raw.flora.length;
+    raw.flora = raw.flora.filter((e) => !items.has(e.id) || askedF.has(e.id));
+    if (raw.flora.length < nF) fixes.push(`${nF - raw.flora.length} mueble(s) de interior quitado(s)`);
+  }
   // Relaciones («montado en», «desde la torre») y cantidades («unos murciélagos») de la frase mandan.
   const all = [...raw.subjects, ...raw.structures, ...raw.flora];
   for (const pe of [...p.subjects, ...p.structures]) {
     const e = all.find((x) => x.id === pe.id);
     if (!e) continue;
     if (pe.rel && all.some((x) => x.id === pe.rel.of && x !== e) && (e.rel?.type !== pe.rel.type || e.rel?.of !== pe.rel.of)) { e.rel = { ...pe.rel }; fixes.push(`«${e.id}» ${pe.rel.type === 'on' ? 'encima de / montado en' : pe.rel.type} «${pe.rel.of}» (lo dice la descripción)`); }
+    if (pe.color && e.color !== pe.color) { e.color = pe.color; fixes.push(`«${e.id}» de color ${pe.color} (lo dice la descripción)`); }
     if (pe.n > 1 && (e.n || 1) < pe.n) { e.n = pe.n; fixes.push(`«${e.id}» ×${pe.n} (la descripción habla en plural)`); }
   }
   if (prefs !== 'creative') {

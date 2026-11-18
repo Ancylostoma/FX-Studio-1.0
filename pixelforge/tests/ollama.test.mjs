@@ -274,3 +274,19 @@ test('fidelidad (3.ª prueba real): montado en, desde la torre, plurales, objeto
   const d = parsePrompt('Un arquero dispara desde lejos a un lobo').raw;
   assert.equal(d.subjects[0].rel, null);
 });
+
+test('fidelidad (4.ª prueba real): interior no pedido, color de la frase y «guerrera elfa»', () => {
+  const DRAGON = 'Un enorme dragón rojo volando sobre un castillo medieval durante una noche de luna llena, mientras un mago lanza un hechizo desde la torre y unos murciélagos huyen.';
+  const plan = sanitizePlan({ subjects: [{ id: 'dragon', color: 'red' }, { id: 'wizard' }], structures: [{ id: 'castle' }, { id: 'tower' }], props: [{ id: 'fireplace' }], setting: 'interior', room: 'dungeon', sky: ['moon'] }).raw;
+  const { raw, fixes } = applyCertainties(plan, DRAGON, 'balanced', parsePrompt);
+  assert.equal(raw.setting, null); assert.equal(raw.room, null);
+  assert.deepEqual(raw.flora, [], fixes.join(' | '));
+  assert.notEqual(finalize(raw).biome, 'interior');
+  // Si la frase pide el interior, se respeta.
+  const tav = applyCertainties(plan, 'Un mago junto a la chimenea de una taberna', 'balanced', parsePrompt).raw;
+  assert.ok(tav.room); assert.ok(tav.flora.some((e) => e.id === 'fireplace'));
+  const bear = sanitizePlan({ subjects: [{ id: 'samurai' }, { id: 'bear' }] }).raw;
+  assert.equal(applyCertainties(bear, 'Un samurái montado en un oso polar', 'balanced', parsePrompt).raw.subjects.find((e) => e.id === 'bear').color, 'white');
+  assert.deepEqual(parsePrompt('Una guerrera elfa con un arco').raw.subjects.map((e) => e.id), ['elf']);
+  assert.deepEqual(parsePrompt('Un guerrero junto a un lobo').raw.subjects.map((e) => e.id), ['knight', 'wolf']);
+});

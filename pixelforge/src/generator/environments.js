@@ -150,6 +150,8 @@ const ROOMS = {
   room: { name: 'habitación', wall: 'cream', floor: 'wood', window: 'square', back: [['bookshelf', 0.85]], floorItems: [['rug', 0.45, 0.55], ['table', 0.25, 0.4], ['chair', 0.12, 0.42], ['candle', 0.27, -0.1]] },
 };
 export const ROOM_KINDS = Object.keys(ROOMS);
+// Muebles y objetos propios de interiores (para quitarlos si la escena resulta ser exterior).
+export const ROOM_ITEMS = [...new Set(Object.values(ROOMS).flatMap((r) => [...(r.back || []), ...(r.floorItems || [])].map((x) => x[0])))];
 
 export function genInterior(G) {
   const { w, h, C, spec } = G, rng = G.rng('interior');
