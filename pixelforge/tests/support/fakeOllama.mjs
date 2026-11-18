@@ -5,6 +5,7 @@
 import { createServer } from 'node:http';
 
 export const FAKE_MODELS = [
+  { name: 'qwen3.5:4b', size: 3_400_000_000, digest: 'q35', details: { family: 'qwen35', parameter_size: '4.7B', quantization_level: 'Q4_K_M' }, capabilities: ['completion', 'vision', 'tools', 'thinking'] },
   { name: 'qwen2.5:3b', size: 1_929_903_008, digest: 'a1', details: { family: 'qwen2', parameter_size: '3.1B', quantization_level: 'Q4_K_M' }, capabilities: ['completion', 'tools'] },
   { name: 'qwen3:1.7b', size: 1_100_000_000, digest: 'b2', details: { family: 'qwen3', parameter_size: '1.7B', quantization_level: 'Q4_K_M' }, capabilities: ['completion', 'thinking'] },
   { name: 'llama3.2:1b', size: 770_928_480, digest: 'c3', details: { family: 'llama', parameter_size: '1.2B', quantization_level: 'Q4_0' }, capabilities: ['completion'] },
@@ -28,8 +29,8 @@ export function fakePlan(text) {
   return { subjects: [{ id: 'character' }], biome: 'meadow', time: 'day' };
 }
 
-export function startFakeOllama({ version = '0.12.3', models = FAKE_MODELS, invalidFirst = false, delayMs = 0, port = 0 } = {}) {
-  const log = [];
+export function startFakeOllama({ version = '0.12.3', models = FAKE_MODELS, invalidFirst = false, delayMs = 0, port = 0, rejectThink = false, rejectSchema = false } = {}) {
+  const log = [], loaded = new Set();
   let bad = invalidFirst;
   const send = (res, code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(obj)); };
   const server = createServer((req, res) => {
@@ -37,14 +38,19 @@ export function startFakeOllama({ version = '0.12.3', models = FAKE_MODELS, inva
       const b = body ? JSON.parse(body) : null; log.push({ method: req.method, path: req.url, body: b });
       if (req.url === '/api/version') return send(res, 200, { version });
       if (req.url === '/api/tags') return send(res, 200, { models: models.map(({ capabilities, ...m }) => m) });
-      if (req.url === '/api/ps') return send(res, 200, { models: [] });
+      if (req.url === '/api/ps') return send(res, 200, { models: [...loaded].map((name) => ({ name, size: 4e9, size_vram: 4e9 })) });
+      if (req.url === '/api/generate') { const g = b && models.find((x) => x.name === b.model); if (!g) return send(res, 404, { error: `model "${b?.model}" not found` }); loaded.add(g.name); return send(res, 200, { model: g.name, response: '', done: true, load_duration: 900e6 }); }
       const m = b && models.find((x) => x.name === b.model);
       if (req.url === '/api/show') return m ? send(res, 200, { capabilities: m.capabilities, details: m.details }) : send(res, 404, { error: `model "${b?.model}" not found` });
       if (req.url === '/api/chat') {
         if (!m) return send(res, 404, { error: `model "${b?.model}" not found, try pulling it first` });
         if (b.think !== undefined && !m.capabilities.includes('thinking')) return send(res, 400, { error: `"${m.name}" does not support thinking` });
+        if (rejectThink && b.think !== undefined) return send(res, 400, { error: 'invalid think value' });
+        if (rejectSchema && typeof b.format === 'object') return send(res, 400, { error: 'invalid format: json schema not supported' });
         const user = [...b.messages].reverse().find((x) => x.role === 'user' && !x.content.startsWith('Eso no es')).content;
-        const content = bad ? 'Claro, aquí tienes la escena: un dragón…' : JSON.stringify(fakePlan(user));
+        loaded.add(m.name);
+        const compact = b.format && typeof b.format === 'object' && b.format.properties?.sujeto_principal;
+        const content = bad ? 'Claro, aquí tienes la escena: un dragón…' : !b.format ? 'El pixel art es un estilo de arte digital hecho píxel a píxel.' : compact ? JSON.stringify({ sujeto_principal: 'dragón rojo', escenario: 'castillo', estilo: 'medieval', ambiente: 'noche', paleta: ['rojo', 'negro', 'gris'], objetos: [{ nombre: 'dragón', posicion: 'arriba', profundidad: 'primer_plano', importancia: 'protagonista' }, { nombre: 'castillo', posicion: 'centro', profundidad: 'medio', importancia: 'secundario' }, { nombre: 'luna', posicion: 'derecha', profundidad: 'fondo', importancia: 'ambiental' }] }) : JSON.stringify(fakePlan(user));
         bad = false;
         return send(res, 200, { model: m.name, message: { role: 'assistant', content }, done: true, load_duration: 120e6, prompt_eval_count: 900, eval_count: 140, eval_duration: 4e9 });
       }

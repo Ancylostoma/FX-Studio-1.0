@@ -13,8 +13,9 @@ Por eso basta con modelos pequeños: la tarea es entender y elegir, no pintar.
 | Memoria del equipo | Modelo sugerido | Descarga aprox. | Notas |
 |---|---|---|---|
 | Menos de 8 GB de RAM | `qwen2.5:1.5b` | 1 GB | Entiende frases sencillas; puede olvidar elementos (el modo híbrido los recupera) |
-| 8–16 GB de RAM | `qwen2.5:3b` | 1,9 GB | Buen equilibrio sin GPU |
-| 16 GB o más | `qwen2.5:7b` | 4,7 GB | Mejor comprensión; más lento sin GPU |
+| 8–16 GB de RAM o GPU de 4–8 GB | **`qwen3.5:4b`** (por defecto) | unos 3–4 GB | Cabe entero en una GPU de 6 GB como la RTX 4050 Laptop |
+| 8–16 GB de RAM sin GPU | `qwen2.5:3b` | 1,9 GB | Más ligero si no hay GPU |
+| 24 GB o más sin GPU | `qwen2.5:7b` | 4,7 GB | Mejor comprensión; lento sin GPU |
 | GPU con 10 GB o más | `qwen2.5:14b` | 9 GB | La mejor opción si hay GPU |
 
 Los tamaños son aproximados y pueden variar según la versión publicada en Ollama. Otras familias que funcionan: `qwen3`, `gemma3`, `llama3.2`, `phi4-mini`, `mistral`. Los modelos de *embeddings* (por ejemplo `nomic-embed-text`) no sirven y la aplicación los oculta.
@@ -39,6 +40,10 @@ Muestra a la vez el resultado del motor procedural con las mismas frases, para s
 | Interpretación | Fiel (solo lo pedido) · Equilibrada · Creativa (añade ambiente y efectos) |
 | Tokens máx. | Límite de la respuesta; 1200 basta para escenas complejas |
 | Tiempo límite | Sin GPU, la primera petición (carga del modelo) puede tardar más |
+
+## Memoria en una GPU de 6 GB
+
+Con 6 GB de VRAM conviene que el modelo quepa entero en la GPU (`ollama ps` debe indicar `100% GPU`): si no cabe, Ollama reparte capas con la CPU y la velocidad cae mucho. `qwen3.5:4b` con contexto de 4096 cabe. Subir el contexto a 8192 aumenta la memoria necesaria; hazlo solo si el aviso «Contexto ampliado» aparece a menudo. «Liberar tras cada uso» devuelve la VRAM al terminar, a cambio de recargar el modelo en cada generación.
 
 ## Compatibilidad
 

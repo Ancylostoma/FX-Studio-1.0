@@ -8,9 +8,27 @@ Generador de Pixel Art **por código**. Escribes una descripción («un dragón 
 
 ## Inicio rápido (Windows)
 
-1. Instala [Node.js](https://nodejs.org) (LTS).
-2. Doble clic en **`INICIAR.bat`** → se abre `http://localhost:8787`. Para cerrarla, **`DETENER.bat`**.
-3. Opcional: instala Ollama y ejecuta **`COMPROBAR_OLLAMA.bat`**. Detalle en [GUIA_INSTALACION.md](GUIA_INSTALACION.md).
+1. Instala [Node.js](https://nodejs.org) (LTS). No hace falta `npm install`.
+2. Doble clic en **`INICIAR.bat`**. Si Ollama está instalado y no responde, lo arranca con `ollama serve` (nunca abre un segundo servidor si ya hay uno), espera a que esté listo y abre `http://localhost:8787`. Para cerrar PixelForge, **`DETENER.bat`** (no cierra Ollama).
+3. **`COMPROBAR_OLLAMA.bat`**: estado de Ollama, modelos instalados, RAM y GPU.
+4. **`PROBAR_OLLAMA.bat`**: prueba real completa con `qwen3.5:4b` (ver [Prueba real con Ollama](#prueba-real-con-ollama)).
+
+Detalle en [GUIA_INSTALACION.md](GUIA_INSTALACION.md).
+
+### Configuración por defecto
+
+Pensada para un portátil con 16 GB de RAM y una GPU NVIDIA de 6 GB (por ejemplo, HP Victus con RTX 4050 Laptop):
+
+| Ajuste | Valor | Dónde se cambia |
+|---|---|---|
+| Servidor de Ollama | `http://127.0.0.1:11434` | Panel «IA local» o `OLLAMA_URL` en `.env` |
+| Modelo | `qwen3.5:4b` | Panel «IA local» o `PIXELFORGE_OLLAMA_MODEL` |
+| Contexto | 4096 tokens (se amplía solo si el prompt no cabe, y se avisa) | Panel |
+| Temperatura | 0,25 | Panel |
+| Mantener en memoria | 30 minutos (el modelo no se recarga en cada generación) | Panel |
+| Servidor de PixelForge | solo `127.0.0.1` (no accesible desde la red) | `PIXELFORGE_HOST` |
+
+Al abrir PixelForge con Ollama disponible, el modelo se precarga una vez. El panel muestra la GPU detectada (`nvidia-smi`) y qué parte del modelo está en la VRAM según Ollama (lo mismo que `ollama ps`).
 
 En macOS o Linux: `npm start` dentro de esta carpeta.
 
@@ -21,7 +39,7 @@ En macOS o Linux: `npm start` dentro de esta carpeta.
 | **Procedural offline** | Diccionarios, sinónimos y reglas semánticas | Nada | Siempre disponible, también en el móvil; instantáneo |
 | **IA local · Ollama** | Un modelo de lenguaje en tu equipo | Ollama + un modelo | Descripciones libres, sinónimos, objetos fuera del catálogo |
 | **Híbrido automático** (por defecto) | Ollama; si no responde, el procedural | Nada (usa Ollama si lo hay) | Recomendado: nunca se bloquea |
-| Claude (nube, opcional) | API de Anthropic | Clave de pago en `.env` | Solo aparece si configuras una clave |
+| Claude (nube) | — | — | **Desactivado.** El código se conserva inerte; solo se activaría con `PIXELFORGE_ENABLE_CLOUD=1` y una clave |
 
 En el modo híbrido, lo que el parser reconoce con certeza y el modelo olvida se añade al plan, lo que protege frente a omisiones de modelos pequeños. El panel **«IA local (Ollama)»** muestra el estado, los modelos instalados, la memoria del equipo, el modelo recomendado y permite **evaluar** un modelo con medidas reales. Guía de modelos: [GUIA_MODELOS.md](GUIA_MODELOS.md).
 
@@ -115,6 +133,18 @@ tools           Benchmark, prueba de Claude, ejemplos e iconos
 - **El núcleo no toca el DOM**: todo el motor corre igual en Node, lo que permite el benchmark y las pruebas sin navegador.
 - **Sin Web Workers**: componer y renderizar una escena de 160 px tarda decenas de milisegundos.
 
+## Prueba real con Ollama
+
+```bat
+PROBAR_OLLAMA.bat
+```
+
+(o `node tools/ollama-check.mjs qwen3.5:4b`). Ejecuta contra tu Ollama los 12 pasos de la integración y deja en `docs/ollama-check/` un informe, las respuestas en bruto del modelo y las imágenes:
+
+1. Ollama disponible · 2. modelo instalado (y sus capacidades) · carga en memoria y % en GPU · 3–4. prompt en español y respuesta · 5–6. JSON con un esquema compacto (sujeto principal, escenario, estilo, ambiente, paleta, objetos con posición, profundidad e importancia), **validando la salida en bruto contra el esquema**, y comprobación de composición en el ejemplo del dragón (dragón protagonista, castillo detrás, luna al fondo) · 7–10. seis escenas (personaje, paisaje, arquitectura, fantasía compleja, entrada ambigua y algo fuera del catálogo) convertidas en escena, validadas como PixelScene, renderizadas y exportadas a PNG junto a la versión procedural · 11. respaldo procedural con Ollama inaccesible · 12. lista de todas las conexiones de red realizadas (deben ser solo locales).
+
+Registra las incompatibilidades reales entre la versión de Ollama, el modelo y la salida estructurada (por ejemplo, si rechaza la opción `think` o el esquema) en lugar de darlas por resueltas.
+
 ## Benchmark
 
 ```bash
@@ -126,7 +156,7 @@ Ejecuta 12 escenas de categorías distintas con el motor procedural. Para compar
 ## Límites conocidos
 
 - **El motor procedural no entiende lenguaje libre**: reconoce un vocabulario amplio pero cerrado. Lo que no reconoce lo dice; no finge haberlo dibujado.
-- **La calidad del modo Ollama depende del modelo y no se ha medido con un modelo real**: el adaptador se ha probado contra un simulador del contrato HTTP de Ollama, no contra Ollama en funcionamiento (ver la sección de pruebas).
+- **La calidad del modo Ollama no se ha medido aún con Qwen**: el código se ha probado contra un simulador del contrato HTTP de Ollama, no contra tu Ollama. `PROBAR_OLLAMA.bat` es la prueba que lo confirma o lo desmiente.
 - La **vista cenital** (`view: top`) usa por ahora la isla isométrica; no hay sprites vistos desde arriba. La vista en tres cuartos no está implementada.
 - Los kits construyen formas reconocibles pero esquemáticas; los objetos descritos con **primitivas** (`shapes`) son el último recurso y su calidad depende de la descripción del modelo.
 - El **borrador** solo elimina retoques del lápiz; las animaciones son ciclos procedurales de 4 fotogramas.
@@ -138,7 +168,7 @@ Ejecuta 12 escenas de categorías distintas con el motor procedural. Para compar
 npm test
 ```
 
-91 pruebas unitarias: parser, posiciones, validación, geometría, renderizador, generador, kits, edición, exportación, animación, GIF, modo híbrido, adaptador de Ollama (contra un simulador que valida el contrato HTTP) y saneado del plan.
+96 pruebas unitarias: parser, posiciones, validación, geometría, renderizador, generador, kits, edición, exportación, animación, GIF, modo híbrido, adaptador de Ollama (contra un simulador que valida el contrato HTTP: modelo por defecto, contexto, permanencia, precarga, GPU, rechazos de `think` o del esquema), validador estricto de esquema, nube inactiva, y servidor limitado a localhost sin instancias duplicadas.
 
 ```bash
 npm run test:e2e

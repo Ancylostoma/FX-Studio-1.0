@@ -7,7 +7,9 @@ import { STYLES } from '../src/generator/templates.js';
 import { SPEC_SCHEMA, INTERPRET_SYSTEM, buildInterpretMessage, sanitizeRaw } from '../src/ai/specSchema.js';
 
 export const DEFAULT_MODEL = 'claude-opus-5-5';
-export const aiConfigured = () => !!(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
+// La nube es opcional y está INACTIVA por defecto: además de la clave hace falta
+// PIXELFORGE_ENABLE_CLOUD=1, para que nunca se active por una clave presente en el sistema.
+export const aiConfigured = () => process.env.PIXELFORGE_ENABLE_CLOUD === '1' && !!(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
 export const modelId = () => process.env.PIXELFORGE_MODEL || DEFAULT_MODEL;
 // Interpretar es una tarea corta: puede usar un modelo distinto si se configura.
 export const interpretModelId = () => process.env.PIXELFORGE_INTERPRET_MODEL || modelId();

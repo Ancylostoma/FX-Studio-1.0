@@ -8,6 +8,11 @@ import { PLAN_SCHEMA, buildLocalMessages, sanitizePlan } from '../src/ai/planSch
 import { finalize, parsePrompt } from '../src/generator/promptParser.js';
 
 export const DEFAULT_URL = 'http://127.0.0.1:11434';
+// Modelo por defecto (configurable con PIXELFORGE_OLLAMA_MODEL en .env).
+export const DEFAULT_MODEL = () => process.env.PIXELFORGE_OLLAMA_MODEL || 'qwen3.5:4b';
+// Ajustes por defecto pensados para un portátil con 16 GB de RAM y GPU de 6 GB.
+export const DEFAULTS = Object.freeze({ temperature: 0.25, maxTokens: 1200, numCtx: 4096, keepAlive: '30m', timeoutMs: 120000 });
+const KEEP_ALIVE_RE = /^(-1|0|\d{1,4}[smh])$/;
 export class LocalError extends Error { constructor(message, status = 502, code = 'error') { super(message); this.status = status; this.code = code; } }
 
 // ---------------- Seguridad: a qué servidores se permite hablar ----------------
@@ -66,7 +71,7 @@ export async function systemInfo() {
 // Calidad esperada por familia para esta tarea (JSON estructurado, catálogo
 // cerrado, español). Es una orientación, no una medida: la medida real la da
 // evaluateModel().
-const FAMILY = [[/qwen3/i, 3.2], [/qwen2\.5|qwen2/i, 3], [/gemma3|gemma-3/i, 2.6], [/llama3\.[123]|llama-3/i, 2.2], [/mistral|ministral/i, 2.2], [/phi-?4/i, 2.3], [/phi/i, 1.8], [/granite/i, 1.8], [/smollm/i, 1.2]];
+const FAMILY = [[/qwen3\.5/i, 3.4], [/qwen3/i, 3.2], [/qwen2\.5|qwen2/i, 3], [/gemma3|gemma-3/i, 2.6], [/llama3\.[123]|llama-3/i, 2.2], [/mistral|ministral/i, 2.2], [/phi-?4/i, 2.3], [/phi/i, 1.8], [/granite/i, 1.8], [/smollm/i, 1.2]];
 const EMBED = /embed|bge|minilm|nomic-embed/i;
 const paramsOf = (m) => { const v = parseFloat(String(m.details?.parameter_size || m.name.match(/(\d+(?:\.\d+)?)b/i)?.[1] || '0')); return /m$/i.test(m.details?.parameter_size || '') ? v / 1000 : v; };
 
@@ -84,9 +89,9 @@ export function scoreModel(m, sys) {
 // Sugerencia de descarga cuando no hay modelos adecuados (no se descarga nada).
 export function suggestPull(sys) {
   const gb = sys.totalRAM / 1e9, vram = (sys.gpu?.vram || 0) / 1e9;
-  if (vram >= 10 || (sys.gpu?.unified && gb >= 32)) return { model: 'qwen2.5:14b', approxGB: 9, why: 'GPU con memoria suficiente' };
-  if (gb >= 16 || vram >= 6) return { model: 'qwen2.5:7b', approxGB: 4.7, why: '16 GB de RAM o más' };
-  if (gb >= 8) return { model: 'qwen2.5:3b', approxGB: 1.9, why: '8–16 GB de RAM' };
+  if (vram >= 10 || (sys.gpu?.unified && gb >= 32)) return { model: 'qwen2.5:14b', approxGB: 9, why: 'GPU con 10 GB o más' };
+  if (gb >= 24 && !vram) return { model: 'qwen2.5:7b', approxGB: 4.7, why: '24 GB de RAM o más sin GPU dedicada' };
+  if (gb >= 8 || vram >= 4) return { model: 'qwen3.5:4b', approxGB: 3.4, why: '8–16 GB de RAM o GPU de 4–8 GB (cabe entero en la VRAM)' };
   return { model: 'qwen2.5:1.5b', approxGB: 1, why: 'menos de 8 GB de RAM' };
 }
 
@@ -106,8 +111,26 @@ export async function status(urlInput) {
     models.push({ name: m.name, size: m.size, family: m.details?.family || null, params: m.details?.parameter_size || null, quant: m.details?.quantization_level || null, capabilities: caps, loaded: (ps.models || []).some((x) => x.name === m.name), ...sc });
   }
   models.sort((a, b) => b.score - a.score);
-  const recommended = models.find((m) => m.fits && (!m.capabilities || m.capabilities.includes('completion')))?.name || null;
-  return { available: true, url: base, version, models, recommended, running: (ps.models || []).map((m) => ({ name: m.name, sizeVram: m.size_vram, size: m.size })), system: sys, suggestion: recommended ? null : suggestPull(sys) };
+  // Si el modelo por defecto está instalado y cabe, es el recomendado.
+  const def = models.find((m) => m.name === DEFAULT_MODEL() && m.fits);
+  const recommended = def?.name || models.find((m) => m.fits && (!m.capabilities || m.capabilities.includes('completion')))?.name || null;
+  // Uso de GPU real según Ollama: fracción del modelo cargada en VRAM (lo que "ollama ps" muestra como "100% GPU").
+  const running = (ps.models || []).map((m) => ({ name: m.name, size: m.size, sizeVram: m.size_vram, gpuShare: m.size ? Math.round((100 * (m.size_vram || 0)) / m.size) : null, expiresAt: m.expires_at || null }));
+  return { available: true, url: base, version, models, recommended, defaultModel: DEFAULT_MODEL(), running, system: sys, suggestion: recommended ? null : suggestPull(sys) };
+}
+
+// Precarga el modelo en memoria (Ollama lo carga con una petición vacía) para
+// que la primera generación no pague el tiempo de carga.
+export async function warmup(body, signal) {
+  const base = resolveUrl(body?.url);
+  const model = typeof body?.model === 'string' && /^[\w.:\-\/]{1,100}$/.test(body.model) ? body.model : null;
+  if (!model) throw new LocalError('Elige un modelo de Ollama', 400, 'no_model');
+  const keepAlive = KEEP_ALIVE_RE.test(String(body?.keepAlive)) ? (body.keepAlive === '-1' ? -1 : body.keepAlive) : DEFAULTS.keepAlive;
+  const t0 = Date.now();
+  const r = await call(base, '/api/generate', { method: 'POST', body: { model, prompt: '', keep_alive: keepAlive, stream: false }, timeoutMs: 180000, signal });
+  const ps = await call(base, '/api/ps').catch(() => ({ models: [] }));
+  const m = (ps.models || []).find((x) => x.name === model);
+  return { model, ms: Date.now() - t0, loadMs: r?.load_duration ? Math.round(r.load_duration / 1e6) : null, gpuShare: m?.size ? Math.round((100 * (m.size_vram || 0)) / m.size) : null, sizeVram: m?.size_vram ?? null };
 }
 
 const versionAtLeast = (v, [a, b]) => { const m = String(v).match(/(\d+)\.(\d+)/); return m ? +m[1] > a || (+m[1] === a && +m[2] >= b) : false; };
@@ -122,21 +145,40 @@ export async function interpret(body, signal) {
   const instruction = String(body?.instruction || '').trim().slice(0, 300);
   const raw = body?.raw && typeof body.raw === 'object' ? body.raw : null;
   if (!prompt && !(raw && instruction)) throw new LocalError('Falta la descripción', 400, 'no_prompt');
-  const temperature = Math.max(0, Math.min(1.5, Number.isFinite(+body?.temperature) ? +body.temperature : 0.2));
-  const maxTokens = Math.max(200, Math.min(4096, +body?.maxTokens || 1200));
-  const timeoutMs = Math.max(1000, Math.min(600000, +body?.timeoutMs || 120000));
+  const temperature = Math.max(0, Math.min(1.5, Number.isFinite(+body?.temperature) ? +body.temperature : DEFAULTS.temperature));
+  const maxTokens = Math.max(200, Math.min(4096, +body?.maxTokens || DEFAULTS.maxTokens));
+  const timeoutMs = Math.max(1000, Math.min(600000, +body?.timeoutMs || DEFAULTS.timeoutMs));
+  let numCtx = Math.max(2048, Math.min(32768, +body?.numCtx || DEFAULTS.numCtx));
+  const keepAlive = KEEP_ALIVE_RE.test(String(body?.keepAlive)) ? (body.keepAlive === '-1' ? -1 : body.keepAlive) : DEFAULTS.keepAlive;
   const prefs = ['strict', 'balanced', 'creative'].includes(body?.prefs) ? body.prefs : 'balanced';
   const ver = (await call(base, '/api/version', { timeoutMs: 2000 }))?.version || '0';
   // Salida estructurada: esquema JSON desde Ollama 0.5; antes, solo "json".
   const format = versionAtLeast(ver, [0, 5]) ? PLAN_SCHEMA : 'json';
   const caps = (await call(base, '/api/show', { method: 'POST', body: { model }, timeoutMs: 8000 }).catch((e) => { if (e.code === 'model_missing') throw e; return null; }))?.capabilities || [];
   const messages = buildLocalMessages({ prompt, raw: raw ? sanitizeEditRaw(raw) : null, instruction, prefs });
-  const req = { model, messages, stream: false, format, keep_alive: '15m', options: { temperature, num_predict: maxTokens, num_ctx: 8192 } };
+  // Contexto: si el prompt (≈3 caracteres por token, estimación prudente) más
+  // la respuesta no caben, Ollama recortaría el principio (las instrucciones)
+  // sin avisar. En ese caso se amplía lo justo y se informa.
+  const compat = [];
+  const estPrompt = Math.ceil(messages.reduce((a, m) => a + m.content.length, 0) / 3);
+  if (estPrompt + maxTokens > numCtx) { const need = Math.ceil((estPrompt + maxTokens) / 1024) * 1024; compat.push(`Contexto ampliado de ${numCtx} a ${need} tokens para que quepa el prompt`); numCtx = need; }
+  const req = { model, messages, stream: false, format, keep_alive: keepAlive, options: { temperature, num_predict: maxTokens, num_ctx: numCtx } };
+  if (format === 'json') compat.push(`Ollama ${ver} no admite esquemas: se usa format "json"`);
   if (caps.includes('thinking')) req.think = false;          // solo si el modelo lo admite
   const t0 = Date.now();
-  let res = await call(base, '/api/chat', { method: 'POST', body: req, timeoutMs, signal });
+  let res;
+  try { res = await call(base, '/api/chat', { method: 'POST', body: req, timeoutMs, signal }); }
+  catch (e) {
+    // Incompatibilidades reales de una versión concreta: se reintenta sin la opción y se registra.
+    if (e.code !== 'ollama_error') throw e;
+    if (req.think !== undefined && /think/i.test(e.message)) { delete req.think; compat.push('El modelo rechazó la opción think: se envía sin ella'); }
+    else if (typeof req.format === 'object' && /format|schema|grammar/i.test(e.message)) { req.format = 'json'; compat.push('Ollama rechazó el esquema JSON: se usa format "json" (' + e.message.slice(0, 80) + ')'); }
+    else throw e;
+    res = await call(base, '/api/chat', { method: 'POST', body: req, timeoutMs, signal });
+  }
   let out = parseOut(res?.message?.content);
   let attempts = 1;
+  const firstText = res?.message?.content;
   if (!out) {   // un reintento devolviendo el error al modelo
     attempts++;
     req.messages = [...messages, { role: 'assistant', content: String(res?.message?.content || '').slice(0, 2000) }, { role: 'user', content: 'Eso no es un JSON válido con el formato pedido. Devuelve solo el JSON.' }];
@@ -145,8 +187,10 @@ export async function interpret(body, signal) {
   }
   if (!out) throw new LocalError('El modelo local no devolvió un plan válido', 502, 'invalid_output');
   const ns = (v) => (v ? Math.round(v / 1e6) : null);
+  if (res.prompt_eval_count && res.prompt_eval_count >= numCtx - 8) compat.push(`El prompt ocupó todo el contexto (${res.prompt_eval_count} tokens): puede haberse recortado`);
   return {
-    raw: out.raw, warnings: out.warnings, model, attempts,
+    raw: out.raw, warnings: out.warnings, model, attempts, compat, numCtx,
+    ...(body?.debug ? { modelText: [firstText, attempts > 1 ? res?.message?.content : null].filter(Boolean) } : {}),
     timings: { totalMs: Date.now() - t0, loadMs: ns(res.load_duration), promptTokens: res.prompt_eval_count || null, outputTokens: res.eval_count || null, tokensPerSecond: res.eval_count && res.eval_duration ? +(res.eval_count / (res.eval_duration / 1e9)).toFixed(1) : null },
   };
 }

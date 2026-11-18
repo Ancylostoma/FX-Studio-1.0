@@ -33,7 +33,7 @@ Una vez descargados Node.js, Ollama y el modelo, todo funciona **sin conexión a
 
 | Síntoma | Causa probable | Solución |
 |---|---|---|
-| «no detectado» en el panel | Ollama no está en marcha | Ábrelo desde el menú Inicio o ejecuta `ollama serve` |
+| «no detectado» en el panel | Ollama no está en marcha (el error de Windows es «connectex: … actively refused it») | Ejecuta `INICIAR.bat`, que lo arranca si hace falta, o abre la aplicación Ollama. Si lo arrancas a mano con `ollama serve`, no lo hagas dos veces: el segundo falla porque el puerto 11434 ya está en uso |
 | «conectado» pero sin modelos | No hay ningún modelo descargado | `ollama pull qwen2.5:3b` |
 | La interpretación tarda más de un minuto | Modelo grande para el equipo, sin GPU | Usa un modelo más pequeño (ver GUIA_MODELOS.md) o sube el «Tiempo límite» |
 | «tardó demasiado en responder» | La primera carga del modelo es lenta | Vuelve a intentarlo: la segunda vez ya está en memoria |

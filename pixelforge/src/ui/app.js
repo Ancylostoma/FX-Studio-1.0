@@ -16,7 +16,8 @@ import { exportImage, exportFrames, buildFrameStrip, animationToGif, scaleForTar
 import { sceneToJSON, serializeProject, parseProjectFile, safeFileName } from '../export/projectExporter.js';
 import * as pm from '../storage/projectManager.js';
 import { aiStatus, aiGenerate, aiInterpret } from '../ai/aiClient.js';
-import { localStatus, localInterpret, localEvaluate } from '../ai/localClient.js';
+import { THEMES } from '../generator/templates.js';
+import { localStatus, localInterpret, localEvaluate, localWarmup } from '../ai/localClient.js';
 import { mergeWithParser } from '../ai/planSchema.js';
 import { composeChecked } from '../generator/qualityControl.js';
 import { autoResolution, applyTheme } from '../generator/environments.js';
@@ -121,13 +122,13 @@ async function interpretWith(engine, input) {
   const t0 = performance.now();
   const procedural = () => (input.prompt ? { raw: parsePrompt(input.prompt).raw } : { raw: applyEdit(input.raw, input.instruction).raw });
   const cfg = localSettings();
-  const localBody = () => ({ ...input, url: cfg.url || undefined, model: cfg.model, temperature: cfg.temperature, maxTokens: cfg.maxTokens, timeoutMs: cfg.timeout * 1000, prefs: cfg.prefs });
+  const localBody = () => ({ ...input, numCtx: cfg.numCtx, keepAlive: cfg.keepAlive, url: cfg.url || undefined, model: cfg.model, temperature: cfg.temperature, maxTokens: cfg.maxTokens, timeoutMs: cfg.timeout * 1000, prefs: cfg.prefs });
   if (engine === 'local') {
     if (!state.local.available) throw new Error('Ollama no está disponible. ' + (state.local.reason || '') + ' Cambia el motor a «Procedural» o «Híbrido automático».');
     if (!cfg.model) throw new Error('Elige un modelo de Ollama en el panel «IA local».');
     toast(`Interpretando con ${cfg.model}…`);
     const out = await localInterpret(localBody());
-    return { raw: out.raw, source: 'local', info: { model: out.model, ms: performance.now() - t0, timings: out.timings, warnings: out.warnings } };
+    return { raw: out.raw, source: 'local', info: { compat: out.compat, model: out.model, ms: performance.now() - t0, timings: out.timings, warnings: out.warnings } };
   }
   if (engine === 'auto') {
     if (state.local.available && cfg.model) {
@@ -136,10 +137,10 @@ async function interpretWith(engine, input) {
         const out = await localInterpret(localBody());
         // Fusión: lo que el parser reconoce con certeza y el modelo omitió se añade.
         const merged = input.prompt ? mergeWithParser(out.raw, parsePrompt(input.prompt).raw) : { raw: out.raw, added: [] };
-        return { raw: merged.raw, source: 'local', info: { model: out.model, ms: performance.now() - t0, timings: out.timings, warnings: out.warnings, added: merged.added } };
+        return { raw: merged.raw, source: 'local', info: { compat: out.compat, model: out.model, ms: performance.now() - t0, timings: out.timings, warnings: out.warnings, added: merged.added } };
       } catch (e) {
         const r = procedural();
-        return { ...r, source: 'procedural', info: { ms: performance.now() - t0, fallback: e.message } };
+        return { ...r, source: 'procedural', info: { ms: performance.now() - t0, fallback: e.message, tried: true } };
       }
     }
     return { ...procedural(), source: 'procedural', info: { ms: performance.now() - t0, fallback: state.local.available ? 'no hay modelo seleccionado' : 'Ollama no disponible' } };
@@ -157,13 +158,14 @@ function showEngineInfo(res, renderMs, scene, qc, opts) {
   const parts = [ENGINE_NAMES[res.source] + (i.model ? ` (${i.model})` : '')];
   if (res.source !== 'procedural' || i.ms > 20) parts.push(`interpretación ${(i.ms / 1000).toFixed(i.ms < 1000 ? 2 : 1)} s`);
   if (i.timings?.tokensPerSecond) parts.push(`${i.timings.tokensPerSecond} tok/s`);
-  parts.push(`render ${Math.round(renderMs)} ms`, `semilla ${opts.seed}`, `${scene.pal.length} colores`);
+  parts.push(`render ${Math.round(renderMs)} ms`, `${scene.w}×${scene.h}`, `paleta ${THEMES[res.spec?.theme]?.name || res.spec?.theme || 'automática'}`, `semilla ${opts.seed}`, `${scene.pal.length} colores`);
   if (qc) parts.push(`calidad ${qc.checks.filter((c) => c.ok).length}/${qc.checks.length}`);
   $('#perf').textContent = parts.join(' · ');
   const notes = [];
   if (i.fallback) notes.push(`IA local no usada (${i.fallback}): se ha usado el motor procedural.`);
   if (i.added?.length) notes.push('Añadido por el intérprete procedural: ' + i.added.join(', ') + '.');
   if (i.warnings?.length) notes.push(i.warnings.length + ' dato(s) del modelo descartados al validar.');
+  if (i.compat?.length) notes.push('Compatibilidad: ' + i.compat.join('; ') + '.');
   return notes;
 }
 function showQC(qc) {
@@ -220,10 +222,10 @@ function generate({ newSeed }) {
       const c = composeFor(spec, opts);
       sceneOut = c.scene; qc = c.qc;
       showInterpretation(spec, opts);
-      const notes = showEngineInfo(res, c.renderMs, sceneOut, qc, opts);
+      const notes = showEngineInfo({ ...res, spec }, c.renderMs, sceneOut, qc, opts);
       $('#interpNotes').textContent = [...notes, ...spec.notes].join(' ');
       showQC(qc);
-      if (res.info?.fallback && opts.mode === 'auto') toast('Ollama no respondió: imagen generada con el motor procedural.');
+      if (res.info?.tried && opts.mode === 'auto') toast('Ollama no respondió: imagen generada con el motor procedural.');
     }
     setProject({ name: projectName(prompt), prompt, opts, raw, scene: sceneOut, qc });
     pushVersion('Generada');
@@ -268,7 +270,7 @@ function editByInstruction() {
       pushVersion(text);
       const spec = finalize(raw);
       showInterpretation(spec, p.opts);
-      const notes = showEngineInfo(res, 0, edit.scene, null, p.opts);
+      const notes = showEngineInfo({ ...res, spec }, 0, edit.scene, null, p.opts);
       $('#interpNotes').textContent = [...notes, ...spec.notes].join(' ');
       const kept = new Set(edit.scene.layers.map((l) => l.k)).size - edit.changed.length;
       toast(edit.rebuilt ? 'La escena se regeneró completa.' : `Regeneradas ${edit.changed.length} parte(s), conservadas ${Math.max(0, kept)}.`);
@@ -284,10 +286,31 @@ function editByInstruction() {
 }
 
 // ---------- IA local: estado y ajustes ----------
-const LOCAL_DEFAULTS = { url: '', model: '', temperature: 0.2, maxTokens: 1200, timeout: 120, prefs: 'balanced' };
+// Valores iniciales pensados para un portátil con 16 GB de RAM y GPU de 6 GB (RTX 4050).
+const LOCAL_DEFAULTS = { url: '', model: '', temperature: 0.25, maxTokens: 1200, timeout: 120, prefs: 'balanced', numCtx: 4096, keepAlive: '30m' };
 function loadLocalCfg() { try { return { ...LOCAL_DEFAULTS, ...JSON.parse(localStorage.getItem('pf.local') || '{}') }; } catch { return { ...LOCAL_DEFAULTS }; } }
 function saveLocalCfg() { try { localStorage.setItem('pf.local', JSON.stringify(state.localCfg)); } catch { /* sin almacenamiento */ } }
 const gb = (b) => (b / 1e9).toFixed(1) + ' GB';
+// GPU: la tarjeta detectada por el sistema y, si el modelo está cargado, qué
+// parte está en la VRAM según Ollama (lo mismo que muestra "ollama ps").
+function showGpu(st) {
+  const gpu = st.system?.gpu, run = (st.running || []).find((r) => r.name === state.localCfg.model);
+  const parts = [gpu ? `GPU detectada: ${gpu.name}${gpu.vram ? ' (' + gb(gpu.vram) + ')' : ''}` : 'GPU: no verificable desde aquí (Ollama puede usarla igualmente)'];
+  parts.push(run ? `Modelo cargado: ${run.gpuShare != null ? run.gpuShare + ' % en GPU' : 'sí'}` : 'Modelo no cargado en memoria');
+  $('#ollamaGpu').textContent = parts.join(' · ');
+}
+// Precarga: Ollama mantiene el modelo en memoria según "Mantener en memoria",
+// así las generaciones siguientes no vuelven a cargarlo.
+async function warmModel(loud) {
+  const cfg = state.localCfg;
+  if (!state.local.available || !cfg.model) { if (loud) toast('Primero conecta Ollama y elige un modelo', 'error'); return; }
+  $('#ollamaGpu').textContent = `Cargando ${cfg.model} en memoria…`;
+  try {
+    const r = await localWarmup({ url: cfg.url || undefined, model: cfg.model, keepAlive: cfg.keepAlive });
+    $('#ollamaGpu').textContent = `${cfg.model} listo en ${(r.ms / 1000).toFixed(1)} s${r.gpuShare != null ? ` · ${r.gpuShare} % en GPU` : ''}`;
+    if (loud) toast(`${cfg.model} cargado${r.gpuShare != null ? ` (${r.gpuShare} % en GPU)` : ''}`);
+  } catch (e) { $('#ollamaGpu').textContent = 'No se pudo cargar el modelo: ' + e.message; if (loud) toast(e.message, 'error'); }
+}
 async function refreshLocal() {
   const cfg = state.localCfg;
   $('#ollamaState').textContent = 'comprobando…'; $('#ollamaState').classList.remove('on');
@@ -296,7 +319,8 @@ async function refreshLocal() {
   const sel = $('#ollamaModel');
   if (st.available) {
     const models = st.models || [];
-    if (!cfg.model || !models.some((m) => m.name === cfg.model)) { cfg.model = st.recommended || models[0]?.name || ''; saveLocalCfg(); }
+    if (!cfg.model || !models.some((m) => m.name === cfg.model)) { cfg.model = (models.some((m) => m.name === st.defaultModel) && st.defaultModel) || st.recommended || models[0]?.name || ''; saveLocalCfg(); }
+    showGpu(st);
     fillSelect(sel, models.length ? models.map((m) => [m.name, `${m.name}${m.params ? ' · ' + m.params : ''} · ${gb(m.size)}${m.fits ? '' : ' · ⚠ memoria justa'}${m.name === st.recommended ? ' · recomendado' : ''}`]) : [['', 'No hay modelos instalados']], cfg.model);
     $('#ollamaState').textContent = `conectado (v${st.version})${cfg.model ? ' · ' + cfg.model : ''}`; $('#ollamaState').classList.add('on');
     const m = models.find((x) => x.name === cfg.model), sys = st.system;
@@ -321,9 +345,14 @@ function bindLocal() {
   const cfg = state.localCfg;
   $('#ollamaUrl').value = cfg.url; $('#ollamaTemp').value = cfg.temperature; $('#ollamaTempOut').textContent = cfg.temperature;
   $('#ollamaTokens').value = cfg.maxTokens; $('#ollamaTimeout').value = cfg.timeout; $('#ollamaPrefs').value = cfg.prefs;
+  $('#ollamaCtx').value = String(cfg.numCtx); $('#ollamaKeep').value = cfg.keepAlive;
+  $('#ollamaCtx').addEventListener('change', (e) => upd('numCtx', +e.target.value));
+  $('#ollamaKeep').addEventListener('change', (e) => upd('keepAlive', e.target.value));
+  $('#btnOllamaCheck').addEventListener('click', async () => { await refreshLocal(); toast(state.local.available ? `Ollama conectado (v${state.local.version}) · ${state.local.models.length} modelo(s)` : 'Ollama no responde: ' + (state.local.reason || ''), state.local.available ? '' : 'error'); });
+  $('#btnOllamaWarm').addEventListener('click', () => warmModel(true));
   const upd = (k, v) => { cfg[k] = v; saveLocalCfg(); };
   $('#ollamaUrl').addEventListener('change', (e) => { upd('url', e.target.value.trim()); refreshLocal(); });
-  $('#ollamaModel').addEventListener('change', (e) => { upd('model', e.target.value); refreshLocal(); });
+  $('#ollamaModel').addEventListener('change', (e) => { upd('model', e.target.value); refreshLocal().then(() => warmModel(false)); });
   $('#ollamaTemp').addEventListener('input', (e) => { upd('temperature', +e.target.value); $('#ollamaTempOut').textContent = e.target.value; });
   $('#ollamaTokens').addEventListener('change', (e) => upd('maxTokens', Math.max(200, Math.min(4096, +e.target.value || 1200))));
   $('#ollamaTimeout').addEventListener('change', (e) => upd('timeout', Math.max(5, Math.min(600, +e.target.value || 120))));
@@ -629,7 +658,8 @@ async function start() {
     if (st.available) for (const [v, t] of [['claude', 'Claude interpreta (nube)'], ['claude-full', 'Claude dibuja (nube)']]) $('#optMode').append(h('option', { value: v }, t));
     updateBadge();
   });
-  refreshLocal().then(updateBadge);
+  // Al abrir: si hay Ollama y modelo, se precarga una vez (queda en memoria según «Mantener en memoria»).
+  refreshLocal().then(() => { updateBadge(); if (state.local.available && state.localCfg.model && ['auto', 'local'].includes($('#optMode').value)) warmModel(false); });
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
   window.pixelforge = { state, refreshLocal };   // punto de inspección para pruebas y depuración
 }

@@ -33,14 +33,18 @@ echo.
 
 :sugerencia
 echo Modelo sugerido para %RAM% GB de RAM (la descarga NO se hace sola):
-if %RAM% GEQ 16 (
-  echo     ollama pull qwen2.5:7b      ^(aprox. 4,7 GB^)
-) else if %RAM% GEQ 8 (
-  echo     ollama pull qwen2.5:3b      ^(aprox. 1,9 GB^)
+ollama list 2>nul | findstr /B /C:"qwen3.5:4b" >nul && (
+  echo     qwen3.5:4b ya esta instalado: es el modelo por defecto de PixelForge.
+  goto fin
+)
+if %RAM% GEQ 8 (
+  echo     ollama pull qwen3.5:4b      ^(unos 3-4 GB; cabe en una GPU de 6 GB^)
 ) else (
   echo     ollama pull qwen2.5:1.5b    ^(aprox. 1 GB^)
 )
 echo Copia la linea en una terminal solo si quieres descargarlo.
+:fin
+echo Para la prueba completa con imagenes ejecuta PROBAR_OLLAMA.bat
 echo Mas detalles en GUIA_MODELOS.md
 echo.
 pause

@@ -67,6 +67,7 @@ const server = createServer(async (req, res) => {
       const ctl = new AbortController(); req.on('close', () => { if (!res.writableEnded) ctl.abort(); });
       if (p === '/api/local/interpret') return json(res, 200, await local.interpret(body, ctl.signal));
       if (p === '/api/local/evaluate') return json(res, 200, await local.evaluateModel(body, ctl.signal));
+      if (p === '/api/local/warmup') return json(res, 200, await local.warmup(body, ctl.signal));
       return json(res, 404, { error: 'No encontrado' });
     }
     if (p === '/api/pixelscene' || p === '/api/interpret') {
@@ -96,8 +97,15 @@ const server = createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => {
-  console.log(`PixelForge Studio → http://localhost:${PORT}`);
+// Solo este equipo por defecto. Para abrirlo a la red local (p. ej. el móvil)
+// hay que pedirlo expresamente con PIXELFORGE_HOST=0.0.0.0 en .env.
+const HOST = process.env.PIXELFORGE_HOST || '127.0.0.1';
+server.on('error', (e) => {
+  if (e.code === 'EADDRINUSE') { console.error(`El puerto ${PORT} ya está en uso: probablemente PixelForge ya está abierto. Abre http://localhost:${PORT} (no se inicia un segundo servidor).`); process.exit(2); }
+  throw e;
+});
+server.listen(PORT, HOST, () => {
+  console.log(`PixelForge Studio → http://localhost:${PORT}${HOST !== '127.0.0.1' ? ` (también en la red local: ${HOST})` : ''}`);
   local.status().then((s) => console.log(s.available ? `Ollama ${s.version} detectado en ${s.url} · ${s.models.length} modelo(s)${s.recommended ? ' · recomendado: ' + s.recommended : ''}` : `Ollama no detectado (${s.reason}). El motor procedural funciona igualmente.`)).catch(() => {});
   if (aiConfigured()) console.log(`Claude (opcional) configurado: ${modelId()}`);
 });

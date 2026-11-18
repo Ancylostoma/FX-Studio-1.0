@@ -7,6 +7,10 @@ import { composeScene } from '../src/generator/sceneComposer.js';
 import { validateScene } from '../src/core/pixelScene.js';
 import { LIB } from '../src/generator/spriteLibrary.js';
 import { startFakeOllama } from './support/fakeOllama.mjs';
+import { checkSchema } from '../src/ai/schemaCheck.js';
+import { aiConfigured } from '../server/aiAdapter.mjs';
+import { spawn } from 'node:child_process';
+import { createServer } from 'node:net';
 
 test('seguridad: solo Ollama en este equipo salvo autorización explícita', () => {
   assert.equal(local.resolveUrl(), 'http://127.0.0.1:11434');
@@ -20,9 +24,10 @@ test('seguridad: solo Ollama en este equipo salvo autorización explícita', () 
 test('estado sin Ollama: no falla y sugiere un modelo según la RAM', async () => {
   const st = await local.status('http://127.0.0.1:9');
   assert.equal(st.available, false); assert.equal(st.code, 'unreachable');
-  assert.ok(st.suggestion.model.startsWith('qwen2.5:'));
+  assert.ok(/^qwen/.test(st.suggestion.model));
   assert.equal(local.suggestPull({ totalRAM: 6e9 }).model, 'qwen2.5:1.5b');
-  assert.equal(local.suggestPull({ totalRAM: 12e9 }).model, 'qwen2.5:3b');
+  assert.equal(local.suggestPull({ totalRAM: 12e9 }).model, 'qwen3.5:4b');
+  assert.equal(local.suggestPull({ totalRAM: 16e9, gpu: { name: 'RTX 4050 Laptop', vram: 6e9 } }).model, 'qwen3.5:4b', 'HP Victus: 16 GB + RTX 4050 de 6 GB');
   assert.equal(local.suggestPull({ totalRAM: 32e9 }).model, 'qwen2.5:7b');
   assert.equal(local.suggestPull({ totalRAM: 32e9, gpu: { vram: 12e9 } }).model, 'qwen2.5:14b');
 });
@@ -34,7 +39,10 @@ test('estado con Ollama: modelos, capacidades y recomendación', async () => {
     assert.equal(st.available, true); assert.equal(st.version, '0.12.3');
     assert.ok(!st.models.some((m) => m.name.includes('embed')), 'los modelos de embeddings no sirven para esta tarea');
     assert.deepEqual(st.models.find((m) => m.name === 'qwen3:1.7b').capabilities, ['completion', 'thinking']);
-    assert.ok(['qwen2.5:3b', 'qwen3:1.7b'].includes(st.recommended));
+    assert.equal(st.defaultModel, 'qwen3.5:4b'); assert.equal(st.recommended, 'qwen3.5:4b', 'el modelo por defecto, si está instalado');
+    process.env.PIXELFORGE_OLLAMA_MODEL = 'llama3.2:1b';
+    assert.equal((await local.status(fake.url)).recommended, 'llama3.2:1b', 'configurable en .env');
+    delete process.env.PIXELFORGE_OLLAMA_MODEL;
     const big = local.scoreModel({ name: 'qwen2.5:72b', size: 47e9, details: { parameter_size: '72B' } }, { totalRAM: 16e9 });
     assert.equal(big.fits, false); assert.equal(big.score, 0);
   } finally { await fake.close(); }
@@ -135,4 +143,78 @@ test('el esquema y las instrucciones cubren el catálogo', () => {
   const sys = localSystemPrompt('strict');
   assert.ok(sys.includes('tiger=tigre') && sys.includes('custom') && sys.includes('Incluye solo lo que'));
   assert.ok(sys.length < 9000, 'instrucciones compactas para modelos pequeños: ' + sys.length);
+});
+
+test('valores para el HP Victus: contexto 4096, temperatura 0,25, permanencia y precarga', async () => {
+  const fake = await startFakeOllama();
+  try {
+    await local.interpret({ url: fake.url, model: 'qwen3.5:4b', prompt: 'Un dragón rojo sobre un castillo' });
+    const chat = fake.log.filter((x) => x.path === '/api/chat').at(-1).body;
+    assert.equal(chat.options.num_ctx, 4096); assert.equal(chat.options.temperature, 0.25); assert.equal(chat.keep_alive, '30m');
+    assert.equal(chat.think, false, 'qwen3.5 razona: se desactiva para responder antes');
+    await local.interpret({ url: fake.url, model: 'qwen3.5:4b', prompt: 'x', keepAlive: '-1', numCtx: 8192 });
+    const c2 = fake.log.filter((x) => x.path === '/api/chat').at(-1).body;
+    assert.equal(c2.keep_alive, -1); assert.equal(c2.options.num_ctx, 8192);
+    await local.interpret({ url: fake.url, model: 'qwen3.5:4b', prompt: 'x', keepAlive: '; rm -rf /' });
+    assert.equal(fake.log.filter((x) => x.path === '/api/chat').at(-1).body.keep_alive, '30m', 'valor no válido → por defecto');
+    const r = await local.interpret({ url: fake.url, model: 'qwen3.5:4b', prompt: 'x', numCtx: 2048, maxTokens: 1800 });
+    assert.ok(r.numCtx > 2048 && r.compat.some((c) => /Contexto ampliado/.test(c)), 'si el prompt no cabe se amplía y se informa');
+    const w = await local.warmup({ url: fake.url, model: 'qwen3.5:4b', keepAlive: '2h' });
+    assert.equal(w.gpuShare, 100);
+    assert.equal(fake.log.find((x) => x.path === '/api/generate').body.keep_alive, '2h');
+  } finally { await fake.close(); }
+});
+
+test('compatibilidad: si la versión rechaza "think" o el esquema, se reintenta sin ello y se registra', async () => {
+  let fake = await startFakeOllama({ rejectThink: true });
+  try {
+    const r = await local.interpret({ url: fake.url, model: 'qwen3.5:4b', prompt: 'un tigre' });
+    assert.equal(r.raw.subjects[0].id, 'tiger');
+    assert.ok(r.compat.some((c) => /think/.test(c)));
+    const chats = fake.log.filter((x) => x.path === '/api/chat');
+    assert.equal(chats.length, 2); assert.equal(chats[1].body.think, undefined);
+  } finally { await fake.close(); }
+  fake = await startFakeOllama({ rejectSchema: true });
+  try {
+    const r = await local.interpret({ url: fake.url, model: 'llama3.2:1b', prompt: 'un tigre' });
+    assert.ok(r.compat.some((c) => /esquema/.test(c)));
+    assert.equal(fake.log.filter((x) => x.path === '/api/chat').at(-1).body.format, 'json');
+  } finally { await fake.close(); }
+});
+
+test('validador estricto del esquema: distingue cumplir de parecer correcto', () => {
+  const S = { type: 'object', additionalProperties: false, required: ['a', 'b'], properties: { a: { type: 'string', enum: ['x', 'y'] }, b: { type: 'array', items: { type: 'integer' } }, c: { anyOf: [{ type: 'string' }, { type: 'null' }] } } };
+  assert.deepEqual(checkSchema(S, { a: 'x', b: [1, 2], c: null }), []);
+  const v = checkSchema(S, { a: 'z', b: [1, 'dos'], extra: 1, c: 5 });
+  assert.equal(v.length, 4, v.join(' | '));
+  assert.ok(v.some((x) => /falta/.test(x)) === false);
+  assert.ok(checkSchema(S, { a: 'x' }).some((x) => /b: falta/.test(x)));
+  assert.ok(checkSchema(S, '{"a":"x"}').length, 'un texto no es un objeto');
+});
+
+test('la nube está inactiva aunque haya una clave en el sistema', () => {
+  const prev = [process.env.ANTHROPIC_API_KEY, process.env.PIXELFORGE_ENABLE_CLOUD];
+  process.env.ANTHROPIC_API_KEY = 'sk-ant-falsa'; delete process.env.PIXELFORGE_ENABLE_CLOUD;
+  assert.equal(aiConfigured(), false);
+  process.env.PIXELFORGE_ENABLE_CLOUD = '1';
+  assert.equal(aiConfigured(), true);
+  if (prev[0] === undefined) delete process.env.ANTHROPIC_API_KEY; else process.env.ANTHROPIC_API_KEY = prev[0];
+  if (prev[1] === undefined) delete process.env.PIXELFORGE_ENABLE_CLOUD; else process.env.PIXELFORGE_ENABLE_CLOUD = prev[1];
+});
+
+test('el servidor escucha solo en este equipo y no se duplica', async () => {
+  const port = await new Promise((r) => { const s = createServer(); s.listen(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => r(p)); }); });
+  const start = () => spawn(process.execPath, ['server/server.mjs'], { cwd: new URL('..', import.meta.url).pathname, env: { ...process.env, PORT: String(port), OLLAMA_URL: 'http://127.0.0.1:9' }, stdio: 'pipe' });
+  const a = start();
+  try {
+    await new Promise((r) => a.stdout.on('data', (d) => String(d).includes('http') && r()));
+    const ok = await fetch(`http://127.0.0.1:${port}/api/status`).then((r) => r.ok);
+    assert.equal(ok, true);
+    const ifaces = (await import('node:os')).networkInterfaces();
+    const lan = Object.values(ifaces).flat().find((i) => i.family === 'IPv4' && !i.internal)?.address;
+    if (lan) await assert.rejects(fetch(`http://${lan}:${port}/api/status`, { signal: AbortSignal.timeout(1500) }), 'no accesible desde la red');
+    const b = start();
+    const code = await new Promise((r) => b.on('exit', r));
+    assert.equal(code, 2, 'la segunda instancia sale avisando de que el puerto está en uso');
+  } finally { a.kill(); }
 });
