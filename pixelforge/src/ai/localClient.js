@@ -20,7 +20,7 @@ export async function localInterpret(body, signal) {
   // Doble saneado: el plan vuelve al formato del modelo y se valida otra vez.
   const again = sanitizePlan({ ...rawToPlan(j.raw), unsupported: j.raw?.unknown || [] });
   if (!again) throw new Error('El modelo local devolvió un plan inválido');
-  return { raw: again.raw, warnings: [...(j.warnings || []), ...again.warnings], timings: j.timings, model: j.model, compat: j.compat || [] };
+  return { raw: again.raw, warnings: [...(j.warnings || []), ...again.warnings], timings: j.timings, model: j.model, compat: j.compat || [], corrections: j.corrections || [] };
 }
 
 export const localEvaluate = (body, signal) => req('api/local/evaluate', body, signal);

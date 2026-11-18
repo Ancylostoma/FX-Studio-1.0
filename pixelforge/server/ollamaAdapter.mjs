@@ -4,7 +4,7 @@
 // código) que se sanea y valida antes de llegar al motor gráfico.
 import os from 'node:os';
 import { execFile } from 'node:child_process';
-import { PLAN_SCHEMA, buildLocalMessages, sanitizePlan } from '../src/ai/planSchema.js';
+import { PLAN_SCHEMA, buildLocalMessages, sanitizePlan, applyCertainties } from '../src/ai/planSchema.js';
 import { finalize, parsePrompt } from '../src/generator/promptParser.js';
 
 export const DEFAULT_URL = 'http://127.0.0.1:11434';
@@ -189,7 +189,8 @@ export async function interpret(body, signal) {
   const ns = (v) => (v ? Math.round(v / 1e6) : null);
   if (res.prompt_eval_count && res.prompt_eval_count >= numCtx - 8) compat.push(`El prompt ocupó todo el contexto (${res.prompt_eval_count} tokens): puede haberse recortado`);
   return {
-    raw: out.raw, warnings: out.warnings, model, attempts, compat, numCtx,
+    ...(() => { if (!prompt) return { raw: out.raw, corrections: [] }; const f = applyCertainties(out.raw, prompt, prefs, parsePrompt); return { raw: f.raw, corrections: f.fixes }; })(),
+    warnings: out.warnings, model, attempts, compat, numCtx,
     ...(body?.debug ? { modelText: [firstText, attempts > 1 ? res?.message?.content : null].filter(Boolean) } : {}),
     timings: { totalMs: Date.now() - t0, loadMs: ns(res.load_duration), promptTokens: res.prompt_eval_count || null, outputTokens: res.eval_count || null, tokensPerSecond: res.eval_count && res.eval_duration ? +(res.eval_count / (res.eval_duration / 1e9)).toFixed(1) : null },
   };

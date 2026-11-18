@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as local from '../server/ollamaAdapter.mjs';
-import { sanitizePlan, rawToPlan, mergeWithParser, PLAN_SCHEMA, localSystemPrompt } from '../src/ai/planSchema.js';
+import { sanitizePlan, rawToPlan, mergeWithParser, PLAN_SCHEMA, localSystemPrompt, applyCertainties, buildLocalMessages } from '../src/ai/planSchema.js';
 import { finalize, parsePrompt } from '../src/generator/promptParser.js';
 import { composeScene } from '../src/generator/sceneComposer.js';
 import { validateScene } from '../src/core/pixelScene.js';
@@ -217,4 +217,25 @@ test('el servidor escucha solo en este equipo y no se duplica', async () => {
     const code = await new Promise((r) => b.on('exit', r));
     assert.equal(code, 2, 'la segunda instancia sale avisando de que el puerto está en uso');
   } finally { a.kill(); }
+});
+
+test('fidelidad: corrige los fallos observados en la prueba real con qwen3.5:4b', () => {
+  // Plan como el que devolvió el modelo para el paisaje (ciudad inventada, sin niebla ni relieve).
+  const plan = sanitizePlan({ subjects: [{ id: 'custom', name: 'aurora boreal', kit: { base: 'shapes', shapes: [{ s: 'rect', x: 0, y: 0, w: 1, h: 1, mat: 'cyan' }] } }], structures: [{ id: 'medievalhouse' }], biome: 'town', town: { style: 'medieval', size: 3 }, time: 'day' }).raw;
+  const { raw, fixes } = applyCertainties(plan, 'Un valle con un río, montañas nevadas, una aurora y niebla al amanecer', 'balanced', parsePrompt);
+  assert.equal(raw.town, null); assert.notEqual(raw.biome, 'town');
+  assert.deepEqual([...raw.features].sort(), ['lake', 'mountains']); assert.deepEqual(raw.weather, ['fog']); assert.equal(raw.time, 'dawn');
+  assert.ok(raw.celestial.includes('aurora')); assert.equal(raw.subjects.length, 0);
+  assert.ok(fixes.length >= 5);
+  const city = applyCertainties(plan, 'Una plaza de una ciudad medieval', 'balanced', parsePrompt).raw;
+  assert.ok(city.town, 'si se pide una ciudad, se conserva');
+  assert.ok(applyCertainties(plan, 'un valle', 'creative', parsePrompt).raw.town, 'en modo creativo el modelo puede añadirla');
+});
+
+test('instrucciones: varios ejemplos distintos y caben en el contexto de 4096', () => {
+  const msgs = buildLocalMessages({ prompt: 'Un valle con un río', prefs: 'balanced' });
+  const ex = msgs.filter((m) => m.role === 'assistant');
+  assert.ok(ex.length >= 3, 'varios ejemplos para que no copie uno');
+  assert.ok(!ex.some((m) => /"town"/.test(m.content)), 'ningún ejemplo enseña a añadir pueblos');
+  assert.ok(msgs.reduce((a, m) => a + m.content.length, 0) / 3 + 1200 < 4096);
 });

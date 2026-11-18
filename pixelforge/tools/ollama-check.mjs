@@ -120,16 +120,41 @@ for (const [i, c] of compactCases.entries()) {
 }
 
 // 7–10. Plan de dirección artística completo → escena → motor → PNG
+// [id, descripción, lo que debe aparecer]. Cada esperado admite alternativas
+// con "|". Etiquetas: id del catálogo, biome:, feature:, weather:, sky:,
+// time:, town, focus:, rel:<a>:<tipo>:<b>.
 const SCENES = [
-  ['personaje', 'Una guerrera elfa con capa verde y un arco, de pie en un claro del bosque, mirando hacia la izquierda.'],
-  ['paisaje', 'Un valle con un río serpenteante, montañas nevadas al fondo y niebla al amanecer.'],
-  ['arquitectura', 'Una catedral gótica con vidrieras iluminadas en la plaza de una ciudad medieval bajo la lluvia.'],
-  ['fantasia-compleja', 'Un enorme dragón rojo volando sobre un castillo medieval durante una noche de luna llena, mientras un mago lanza un hechizo desde la torre y unos murciélagos huyen.'],
-  ['ambigua', 'algo antiguo y olvidado'],
-  ['fuera-del-catalogo', 'Un samurái montado en un oso polar junto a un faro, con una aurora boreal en el cielo.'],
+  ['personaje', 'Una guerrera elfa con capa verde y un arco, de pie en un claro del bosque, mirando hacia la izquierda.', ['elf|archer|custom', 'biome:forest', 'facing:left']],
+  ['paisaje', 'Un valle con un río serpenteante, montañas nevadas al fondo y niebla al amanecer.', ['feature:mountains', 'feature:lake', 'weather:fog', 'time:dawn', '!town']],
+  ['arquitectura', 'Una catedral gótica con vidrieras iluminadas en la plaza de una ciudad medieval bajo la lluvia.', ['cathedral', 'town', 'weather:rain']],
+  ['fantasia-compleja', 'Un enorme dragón rojo volando sobre un castillo medieval durante una noche de luna llena, mientras un mago lanza un hechizo desde la torre y unos murciélagos huyen.', ['dragon', 'castle', 'wizard', 'bat', 'sky:moon', 'time:night', 'focus:dragon']],
+  ['ambigua', 'algo antiguo y olvidado', []],
+  ['fuera-del-catalogo', 'Un samurái montado en un oso polar junto a un faro, con una aurora boreal en el cielo.', ['samurai', 'bear', 'lighthouse', 'sky:aurora', 'rel:samurai:on:bear']],
 ];
+function tagsOf(spec) {
+  const t = new Set(), ents = [...spec.subjects, ...spec.structures, ...spec.flora];
+  for (const e of ents) { t.add(e.kit ? 'custom' : e.id); if (e.rel) t.add(`rel:${e.id}:${e.rel.type}:${e.rel.of}`); if (e.facing) t.add('facing:' + e.facing); }
+  if (spec.biome) t.add('biome:' + spec.biome);
+  for (const f of spec.features) t.add('feature:' + f);
+  for (const w of spec.weather) t.add('weather:' + w);
+  for (const c of spec.celestial) t.add('sky:' + c);
+  if (spec.time) t.add('time:' + spec.time);
+  if (spec.town) t.add('town');
+  if (spec.focus) t.add('focus:' + spec.focus);
+  return t;
+}
+function fidelity(spec, expect, prompt) {
+  const t = tagsOf(spec);
+  const ok = (x) => (x.startsWith('!') ? !t.has(x.slice(1)) : x.split('|').some((y) => t.has(y)));
+  const missing = expect.filter((x) => !ok(x));
+  // Inventados: objetos que ni se esperaban ni reconoce el parser en la frase.
+  const parsed = parsePrompt(prompt).spec, known = new Set([...parsed.subjects, ...parsed.structures, ...parsed.flora].map((e) => e.id));
+  const wanted = new Set(expect.flatMap((x) => x.split('|')));
+  const invented = [...spec.subjects, ...spec.structures, ...spec.flora].filter((e) => !e.kit && !known.has(e.id) && !wanted.has(e.id) && !e.clash).map((e) => e.id);
+  return { cumplidos: expect.length - missing.length, total: expect.length, faltan: missing, inventados: [...new Set(invented)] };
+}
 results.escenas = [];
-for (const [id, prompt] of SCENES) {
+for (const [id, prompt, expect] of SCENES) {
   const row = { id, prompt };
   try {
     const r = await local.interpret({ url, model, prompt, temperature: 0.25, numCtx: 4096, keepAlive: '30m', maxTokens: 1200, timeoutMs: 300000, prefs: 'balanced', debug: true });
@@ -140,7 +165,9 @@ for (const [id, prompt] of SCENES) {
     row.intentos = r.attempts; row.descartados = r.warnings; row.compat = r.compat; row.tiempos = r.timings;
     for (const c of r.compat) if (!results.incompatibilidades.includes(c)) results.incompatibilidades.push(c);
     const spec = finalize(r.raw);
-    row.interpretacion = describeSpec(spec); row.notas = spec.notes;
+    row.interpretacion = describeSpec(spec); row.notas = spec.notes; row.correcciones = r.corrections || [];
+    row.fidelidad = fidelity(spec, expect, prompt);
+    row.fidelidadProcedural = fidelity(parsePrompt(prompt).spec, expect, prompt);
     const t1 = performance.now();
     const { scene, qc } = composeChecked(spec, O);
     row.renderMs = ms(t1);
@@ -150,7 +177,7 @@ for (const [id, prompt] of SCENES) {
     const proc = composeChecked(parsePrompt(prompt).spec, O);
     row.pngProcedural = savePng(`procedural-${id}.png`, proc.scene);
     row.interpretacionProcedural = describeSpec(parsePrompt(prompt).spec);
-    step('·', `Escena «${id}»`, row.escenaValida, `interpretación ${r.timings.totalMs} ms (${r.timings.tokensPerSecond ?? '?'} tok/s) · render ${row.renderMs} ms · esquema ${row.infraccionesEsquema.length ? row.infraccionesEsquema.length + ' infracción(es)' : 'cumplido'} · calidad ${row.calidad}`);
+    step('·', `Escena «${id}»`, row.escenaValida, `interpretación ${r.timings.totalMs} ms (${r.timings.tokensPerSecond ?? '?'} tok/s) · render ${row.renderMs} ms · esquema ${row.infraccionesEsquema.length ? row.infraccionesEsquema.length + ' infracción(es)' : 'cumplido'} · calidad ${row.calidad} · fidelidad ${row.fidelidad.cumplidos}/${row.fidelidad.total}${row.fidelidad.inventados.length ? ' · inventados: ' + row.fidelidad.inventados.join(', ') : ''}`);
   } catch (e) { row.error = e.message; step('·', `Escena «${id}»`, false, e.message); }
   results.escenas.push(row);
 }
@@ -161,6 +188,10 @@ step(8, 'Escena validada como PixelScene y enviada al motor', okScenes.every((r)
 step(9, 'Imagen producida', okScenes.every((r) => r.png), `${okScenes.length} imágenes`);
 step(10, 'Exportación a PNG', okScenes.every((r) => statSync(path.join(outDir, r.png)).size > 100), outDir);
 step('·', 'El modelo respeta el esquema completo sin necesitar saneado', strict === okScenes.length, `${strict}/${okScenes.length} respuestas sin infracciones`);
+const sum = (k) => okScenes.reduce((a, r) => a + r[k].cumplidos, 0), tot = okScenes.reduce((a, r) => a + r.fidelidad.total, 0);
+const inv = okScenes.reduce((a, r) => a + r.fidelidad.inventados.length, 0);
+results.fidelidad = { ollama: sum('fidelidad'), procedural: sum('fidelidadProcedural'), total: tot, inventados: inv };
+step('·', 'Fidelidad a la descripción (elementos pedidos presentes)', null, `Ollama ${sum('fidelidad')}/${tot} · procedural ${sum('fidelidadProcedural')}/${tot} · objetos inventados por Ollama: ${inv}`);
 
 // 11. Respaldo procedural sin Ollama (servidor inexistente)
 try {
@@ -201,7 +232,7 @@ function finish() {
     for (const r of results.escenas) {
       L.push(`### ${r.id}: ${r.prompt}`, '');
       if (r.error) { L.push(`Error: ${r.error}`, ''); continue; }
-      L.push(`![${r.id} con Ollama](${r.png}) ![${r.id} procedural](${r.pngProcedural})`, '', `- Ollama: \`${r.interpretacion}\``, `- Procedural: \`${r.interpretacionProcedural}\``, `- Esquema: ${r.infraccionesEsquema.length ? r.infraccionesEsquema.length + ' infracción(es): ' + r.infraccionesEsquema.slice(0, 4).join('; ') : 'cumplido'} · intentos: ${r.intentos} · datos descartados: ${r.descartados.length}`, `- Tiempos: interpretación ${r.tiempos.totalMs} ms (carga ${r.tiempos.loadMs ?? '?'} ms, ${r.tiempos.outputTokens ?? '?'} tokens a ${r.tiempos.tokensPerSecond ?? '?'} tok/s) · render ${r.renderMs} ms · control de calidad ${r.calidad}`, ...(r.notas.length ? [`- Notas: ${r.notas.join(' ')}`] : []), '');
+      L.push(`![${r.id} con Ollama](${r.png}) ![${r.id} procedural](${r.pngProcedural})`, '', `- Ollama: \`${r.interpretacion}\``, `- Procedural: \`${r.interpretacionProcedural}\``, `- Fidelidad: Ollama ${r.fidelidad.cumplidos}/${r.fidelidad.total}${r.fidelidad.faltan.length ? ' (falta: ' + r.fidelidad.faltan.join(', ') + ')' : ''}${r.fidelidad.inventados.length ? ' · inventados: ' + r.fidelidad.inventados.join(', ') : ''} · procedural ${r.fidelidadProcedural.cumplidos}/${r.fidelidadProcedural.total}`, ...(r.correcciones.length ? [`- Correcciones automáticas: ${r.correcciones.join('; ')}`] : []), `- Esquema: ${r.infraccionesEsquema.length ? r.infraccionesEsquema.length + ' infracción(es): ' + r.infraccionesEsquema.slice(0, 4).join('; ') : 'cumplido'} · intentos: ${r.intentos} · datos descartados: ${r.descartados.length}`, `- Tiempos: interpretación ${r.tiempos.totalMs} ms (carga ${r.tiempos.loadMs ?? '?'} ms, ${r.tiempos.outputTokens ?? '?'} tokens a ${r.tiempos.tokensPerSecond ?? '?'} tok/s) · render ${r.renderMs} ms · control de calidad ${r.calidad}`, ...(r.notas.length ? [`- Notas: ${r.notas.join(' ')}`] : []), '');
     }
   }
   L.push('', 'Respuestas en bruto del modelo: `compacto-*.json` y `plan-*.json`. Datos completos: `resultados.json`.');

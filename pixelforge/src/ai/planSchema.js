@@ -82,7 +82,7 @@ const names = (ids) => ids.map((id) => `${id}=${LIB[id].name}`).join(', ');
 // prefs: 'strict' (solo lo pedido), 'balanced', 'creative' (enriquece la escena).
 const PREFS = {
   strict: 'Incluye solo lo que la descripción pide o implica claramente; no añadas adornos.',
-  balanced: 'Incluye lo pedido y, si ayuda a la composición, uno o dos elementos ambientales coherentes.',
+  balanced: 'Incluye todo lo pedido. Como mucho puedes añadir dos detalles pequeños de ambiente (flores, rocas, arbustos); nunca personajes, edificios ni pueblos que no se piden.',
   creative: 'Puedes enriquecer la escena con elementos ambientales, efectos y una paleta expresiva, sin contradecir lo pedido.',
 };
 export function localSystemPrompt(prefs = 'balanced') {
@@ -102,19 +102,28 @@ Reglas:
 3. Acción: action attack en combates (y battle true), walk si camina, cast si lanza un hechizo. facing indica hacia dónde mira.
 4. Interiores: setting "interior" y room. Pueblos y ciudades: town {style, size 1-3}. "Ciudad" moderna o futurista: biome city o cyber.
 5. Elige "palette" según el ambiente y "time" según la hora. No repitas lo que el motor ya añade solo (luna y estrellas de noche, nubes de día).
-6. En "unsupported" anota en español lo que no se pudo representar.
+6. Clima y cielo NO son objetos: lluvia, nieve, niebla y tormenta van en "weather"; montañas, ríos y lagos (lake) y cascadas en "features"; luna, sol, estrellas, aurora, arcoíris y planetas en "sky". Nunca los crees como "custom".
+7. "town" solo si la descripción habla de un pueblo, aldea o ciudad. No añadas edificios que no se piden.
+8. "montado en" / "a lomos de" un animal: relation {"type":"on","to": el animal}. "detrás de", "delante de", "junto a": behind, front, beside.
+9. En "unsupported" anota en español lo que no se pudo representar.
 ${PREFS[prefs] || PREFS.balanced}`;
 }
 
-// Ejemplo de ida y vuelta para modelos pequeños (few-shot).
-const EXAMPLE_IN = 'Un dragón negro volando sobre una ciudad medieval, con una luna roja detrás del castillo y un hada mirándolo desde un árbol';
-const EXAMPLE_OUT = JSON.stringify({
-  subjects: [{ id: 'dragon', color: 'black', fly: true, breathesFire: true, size: 1, relation: { type: 'on', to: 'castle' } }, { id: 'custom', name: 'hada', kit: { base: 'humanoid', body: 'pink', robe: true, wings: 'fairy', glow: true }, size: -1, fly: true, relation: { type: 'beside', to: 'tree' }, facing: 'right' }],
-  structures: [{ id: 'castle', depth: 'back' }], props: [{ id: 'tree', side: 'left' }],
-  biome: 'town', town: { style: 'medieval', size: 3 }, time: 'night', sky: ['moon'], skyColor: 'red', palette: 'dark', focus: 'dragon', light: 'right', unsupported: [],
-});
+// Ejemplos de ida y vuelta para modelos pequeños (few-shot). Son varios y
+// distintos a propósito: con uno solo, el modelo tiende a copiarlo (en la
+// prueba real con qwen3.5:4b, el ejemplo único coló una "ciudad medieval" y
+// una "luna roja" en escenas que no las pedían).
+const EXAMPLES = [
+  ['Una caballera con armadura plateada montada en un lobo gigante junto a un pozo, al atardecer',
+    { subjects: [{ id: 'knight', armor: 'silver', relation: { type: 'on', to: 'wolf' }, facing: 'right' }, { id: 'wolf', size: 1, relation: { type: 'beside', to: 'well' } }], structures: [{ id: 'well', depth: 'back' }], biome: 'meadow', time: 'sunset', palette: 'medieval', focus: 'knight', unsupported: [] }],
+  ['Un lago entre montañas nevadas bajo una tormenta, con pinos en la orilla',
+    { subjects: [], props: [{ id: 'pine', n: 3, side: 'left' }], features: ['mountains', 'lake'], weather: ['storm'], biome: 'mountains', time: 'day', palette: 'winter', unsupported: [] }],
+  ['Un pequeño espíritu de luz flotando en una cocina vieja con chimenea',
+    { subjects: [{ id: 'custom', name: 'espíritu de luz', kit: { base: 'humanoid', body: 'white', robe: true, glow: true }, size: -1, fly: true }], props: [{ id: 'fireplace' }, { id: 'table', side: 'left' }], setting: 'interior', room: 'tavern', time: 'night', palette: 'fantasy', focus: 'espíritu de luz', unsupported: ['cocina → taberna'] }],
+];
 export function buildLocalMessages({ prompt, raw, instruction, prefs }) {
-  const msgs = [{ role: 'system', content: localSystemPrompt(prefs) }, { role: 'user', content: EXAMPLE_IN }, { role: 'assistant', content: EXAMPLE_OUT }];
+  const msgs = [{ role: 'system', content: localSystemPrompt(prefs) }];
+  for (const [q, a] of EXAMPLES) msgs.push({ role: 'user', content: q }, { role: 'assistant', content: JSON.stringify(a) });
   if (raw) msgs.push({ role: 'user', content: `Plan actual:\n${JSON.stringify(rawToPlan(raw))}\nAplica este cambio y devuelve el plan completo, sin tocar lo que no se menciona: ${instruction}` });
   else msgs.push({ role: 'user', content: prompt });
   return msgs;
@@ -226,4 +235,40 @@ export function mergeWithParser(planRaw, parserRaw) {
   if (!out.time && parserRaw.time) out.time = parserRaw.time;
   if (!out.biome && parserRaw.biome && !out.setting) out.biome = parserRaw.biome;
   return { raw: out, added };
+}
+
+// ---------------- Fidelidad al prompt ----------------
+// Lo que la descripción dice con certeza (palabras del vocabulario) prevalece
+// sobre lo que el modelo omitió o inventó en aspectos estructurales. Corrige:
+//  - clima, relieve y cielo mencionados y omitidos → se añaden;
+//  - hora mencionada y cambiada → se respeta la del usuario;
+//  - un pueblo o ciudad que nadie pidió → se quita (salvo modo creativo);
+//  - un objeto "custom" que en realidad es cielo/clima/relieve → se convierte.
+// Devuelve el plan corregido y la lista de correcciones, para mostrarlas.
+export function applyCertainties(planRaw, prompt, prefs = 'balanced', parse) {
+  const raw = JSON.parse(JSON.stringify(planRaw)), fixes = [];
+  const p = parse(prompt).raw;
+  const no = new Set(raw.no || []);
+  for (const [k, label] of [['weather', 'clima'], ['features', 'relieve'], ['celestial', 'cielo']]) {
+    for (const v of p[k] || []) if (!raw[k].includes(v) && !no.has(v)) { raw[k].push(v); fixes.push(`${label} «${v}» añadido (está en la descripción)`); }
+  }
+  if (p.time && raw.time && p.time !== raw.time) { fixes.push(`hora «${raw.time}» → «${p.time}» (la de la descripción)`); raw.time = p.time; }
+  if (!raw.time && p.time) raw.time = p.time;
+  const askedTown = !!p.town || /\b(pueblo|aldea|villa|ciudad|ciudades|town|village|city)\b/i.test(prompt);
+  if (raw.town && !askedTown && prefs !== 'creative') { fixes.push('pueblo o ciudad no pedido eliminado'); raw.town = null; if (raw.biome === 'town') raw.biome = p.biome || null; }
+  for (const l of ['subjects', 'structures', 'flora']) {
+    raw[l] = raw[l].filter((e) => {
+      if (!e.kit || !e.name) return true;
+      const q = parse(e.name).raw;
+      const things = q.subjects.length + q.structures.length + q.flora.length;
+      const atmos = [...q.celestial, ...q.weather, ...q.features];
+      if (things || !atmos.length) return true;
+      for (const v of q.celestial) if (!raw.celestial.includes(v)) raw.celestial.push(v);
+      for (const v of q.weather) if (!raw.weather.includes(v)) raw.weather.push(v);
+      for (const v of q.features) if (!raw.features.includes(v)) raw.features.push(v);
+      fixes.push(`«${e.name}» no es un objeto: pasa al cielo/clima`);
+      return false;
+    });
+  }
+  return { raw, fixes };
 }

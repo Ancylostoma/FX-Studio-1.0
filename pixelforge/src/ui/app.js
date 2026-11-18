@@ -128,7 +128,7 @@ async function interpretWith(engine, input) {
     if (!cfg.model) throw new Error('Elige un modelo de Ollama en el panel «IA local».');
     toast(`Interpretando con ${cfg.model}…`);
     const out = await localInterpret(localBody());
-    return { raw: out.raw, source: 'local', info: { compat: out.compat, model: out.model, ms: performance.now() - t0, timings: out.timings, warnings: out.warnings } };
+    return { raw: out.raw, source: 'local', info: { corrections: out.corrections, compat: out.compat, model: out.model, ms: performance.now() - t0, timings: out.timings, warnings: out.warnings } };
   }
   if (engine === 'auto') {
     if (state.local.available && cfg.model) {
@@ -137,7 +137,7 @@ async function interpretWith(engine, input) {
         const out = await localInterpret(localBody());
         // Fusión: lo que el parser reconoce con certeza y el modelo omitió se añade.
         const merged = input.prompt ? mergeWithParser(out.raw, parsePrompt(input.prompt).raw) : { raw: out.raw, added: [] };
-        return { raw: merged.raw, source: 'local', info: { compat: out.compat, model: out.model, ms: performance.now() - t0, timings: out.timings, warnings: out.warnings, added: merged.added } };
+        return { raw: merged.raw, source: 'local', info: { corrections: out.corrections, compat: out.compat, model: out.model, ms: performance.now() - t0, timings: out.timings, warnings: out.warnings, added: merged.added } };
       } catch (e) {
         const r = procedural();
         return { ...r, source: 'procedural', info: { ms: performance.now() - t0, fallback: e.message, tried: true } };
@@ -166,6 +166,7 @@ function showEngineInfo(res, renderMs, scene, qc, opts) {
   if (i.added?.length) notes.push('Añadido por el intérprete procedural: ' + i.added.join(', ') + '.');
   if (i.warnings?.length) notes.push(i.warnings.length + ' dato(s) del modelo descartados al validar.');
   if (i.compat?.length) notes.push('Compatibilidad: ' + i.compat.join('; ') + '.');
+  if (i.corrections?.length) notes.push('Ajustado a tu descripción: ' + i.corrections.join('; ') + '.');
   return notes;
 }
 function showQC(qc) {
