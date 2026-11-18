@@ -19,7 +19,7 @@ export const PLAN_CATALOG = Object.freeze({
   biomes: Object.keys(BIOMES).filter((b) => b !== 'interior'),
   colors: Object.keys(COLORS),
   materials: [...new Set([...Object.keys(MATERIALS), ...Object.keys(COLORS)])],
-  features: ['mountains', 'hills', 'lake', 'fuji', 'waterfall'],
+  features: ['mountains', 'hills', 'lake', 'river', 'fuji', 'waterfall'],
   times: ['day', 'night', 'sunset', 'dawn'],
   weather: ['rain', 'storm', 'snow', 'fog'],
   sky: ['moon', 'sun', 'stars', 'clouds', 'aurora', 'rainbow', 'comet', 'planet'],
@@ -102,7 +102,7 @@ Reglas:
 3. Acción: action attack en combates (y battle true), walk si camina, cast si lanza un hechizo. facing indica hacia dónde mira.
 4. Interiores: setting "interior" y room. Pueblos y ciudades: town {style, size 1-3}. "Ciudad" moderna o futurista: biome city o cyber.
 5. Elige "palette" según el ambiente y "time" según la hora. No repitas lo que el motor ya añade solo (luna y estrellas de noche, nubes de día).
-6. Clima y cielo NO son objetos: lluvia, nieve, niebla y tormenta van en "weather"; montañas, ríos y lagos (lake) y cascadas en "features"; luna, sol, estrellas, aurora, arcoíris y planetas en "sky". Nunca los crees como "custom".
+6. Clima y cielo NO son objetos: lluvia, nieve, niebla y tormenta van en "weather"; montañas, ríos (river), lagos (lake) y cascadas en "features"; luna, sol, estrellas, aurora, arcoíris y planetas en "sky". Nunca los crees como "custom".
 7. "town" solo si la descripción habla de un pueblo, aldea o ciudad. No añadas edificios que no se piden.
 8. "montado en" / "a lomos de" un animal: relation {"type":"on","to": el animal}. "detrás de", "delante de", "junto a": behind, front, beside.
 9. En "unsupported" anota en español lo que no se pudo representar.
@@ -252,6 +252,8 @@ export function applyCertainties(planRaw, prompt, prefs = 'balanced', parse) {
   for (const [k, label] of [['weather', 'clima'], ['features', 'relieve'], ['celestial', 'cielo']]) {
     for (const v of p[k] || []) if (!raw[k].includes(v) && !no.has(v)) { raw[k].push(v); fixes.push(`${label} «${v}» añadido (está en la descripción)`); }
   }
+  // «río» no es «lago»: si la frase pide río y no lago, el lago del modelo era el río.
+  if (p.features.includes('river') && !p.features.includes('lake') && raw.features.includes('lake') && !p.features.includes('waterfall')) { raw.features = raw.features.filter((f) => f !== 'lake'); fixes.push('«lago» → «río» (la descripción pide un río)'); }
   if (p.time && raw.time && p.time !== raw.time) { fixes.push(`hora «${raw.time}» → «${p.time}» (la de la descripción)`); raw.time = p.time; }
   if (!raw.time && p.time) raw.time = p.time;
   const askedTown = !!p.town || /\b(pueblo|aldea|villa|ciudad|ciudades|town|village|city)\b/i.test(prompt);
@@ -272,7 +274,21 @@ export function applyCertainties(planRaw, prompt, prefs = 'balanced', parse) {
   }
   // Hacia dónde mira: si la frase lo dice, manda.
   for (const pe of [...p.subjects, ...p.structures]) if (pe.facing) for (const e of raw.subjects.filter((x) => x.id === pe.id || x.id === raw.focus)) if (e.facing !== pe.facing) { e.facing = pe.facing; fixes.push(`«${e.id}» mira hacia la ${pe.facing === 'left' ? 'izquierda' : 'derecha'} (lo dice la descripción)`); }
+  // Relaciones («montado en», «desde la torre») y cantidades («unos murciélagos») de la frase mandan.
+  const all = [...raw.subjects, ...raw.structures, ...raw.flora];
+  for (const pe of [...p.subjects, ...p.structures]) {
+    const e = all.find((x) => x.id === pe.id);
+    if (!e) continue;
+    if (pe.rel && all.some((x) => x.id === pe.rel.of && x !== e) && (e.rel?.type !== pe.rel.type || e.rel?.of !== pe.rel.of)) { e.rel = { ...pe.rel }; fixes.push(`«${e.id}» ${pe.rel.type === 'on' ? 'encima de / montado en' : pe.rel.type} «${pe.rel.of}» (lo dice la descripción)`); }
+    if (pe.n > 1 && (e.n || 1) < pe.n) { e.n = pe.n; fixes.push(`«${e.id}» ×${pe.n} (la descripción habla en plural)`); }
+  }
   if (prefs !== 'creative') {
+    // Objetos sueltos (espada, cofre, poción…) que la frase no pide.
+    const ITEMS = new Set(['sword', 'shield', 'potion', 'heart', 'gem', 'key', 'crown', 'coin', 'apple', 'mug', 'chest', 'skull']);
+    const asked = new Set(p.subjects.map((e) => e.id));
+    const nItems = raw.subjects.length;
+    raw.subjects = raw.subjects.filter((e) => !ITEMS.has(e.id) || asked.has(e.id) || raw.focus === e.id);
+    if (raw.subjects.length < nItems) fixes.push(`${nItems - raw.subjects.length} objeto(s) suelto(s) no pedido(s) eliminado(s)`);
     // Atributos que la frase no menciona (alas, armadura, escudo, arma mágica).
     const ATTR = [['wings', /\b(alas|alad[oa]s?|wings?|hada|angel|ángel|demonio)\b/i, 'alas'], ['armor', /\b(armadura|coraza|armor|armour|blindad[oa])\b/i, 'armadura'], ['shield', /\b(escudo|shield)\b/i, 'escudo'], ['weaponFx', /\b(fuego|llamas?|ardiente|hielo|helad[oa]|fire|ice)\b/i, 'arma mágica']];
     for (const e of raw.subjects) for (const [k, re, label] of ATTR) if (e.a?.[k] && !re.test(prompt)) { delete e.a[k]; fixes.push(`${label} de «${e.id}» quitada (no se pide)`); }

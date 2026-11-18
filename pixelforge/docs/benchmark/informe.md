@@ -8,7 +8,7 @@ Parámetros comunes: 128×128, estilo 16-bit, semilla 7. Columnas de la comparat
 
 | Motor | Interpretación (elementos esperados) | Elementos visibles en la imagen | Control de calidad | Tiempo medio de interpretación |
 |---|---|---|---|---|
-| Procedural | 21/21 (100 %) | 8/8 (100 %) | 96/96 | 0 ms |
+| Procedural | 21/21 (100 %) | 8/8 (100 %) | 96/96 | 1 ms |
 
 > Aviso: estas 12 descripciones usan palabras que el vocabulario procedural conoce, en parte porque se amplió pensando en ellas. Por eso su interpretación es completa aquí; no indica que entienda cualquier redacción. La comprensión de frases nuevas se mide con «Evaluar este modelo» (panel IA local), que usa sinónimos fuera del vocabulario. «Elementos visibles» solo cuenta sujetos y estructuras: la vegetación comparte capa y no se puede medir por separado.
 
@@ -20,37 +20,37 @@ Parámetros comunes: 128×128, estilo 16-bit, semilla 7. Columnas de la comparat
 
 Esperado: dragon, castle
 
-- **procedural:** interpretación 2/2 · visibles 2/2 · QC 9/9 · 35 colores · 2 ms + 48 ms
+- **procedural:** interpretación 2/2 · visibles 2/2 · QC 9/9 · 35 colores · 2 ms + 43 ms
 
 ### Un bosque japonés con un lago y un cerezo
 
 Esperado: cherry, feature:lake
 
-- **procedural:** interpretación 2/2 · visibles 0/0 · QC 9/9 · 40 colores · 1 ms + 49 ms
+- **procedural:** interpretación 2/2 · visibles 0/0 · QC 9/9 · 40 colores · 6 ms + 42 ms
 
 ### Una ciudad cyberpunk de noche
 
 Esperado: biome:cyber
 
-- **procedural:** interpretación 1/1 · visibles 0/0 · QC 6/6 · 31 colores · 0 ms + 8 ms
+- **procedural:** interpretación 1/1 · visibles 0/0 · QC 6/6 · 31 colores · 0 ms + 7 ms
 
 ### Un astronauta sobre Marte
 
 Esperado: astronaut, biome:mars
 
-- **procedural:** interpretación 2/2 · visibles 1/1 · QC 9/9 · 23 colores · 0 ms + 9 ms
+- **procedural:** interpretación 2/2 · visibles 1/1 · QC 9/9 · 23 colores · 0 ms + 8 ms
 
 ### Un caballero medieval frente a un castillo
 
 Esperado: knight, castle
 
-- **procedural:** interpretación 2/2 · visibles 2/2 · QC 9/9 · 44 colores · 0 ms + 11 ms
+- **procedural:** interpretación 2/2 · visibles 2/2 · QC 9/9 · 44 colores · 0 ms + 9 ms
 
 ### Una aldea tropical frente al mar
 
 Esperado: town:tropical
 
-- **procedural:** interpretación 1/1 · visibles 0/0 · QC 6/6 · 29 colores · 0 ms + 5 ms
+- **procedural:** interpretación 1/1 · visibles 0/0 · QC 6/6 · 29 colores · 0 ms + 4 ms
 
 ### El interior de una biblioteca fantástica
 
@@ -68,7 +68,7 @@ Esperado: train, feature:mountains
 
 Esperado: tiger, biome:forest
 
-- **procedural:** interpretación 2/2 · visibles 1/1 · QC 9/9 · 31 colores · 0 ms + 21 ms
+- **procedural:** interpretación 2/2 · visibles 1/1 · QC 9/9 · 31 colores · 0 ms + 20 ms
 
 ### Una nave espacial rodeada de planetas
 
@@ -80,7 +80,7 @@ Esperado: spaceship, sky:planet
 
 Esperado: battle, creatures:2
 
-- **procedural:** interpretación 2/2 · visibles 0/0 · QC 9/9 · 46 colores · 0 ms + 8 ms · Añado contendientes para la batalla: dragón y trol.
+- **procedural:** interpretación 2/2 · visibles 0/0 · QC 9/9 · 46 colores · 1 ms + 12 ms · Añado contendientes para la batalla: dragón y trol.
 
 ### Una ciudad medieval durante una tormenta
 

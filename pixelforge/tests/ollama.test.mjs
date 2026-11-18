@@ -224,7 +224,7 @@ test('fidelidad: corrige los fallos observados en la prueba real con qwen3.5:4b'
   const plan = sanitizePlan({ subjects: [{ id: 'custom', name: 'aurora boreal', kit: { base: 'shapes', shapes: [{ s: 'rect', x: 0, y: 0, w: 1, h: 1, mat: 'cyan' }] } }], structures: [{ id: 'medievalhouse' }], biome: 'town', town: { style: 'medieval', size: 3 }, time: 'day' }).raw;
   const { raw, fixes } = applyCertainties(plan, 'Un valle con un río, montañas nevadas, una aurora y niebla al amanecer', 'balanced', parsePrompt);
   assert.equal(raw.town, null); assert.notEqual(raw.biome, 'town');
-  assert.deepEqual([...raw.features].sort(), ['lake', 'mountains']); assert.deepEqual(raw.weather, ['fog']); assert.equal(raw.time, 'dawn');
+  assert.deepEqual([...raw.features].sort(), ['mountains', 'river']); assert.deepEqual(raw.weather, ['fog']); assert.equal(raw.time, 'dawn');
   assert.ok(raw.celestial.includes('aurora')); assert.equal(raw.subjects.length, 0);
   assert.ok(fixes.length >= 5);
   const city = applyCertainties(plan, 'Una plaza de una ciudad medieval', 'balanced', parsePrompt).raw;
@@ -253,4 +253,24 @@ test('fidelidad (2.ª prueba real): atributos, edificios no pedidos, orientació
   assert.equal(parsePrompt(prompt).raw.subjects.find((e) => e.id === 'elf')?.facing, 'left', 'el procedural también entiende hacia dónde mira');
   const keep = applyCertainties(plan, 'Una elfa alada con armadura verde junto a una torre', 'balanced', parsePrompt).raw;
   assert.equal(keep.subjects[0].a.wings, 'fairy'); assert.equal(keep.subjects[0].a.armor, 'green'); assert.ok(keep.structures.some((e) => e.id === 'tower'));
+});
+
+test('fidelidad (3.ª prueba real): montado en, desde la torre, plurales, objetos sueltos y río', () => {
+  const samurai = sanitizePlan({ subjects: [{ id: 'samurai', weapon: 'sword' }, { id: 'bear', rel: 'on', of: 'lighthouse' }], structures: [{ id: 'lighthouse' }], features: ['mountains'] }).raw;
+  const a = applyCertainties(samurai, 'Un samurái montado en un oso polar junto a un faro, con una aurora boreal en el cielo.', 'balanced', parsePrompt).raw;
+  assert.deepEqual(a.subjects.find((e) => e.id === 'samurai').rel, { type: 'on', of: 'bear' });
+  assert.notEqual(a.subjects.find((e) => e.id === 'bear').rel?.type, 'on', 'el oso no se sube al faro');
+  const dragon = sanitizePlan({ subjects: [{ id: 'dragon', color: 'red' }, { id: 'wizard' }, { id: 'bat' }], structures: [{ id: 'castle' }, { id: 'tower' }] }).raw;
+  const b = applyCertainties(dragon, 'Un enorme dragón rojo volando sobre un castillo medieval durante una noche de luna llena, mientras un mago lanza un hechizo desde la torre y unos murciélagos huyen.', 'balanced', parsePrompt).raw;
+  assert.deepEqual(b.subjects.find((e) => e.id === 'wizard').rel, { type: 'on', of: 'tower' });
+  assert.ok(b.subjects.find((e) => e.id === 'bat').n >= 3);
+  const elf = sanitizePlan({ subjects: [{ id: 'elf', weapon: 'bow' }, { id: 'sword', rel: 'beside', of: 'elf' }], features: ['lake'] }).raw;
+  const c = applyCertainties(elf, 'Una elfa con un arco junto a un río', 'balanced', parsePrompt);
+  assert.deepEqual(c.raw.subjects.map((e) => e.id), ['elf']);
+  assert.deepEqual(c.raw.features, ['river'], c.fixes.join(' | '));
+  const chest = sanitizePlan({ subjects: [{ id: 'elf' }, { id: 'chest' }] }).raw;
+  assert.ok(applyCertainties(chest, 'Una elfa junto a un cofre', 'balanced', parsePrompt).raw.subjects.some((e) => e.id === 'chest'), 'si la frase lo pide, se queda');
+  // El procedural también: «desde» solo cuenta con construcciones.
+  const d = parsePrompt('Un arquero dispara desde lejos a un lobo').raw;
+  assert.equal(d.subjects[0].rel, null);
 });

@@ -443,7 +443,41 @@ export function genGround(G) {
     o.push(['P', [x0 - 1, y0, x0 + 2, y0, mx + Math.round(wide * 0.5), my, x1 + wide, h, x1 - wide, h, mx - Math.round(wide * 0.5), my], d[3]]);
     
   }
-  return [L('suelo', 'ground', o)];
+  return [L('suelo', 'ground', o), ...genRiver(G)];
+}
+
+// Río serpenteante: nace estrecho en el horizonte y se ensancha hacia el espectador
+// (perspectiva), con meandros cada vez más amplios, orillas y destellos. Termina en el
+// lado contrario a los personajes para no dejarlos «de pie en el agua».
+function genRiver(G) {
+  const { w, h, H, C, spec } = G;
+  if (!spec.features.includes('river') || G.waterKind || G.interior || G.layoutKind !== 'scene' || G.biome.urban) return [];
+  const rng = G.rng('river'), wt = C.mat('water'), bank = C.mat(G.biome.ground === 'snow' ? 'stone' : 'dirt');
+  const ground = G.subs.filter((s) => !s.air);
+  const avg = ground.length ? ground.reduce((t, s) => t + s.x + s.w / 2, 0) / ground.length : w / 2;
+  const away = ground.length ? (avg > w / 2 ? -1 : 1) : rng.chance(0.5) ? -1 : 1;
+  const x0 = Math.round(w * (0.5 + rng.range(-0.12, 0.12))), x1 = Math.round(w * (0.5 + away * rng.range(0.12, 0.24)));
+  const ph = rng.range(0, Math.PI * 2), turns = rng.range(1.6, 2.4), n = Math.max(10, Math.round((h - H) / 2));
+  const L1 = [], R1 = [], L2 = [], R2 = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n, y = Math.round(H + 1 + (h - H) * t);
+    const cx = x0 + (x1 - x0) * t + Math.sin(ph + t * Math.PI * turns) * w * 0.13 * t;
+    const hw = Math.max(0.6, w * (0.01 + 0.12 * Math.pow(t, 1.4))), b = Math.max(1, Math.round(hw * 0.18));
+    L1.push(Math.round(cx - hw), y); R1.unshift(Math.round(cx + hw), y);
+    L2.push(Math.round(cx - hw - b), y); R2.unshift(Math.round(cx + hw + b), y);
+  }
+  const close = (l, r) => [...l, ...r.reduce((acc, v, i, a) => (i % 2 ? acc : acc.concat([a[i], a[i + 1]])), [])];
+  const o = [['P', close(L2, R2), bank[2]], ['P', close(L1, R1), wt[2]]];
+  if (!G.style.flat) {
+    // Destellos horizontales: más largos y frecuentes cerca del espectador.
+    for (let i = 2; i <= n; i += 2) {
+      const t = i / n, y = L1[i * 2 + 1], l = L1[i * 2], r = R1[(n - i) * 2];
+      if (r - l < 3 || !rng.chance(0.35 + t * 0.4)) continue;
+      const len = Math.max(1, Math.round((r - l) * rng.range(0.15, 0.35)));
+      o.push(['R', rng.int(l + 1, Math.max(l + 1, r - len - 1)), y, len, 1, wt[rng.chance(0.5) ? 3 : 4]]);
+    }
+  }
+  return [L('río', 'water', o, { sh: G.style.sh })];
 }
 const shiftL = (m, d) => [m[0], m[1], m[2] + d];
 
@@ -482,6 +516,41 @@ export function genWater(G) {
   return layers;
 }
 
+// ---------- Niebla ----------
+// Antes era una trama de puntos semitransparente encima de toda la escena (efecto
+// «mosquitera»). Ahora son capas lisas: una bruma que se asienta en el horizonte y
+// difumina el pie de las montañas, y unos jirones a media distancia; el primer plano
+// queda nítido. 'far' va justo después del fondo lejano y 'mid' antes de los sujetos.
+export function genFog(G, phase) {
+  const { w, h, H, C, spec } = G;
+  if (!spec.weather.includes('fog') || G.interior || G.biome.noGround) return [];
+  const rng = G.rng('fog:' + phase), night = spec.time === 'night';
+  const c = C.rgb(night ? [104, 116, 150] : spec.time === 'dawn' || spec.time === 'dusk' ? [238, 226, 228] : [228, 234, 242]);
+  if (phase === 'far') {
+    const out = [];
+    // Dos bandas: una densa pegada al horizonte y otra fina encima; borde superior ondulado.
+    [[0.13, 0.05, night ? 0.45 : 0.6], [0.24, 0.02, 0.3]].forEach(([up, down, a], k) => {
+      const o = [], top = H - Math.round(h * up), bot = H + Math.round(h * down);
+      const step = Math.max(2, Math.round(w / 24));
+      for (let x = 0; x < w; x += step) {
+        const t = top + Math.round(Math.sin((x / w) * Math.PI * (3 + k) + rng.int(0, 3)) * h * 0.025) + rng.int(0, Math.max(1, Math.round(h * 0.015)));
+        o.push(['R', x, t, step, bot - t, c]);
+      }
+      out.push(L(k ? 'bruma alta' : 'bruma del valle', 'weather', o, { nl: 1, a }));
+    });
+    return out;
+  }
+  // Jirones: elipses muy aplanadas entre el horizonte y la mitad del suelo.
+  const o = [], n = Math.max(2, Math.round(w / 40));
+  for (let i = 0; i < n; i++) {
+    const y = H + Math.round((h - H) * (0.08 + 0.32 * (i / n))) + rng.int(-1, 1);
+    const cx = Math.round(((i + 0.5) / n) * w) + rng.int(-Math.round(w / 10), Math.round(w / 10));
+    const rx = Math.round(w * (0.16 + rng.int(0, 10) / 100)), ry = Math.max(1, Math.round(h * 0.012));
+    o.push(['E', cx, y, rx, ry, c], ['E', cx + Math.round(rx * 0.45), y - ry, Math.round(rx * 0.5), ry, c]);
+  }
+  return [L('jirones de niebla', 'weather', o, { nl: 1, a: night ? 0.3 : 0.4 })];
+}
+
 // ---------- Clima y partículas ----------
 export function genWeather(G) {
   const { w, h, H, C, spec } = G, rng = G.rng('weather');
@@ -511,11 +580,7 @@ export function genWeather(G) {
     G.sprites['snowfall'] = { w: tile, h: tile, o: so };
     out.push(L('nevada', 'weather', [scroll('snowfall', [0, 1, 0, -1][F % 4], off)], { nl: 1, a: 0.9 }));
   }
-  if (spec.weather.includes('fog')) {
-    const c = C.rgb([226, 232, 240]), o = [], y0 = Math.round(H * 0.55), bands = 5, bh = Math.max(2, Math.round((h * 0.5) / bands));
-    for (let i = 0; i < bands; i++) o.push(['D', 0, y0 + i * bh, w, bh, c, Math.min(15, 4 + i * 3)]);
-    out.push(L('niebla', 'weather', o, { nl: 1, a: 0.42 }));
-  }
+  // La niebla ya no se dibuja aquí encima de todo: ver genFog (bruma del valle y jirones a media distancia).
   if (spec.fx.includes('fireflies')) {
     const c = C.rgb([232, 255, 130]), o = [], go = [];
     const n = Math.round(((w * h) / 380) * Math.min(1.6, G.detail));

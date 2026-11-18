@@ -49,6 +49,17 @@ export function extract(text) {
   const isNoun = (t) => t && /^(s|b|f|part):/.test(t.tag);
   const lastEnt = () => ents[ents.length - 1];
   const lastBody = () => { for (let j = ents.length - 1; j >= 0; j--) if (!ents[j].part) return ents[j]; return null; };
+  // Quien actúa: «un mago lanza un hechizo desde la torre» → el mago, no el hechizo.
+  const FX_SUBJ = new Set(['magic', 'fireball', 'explosion', 'smoke']);
+  const lastActor = () => { for (let j = ents.length - 1; j >= 0; j--) if (!ents[j].part && !FX_SUBJ.has(ents[j].id)) return ents[j]; return lastBody(); };
+  // Resuelve la relación pendiente con el sustantivo que acaba de aparecer.
+  // «desde» solo cuenta si apunta a una construcción («desde la torre» → encima de la torre).
+  const link = (e, isStruct) => {
+    if (!pend || pend.a === e) return;
+    if (pend.type === 'from') { if (isStruct) pend.a.rel = { type: 'on', of: e.id }; }
+    else if (pend.type === 'below') e.rel = { type: 'on', of: pend.a.id }; else pend.a.rel = { type: pend.type, of: e.id };
+    pend = null;
+  };
   const nounSoon = (i) => { let j = i + 1, skipped = 0; while (toks[j] && skipped < 3 && /^(stop|unk$|col:|size:|n:)/.test(toks[j].tag)) { j++; skipped++; } return isNoun(toks[j]); };
   const rooms = [];
   let pend = null;               // relación a la espera de su segundo término ("detrás de" → …)
@@ -64,7 +75,7 @@ export function extract(text) {
       if (!(prev?.tag === 'stop' && /^(el|la|los|las|del|al|the)$/.test(prev.word))) return false;
       const cur = list.find((x) => x.id === id);
       if (!cur) return false;
-      if (pend && pend.a !== cur) { if (pend.type === 'below') cur.rel = { type: 'on', of: pend.a.id }; else pend.a.rel = { type: pend.type, of: cur.id }; }
+      link(cur, list === raw.structures);
       pend = null; pre = {}; cur._i = i; ents.push(cur);
       return true;
     };
@@ -75,10 +86,9 @@ export function extract(text) {
       if (pre.fly) e.fly = true;
       if (pre.side) e.side = pre.side;
       if (pre.depth) e.depth = pre.depth;
-      if (pend && list !== parts && pend.a !== e) {
-        if (pend.type === 'below') e.rel = { type: 'on', of: pend.a.id }; else pend.a.rel = { type: pend.type, of: e.id };
-        pend = null;
-      }
+      if (list !== parts) link(e, list === raw.structures);
+      // «unos murciélagos», «unas setas»: plural sin número → unos cuantos.
+      if (!pre.n && e.n === 1 && /s$/.test(t.word) && /^(unos|unas|algunos|algunas|some)$/.test(prev?.word || '')) e.n = 3;
       pre = {};
       e._i = i;
       list.push(e); ents.push(e);
@@ -95,12 +105,12 @@ export function extract(text) {
         else pre[kind] = id;
         break;
       }
-      case 'rel': { const a = lastBody(); if (a) pend = { type: id, a, ttl: 5 }; break; }
+      case 'rel': { const a = id === 'from' || id === 'on' ? lastActor() : lastBody(); if (a) pend = { type: id, a, ttl: 5 }; break; }
       case 's': if (!refer(raw.subjects)) add(raw.subjects, ent(id)); break;
       case 'b': if (!refer(raw.structures)) add(raw.structures, ent(id)); break;
       case 'f': if (!refer(raw.flora)) add(raw.flora, ent(id)); break;
       case 'part': { const p = add(parts, ent(id)); p.part = id; break; }
-      case 'biome': raw.biome = id; break;
+      case 'biome': raw.biome = id; if (/^polar(es)?$/.test(t.word) && prev?.tag.startsWith('s:')) setColor(lastEnt(), 'white'); break;   // «oso polar» → blanco
       case 'feat': if (!raw.features.includes(id)) raw.features.push(id); break;
       case 'time': raw.time = id; break;
       case 'w': if (!raw.weather.includes(id)) raw.weather.push(id); break;

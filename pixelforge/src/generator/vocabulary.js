@@ -86,7 +86,7 @@ const V = [
   ['biome:cyber', 'cyberpunk|ciberpunk|neon'], ['biome:snow', 'nevado|nevada|invernal|invierno|winter|artico|tundra|polar'],
   ['biome:volcano', 'volcan|volcano|volcanico|volcanica'], ['biome:space', 'espacio exterior|espacio|galaxia|cosmos|universo|space|galaxy|orbita'],
   ['feat:fuji', 'monte fuji|fuji'], ['feat:mountains', 'montana|montanas|sierra|cordillera|mountain|mountains|picos|cumbre'],
-  ['feat:hills', 'colina|colinas|loma|hill|hills'], ['feat:lake', 'lago|laguna|estanque|rio|lake|pond|river'],
+  ['feat:hills', 'colina|colinas|loma|hill|hills'], ['feat:lake', 'lago|laguna|estanque|lake|pond'], ['feat:river', 'rio|rios|arroyo|riachuelo|river|stream|creek'],
   // --- Hora, clima, astros ---
   ['time:night', 'noche|nocturno|nocturna|medianoche|night|midnight|de noche'],
   ['time:day', 'dia|mediodia|diurno|soleado|soleada|day|noon|sunny'],
@@ -120,7 +120,7 @@ const V = [
   ['side:center', 'en el centro|centro|en medio|in the middle|in the center|center|middle'],
   ['depth:back', 'al fondo|a lo lejos|en la distancia|en segundo plano|in the background|in the distance|far away'],
   ['depth:front', 'en primer plano|primer plano|in the foreground|foreground'],
-  ['rel:on', 'encima de|encima|sobre|arriba de|on top of|atop|above|over|on'], ['rel:below', 'debajo de|debajo|bajo|under|below|beneath'],
+  ['rel:on', 'montado en|montada en|montado sobre|montada sobre|montados en|montadas en|a lomos de|a lomos del|cabalgando|mounted on|riding|en lo alto de|en lo alto del|encima de|encima|sobre|arriba de|on top of|atop|above|over|on'], ['rel:from', 'desde'], ['rel:below', 'debajo de|debajo|bajo|under|below|beneath'],
   ['rel:behind', 'detras de|detras|tras|behind'], ['rel:front', 'delante de|delante|frente a|frente|in front of'],
   ['rel:beside', 'junto a|junto|al lado de|al lado|cerca de|next to|beside|near'],
   ['fly', 'volando|vuela|volador|voladora|sobrevolando|flying|flies|en el aire|flotando'],

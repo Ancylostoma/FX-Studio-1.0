@@ -11,7 +11,7 @@ import { STYLES, BIOMES, SKIES, DETAIL_FACTOR, ANIMS } from './templates.js';
 import { LIB, defOf } from './spriteLibrary.js';
 import { genTown, genInterior, applyTheme, brighten } from './environments.js';
 import { THEMES } from './templates.js';
-import { Pen, Kit, L, skyColors, genSky, genStars, genCelestial, genClouds, genFar, genGround, genWater, genWeather } from './proceduralGenerator.js';
+import { Pen, Kit, L, skyColors, genSky, genStars, genCelestial, genClouds, genFar, genGround, genWater, genWeather, genFog } from './proceduralGenerator.js';
 import { finalize } from './promptParser.js';
 
 export const RESOLUTIONS = [16, 32, 48, 64, 96, 128, 160, 256];
@@ -104,7 +104,7 @@ function applyPositions(G, relOnly = false) {
       // Ligeramente desplazado hacia el lado contrario al astro para no taparlo.
       put(b, tcx - G.moonSide * T.w * 0.3, bottom, b.h > bottom - 1 ? Math.max(0.5, (bottom - 1) / b.h) : 1);
     } else if (r.type === 'on' && !isStruct(b)) {  // posado o montado
-      const base = T.y + Math.round(T.h * (T.def.top ?? 0.04)), lim = Math.min(base - 2, tS ? T.h * 0.7 : h);
+      const base = T.y + Math.round(T.h * (T.def.top ?? 0.04)), lim = Math.min(base - 2, tS ? T.h * 0.7 : T.h * 1.2);   // el jinete no puede triplicar a su montura
       put(b, tcx + (T.def.topX || 0) * T.w * (T.flip ? -1 : 1) + (b.i || 0) * b.w, base, b.h > lim ? Math.max(0.35, lim / b.h) : 1);
       b.onTop = true; b.z = (T.z ?? T.by ?? 0) + 0.5;   // se dibuja justo después de su apoyo
     } else if (r.type === 'behind') {
@@ -164,7 +164,7 @@ function buildContext(spec, o, pb, frame) {
     if (G.layoutKind === 'iso') { G.waterKind = null; G.H = Math.round(h * 0.86); }
     if (G.waterKind === 'lake') G.shoreY = G.H + Math.round((h - G.H) * 0.52);
     if (G.waterKind === 'beach') G.shoreY = G.H + Math.round((h - G.H) * 0.42);
-    let far = spec.features.filter((f) => f !== 'lake');
+    let far = spec.features.filter((f) => f !== 'lake' && f !== 'river');
     if (!far.length || (far.length === 1 && far[0] === 'hills')) far = [...new Set([...G.biome.far, ...far])];
     if (G.biome.snowy && !far.includes('mountains')) far.unshift('mountains');
     if (far.includes('fuji')) far = far.filter((f) => f !== 'mountains' && f !== 'hills');
@@ -248,7 +248,9 @@ function layout(G, rng) {
   // Sujetos en tierra
   grounded.forEach((s, i) => {
     const by = sea ? H + Math.round((h - H) * 0.55) : gTop + Math.round((h - gTop) * 0.62);
-    const { bw, bh } = fit(s.def, Math.min(h * s.def.sz * 1.2 * sizeOf(G, s.e), by - 2), w * 0.5);
+    // Una montura con jinete se agranda: un oso o un lobo pequeño bajo un samurái no se lee como «montado».
+    const mount = subs.some((t) => t.e !== s.e && t.e.rel?.type === 'on' && !t.e.fly && t.e.rel.of === s.e.id) ? 1.4 : 1;
+    const { bw, bh } = fit(s.def, Math.min(h * s.def.sz * 1.2 * mount * sizeOf(G, s.e), by - 2), w * 0.5);
     const base = main ? 0.5 - side * 0.22 : 0.5 + (grounded.length > 1 ? 0 : -side * 0.06);
     const cx = Math.max((bw >> 1) + 1, Math.min(w - (bw >> 1) - 1, Math.round(w * (grounded.length > 2 && !main ? 0.5 : base) + (i - (grounded.length - 1) / 2) * Math.min(bw * 1.25, (w * 0.9) / grounded.length))));
     const b = { ...s, x: cx - (bw >> 1), y: by - bh, w: bw, h: bh, by, flip: main ? cx > main.x + main.w / 2 : cx > w / 2, depth: 1, ground: true };
@@ -430,6 +432,7 @@ function composeFrame(spec, o, pb, frame) {
     add(genClouds(G));
     add(genFar(G));
     add(genTown(G, 'far'));
+    add(genFog(G, 'far'));
   }
   const water = G.waterKind && G.layoutKind === 'scene';
   if (!water && !G.interior) add(genGround(G));
@@ -444,6 +447,7 @@ function composeFrame(spec, o, pb, frame) {
   G.structs.forEach((b) => { const i = G.spec.structures.indexOf(b.e); add(drawEntity(G, b, 'struct:' + b.def.id + (i ? i : ''), 'struct' + i)); });
   if (water) { add(genWater(G)); add(genGround(G)); add(genTown(G, 'shore')); }
   add(props.back);
+  if (G.layoutKind === 'scene') add(genFog(G, 'mid'));
   const order = G.subs.filter((b) => !b.behind).sort((a, b) => (a.air ? 1 : 0) - (b.air ? 1 : 0) || (a.z ?? a.by ?? 0) - (b.z ?? b.by ?? 0));
   order.forEach((b) => add(drawEntity(G, b, 'subj:' + b.def.id + (b.i ? b.i : ''), 'subj:' + b.def.id + b.i)));
   add(props.front);

@@ -13,7 +13,7 @@ export const CATALOG = Object.freeze({
   flora: idsOf('flora'),
   biomes: Object.keys(BIOMES),
   colors: Object.keys(COLORS),
-  features: ['mountains', 'hills', 'lake', 'fuji'],
+  features: ['mountains', 'hills', 'lake', 'river', 'fuji'],
   times: ['day', 'night', 'sunset', 'dawn'],
   weather: ['rain', 'storm', 'snow', 'fog'],
   celestial: ['moon', 'sun', 'stars', 'clouds', 'aurora', 'rainbow', 'comet', 'planet'],
