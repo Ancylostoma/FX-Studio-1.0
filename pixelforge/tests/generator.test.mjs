@@ -82,3 +82,20 @@ test('edición parcial: solo cambian las partes afectadas', () => {
   assert.equal(out.layers.find((l) => l.k === 'ground').v, 0);
   assert.ok(out.layers.some((l) => l.n === 'luna'));
 });
+
+test('lo que vuela no tapa a otros personajes; de noche lleva borde de luna (5.ª prueba real)', async () => {
+  const { composeSceneEx } = await import('../src/generator/sceneComposer.js');
+  const prompt = 'Un enorme dragón rojo volando sobre un castillo medieval durante una noche de luna llena, mientras un mago lanza un hechizo desde la torre y unos murciélagos huyen.';
+  for (const seed of [1, 7, 42, 99]) {
+    const { G, scene } = composeSceneEx(parsePrompt(prompt).spec, { w: 128, h: 128, style: 'bit16', seed, detail: 3 });
+    const box = (id) => G.subs.find((b) => b.e.id === id);
+    const d = box('dragon'), wz = box('wizard');
+    const ox = Math.max(0, Math.min(d.x + d.w, wz.x + wz.w) - Math.max(d.x, wz.x)), oy = Math.max(0, Math.min(d.y + d.h, wz.y + wz.h) - Math.max(d.y, wz.y));
+    assert.ok((ox * oy) / (wz.w * wz.h) < 0.15, `semilla ${seed}: el dragón tapa ${Math.round((100 * ox * oy) / (wz.w * wz.h))} % del mago`);
+    assert.ok(scene.layers.filter((l) => l.k?.startsWith('subj:bat') && l.ol !== undefined).every((l) => l.ol >= 0), 'murciélagos con borde claro');
+  }
+  // Un jinete sobre un dragón no se separa de su montura.
+  const { G } = composeSceneEx(parsePrompt('Un caballero montado en un dragón volando de noche').spec, { w: 128, h: 128, style: 'bit16', seed: 7, detail: 3 });
+  const k = G.subs.find((b) => b.e.id === 'knight'), dr = G.subs.find((b) => b.e.id === 'dragon');
+  assert.ok(Math.abs(k.x + k.w / 2 - (dr.x + dr.w / 2)) < dr.w * 0.6, 'el jinete sigue encima del dragón');
+});

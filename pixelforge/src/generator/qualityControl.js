@@ -97,7 +97,7 @@ export function checkScene(scene, spec, G) {
     add('visible', 'El fondo no oculta al protagonista', ratio >= 0.6 || wantsBehind, `${(ratio * 100).toFixed(0)} % visible`);
     if (ratio < 0.6 && !wantsBehind) { fix.clearFocus = true; if (!fb.e.side && !fb.e.rel) fix.dx[spec.focus] = (fb.x + fb.w / 2 < w / 2 ? -1 : 1) * 0.12; }
     const c = contrast(scene, fm);
-    add('contrast', 'Contraste de la silueta con el fondo', c >= 40, `contraste de borde ${c.toFixed(0)} (mínimo 40)`);
+    add('contrast', 'Contraste de la silueta con el fondo', c >= 40, `contraste de borde ${Math.floor(c)} (mínimo 40)`);
     if (c < 40) fix.outline[spec.focus] = true;
   }
   // 4. Solapamientos indebidos entre sujetos sin relación
@@ -111,6 +111,13 @@ export function checkScene(scene, spec, G) {
     if (r > 0.45) { bad.push(`${a.def.id}/${b.def.id}`); const left = a.x < b.x ? a : b, right = left === a ? b : a; if (!left.e.side && !left.e.rel) fix.dx[left.e.id] = -0.1; if (!right.e.side && !right.e.rel) fix.dx[right.e.id] = 0.1; }
   }
   add('overlap', 'Sin solapamientos indebidos', !bad.length, bad.length ? bad.join(', ') : 'sí');
+  // 4b. Ningún personaje pedido queda tapado por otro (prueba real: el dragón cubría al mago).
+  const hidden = [];
+  for (const e of spec.subjects) {
+    if (e.id === spec.focus || e.rel?.type === 'behind' || defOf(e)?.cat === 'effect') continue;
+    for (const k of keyOf(e.id)) { const m = M.own.get(k); if (m && m.count >= 8 && m.visible / m.count < 0.5) { hidden.push(`${e.id} (${Math.round((100 * m.visible) / m.count)} % visible)`); break; } }
+  }
+  if (spec.subjects.length > 1) add('covered', 'Ningún personaje tapado por otro', !hidden.length, hidden.length ? hidden.join(', ') : 'sí');
   // 5. Separación de planos: lo del fondo no debe ser mayor que lo de delante
   const backs = [...spec.subjects, ...spec.structures].filter((e) => e.depth === 'back');
   const planeBad = backs.filter((e) => { const bm = keyOf(e.id).map((k) => M.own.get(k)?.count || 0)[0] || 0; const fr = [...spec.subjects].filter((x) => x.depth === 'front').map((x) => keyOf(x.id).map((k) => M.own.get(k)?.count || 0)[0] || 0); return fr.some((f) => f && bm > f); }).map((e) => e.id);

@@ -48,6 +48,37 @@ function sizeOf(G, e) {
 const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
 const cxOf = (b) => b.x + b.w / 2;
 
+// Lo que vuela no debe tapar a otros personajes (prueba real: el dragón «sobre el castillo»
+// cubría la cabeza del mago de la torre y escondía a los murciélagos). Se desliza en
+// horizontal lo justo: el coste es la parte tapada de los demás más la distancia recorrida.
+// No se separa a un jinete de su montura ni a quien está unido por una relación.
+function declutterAir(G) {
+  const { w } = G;
+  const linked = (a, b) => a.e === b.e || a.e.rel?.of === b.e.id || b.e.rel?.of === a.e.id;
+  const area = (b) => Math.max(1, b.w * b.h);
+  const over = (x, y, b, o) => Math.max(0, Math.min(x + b.w, o.x + o.w) - Math.max(x, o.x)) * Math.max(0, Math.min(y + b.h, o.y + o.h) - Math.max(y, o.y));
+  const airs = G.subs.filter((b) => b.air && b.def.cat !== 'effect' && !(b.e.rel?.type === 'on' && G.subs.some((t) => t.e.id === b.e.rel.of && !t.air)));
+  const done = new Set();
+  const skyBottom = Math.max(2, (G.H || G.h) - 1);
+  for (const b of [...airs].sort((p, q) => area(q) - area(p))) {
+    const others = G.subs.filter((o) => o !== b && !linked(b, o) && o.def.cat !== 'effect' && (!o.air || done.has(o)));
+    const weight = (o) => (o.e.id === G.spec.focus ? 2 : 1);
+    const cost = (x, y) => others.reduce((t, o) => t + (over(x, y, b, o) / Math.min(area(o), area(b))) * weight(o), 0);
+    const x0 = b.x, y0 = b.y;
+    done.add(b);
+    if (cost(x0, y0) < 0.12) continue;
+    let best = [x0, y0], bestC = cost(x0, y0);
+    const step = Math.max(1, Math.round(w / 48));
+    // Se desliza en horizontal y, dentro del cielo, también en vertical (lo pequeño cabe arriba o abajo).
+    const yMax = Math.max(1, skyBottom - b.h);
+    for (let y = 1; y <= yMax; y += step) for (let x = 1; x <= w - b.w - 1; x += step) {
+      const c = cost(x, y) + (0.25 * Math.abs(x - x0)) / w + (0.35 * Math.abs(y - y0)) / G.h;
+      if (c < bestC - 1e-9) { best = [x, y]; bestC = c; }
+    }
+    if (best[0] !== x0 || best[1] !== y0) { [b.x, b.y] = best; b.moved = true; }
+  }
+}
+
 // Posiciones pedidas por el usuario: lado, profundidad y relaciones entre
 // elementos ("a la izquierda", "al fondo", "encima de", "detrás de"…).
 // Se aplican sobre la composición por defecto, moviendo solo lo indicado.
@@ -117,6 +148,7 @@ function applyPositions(G, relOnly = false) {
     }
     if (!isStruct(b) && Math.abs(cxOf(b) - tcx) > 2) b.flip = cxOf(b) > tcx;   // mira hacia el otro elemento
   }
+  if (!relOnly) declutterAir(G);
   const boxed = [...G.structs, ...G.subs.filter((s) => s.ground && !s.onTop)];
   G.boxes = boxed.map((b) => [b.x - 1, b.x + b.w + 1, b.by]);
   if (G.waterKind === 'sea') G.islets = boxed.map((b) => ({ x: Math.round(cxOf(b)), y: b.by, w: b.w }));
@@ -310,7 +342,13 @@ function drawEntity(G, box, key, rngLabel) {
   if (glow.length) out.push(L('halo de ' + name, key, glow, { nl: 1, a: 0.2 }));
   const props = outlineProps(G, def.cat === 'structure' ? 'struct' : 'subj');
   if (def.alpha) props.a = def.alpha;
-  if (G.adjust?.outline?.[e.id] && props.ol === undefined) props.ol = G.C.dark;   // contraste insuficiente con el fondo
+  // Contraste insuficiente con el fondo (lo pide el control de calidad). Antes solo se aplicaba si el
+  // estilo no tenía contorno propio, así que en 16 bits no hacía nada. De noche, lo que vuela recibe
+  // un borde claro de luna (un borde oscuro no se distingue del cielo).
+  const moonRim = G.spec.time === 'night' && box.air && !G.biome.noGround && !G.interior;
+  if (G.adjust?.outline?.[e.id]) props.ol = moonRim ? G.C.rgb([150, 158, 200]) : G.C.dark;
+  // De noche, lo que vuela (murciélagos, búhos…) se pierde contra el cielo oscuro: borde iluminado por la luna.
+  if (G.spec.time === 'night' && box.air && e.id !== G.spec.focus && (props.ol === undefined || props.ol === -2 || props.ol === G.C.dark) && !G.biome.noGround && !G.interior) props.ol = G.C.rgb([128, 140, 190]);
   // Lo que vuela o flota se mece: desplazamiento de capa por fotograma.
   const mv = !G.pose || G.layoutKind === 'portrait' && !box.air ? null : box.air ? [[0, 1], [0, 0], [0, -1], [0, 0]] : box.floating ? [[0, 0], [0, 0], [0, 1], [0, 1]] : null;
   if (mv) { props.mv = mv; for (const l of out) l.mv = mv; }
