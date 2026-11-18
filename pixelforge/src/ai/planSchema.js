@@ -270,5 +270,20 @@ export function applyCertainties(planRaw, prompt, prefs = 'balanced', parse) {
       return false;
     });
   }
+  // Hacia dónde mira: si la frase lo dice, manda.
+  for (const pe of [...p.subjects, ...p.structures]) if (pe.facing) for (const e of raw.subjects.filter((x) => x.id === pe.id || x.id === raw.focus)) if (e.facing !== pe.facing) { e.facing = pe.facing; fixes.push(`«${e.id}» mira hacia la ${pe.facing === 'left' ? 'izquierda' : 'derecha'} (lo dice la descripción)`); }
+  if (prefs !== 'creative') {
+    // Atributos que la frase no menciona (alas, armadura, escudo, arma mágica).
+    const ATTR = [['wings', /\b(alas|alad[oa]s?|wings?|hada|angel|ángel|demonio)\b/i, 'alas'], ['armor', /\b(armadura|coraza|armor|armour|blindad[oa])\b/i, 'armadura'], ['shield', /\b(escudo|shield)\b/i, 'escudo'], ['weaponFx', /\b(fuego|llamas?|ardiente|hielo|helad[oa]|fire|ice)\b/i, 'arma mágica']];
+    for (const e of raw.subjects) for (const [k, re, label] of ATTR) if (e.a?.[k] && !re.test(prompt)) { delete e.a[k]; fixes.push(`${label} de «${e.id}» quitada (no se pide)`); }
+    // Edificios del catálogo que ni la frase ni el intérprete procedural mencionan.
+    const known = new Set([...p.subjects, ...p.structures, ...p.flora].map((e) => e.id));
+    const before = raw.structures.length;
+    raw.structures = raw.structures.filter((e) => e.kit || known.has(e.id) || raw.subjects.some((x) => x.rel?.of === e.id) || raw.focus === e.id);
+    if (raw.structures.length < before) fixes.push(`${before - raw.structures.length} edificio(s) no pedido(s) eliminado(s)`);
+  }
+  // Notas copiadas de los ejemplos de las instrucciones.
+  const EX_NOTES = new Set(EXAMPLES.flatMap(([, a]) => a.unsupported || []));
+  raw.unknown = (raw.unknown || []).filter((n) => !EX_NOTES.has(n));
   return { raw, fixes };
 }

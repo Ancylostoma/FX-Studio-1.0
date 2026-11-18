@@ -20,19 +20,19 @@ Parámetros comunes: 128×128, estilo 16-bit, semilla 7. Columnas de la comparat
 
 Esperado: dragon, castle
 
-- **procedural:** interpretación 2/2 · visibles 2/2 · QC 9/9 · 35 colores · 2 ms + 61 ms
+- **procedural:** interpretación 2/2 · visibles 2/2 · QC 9/9 · 35 colores · 2 ms + 48 ms
 
 ### Un bosque japonés con un lago y un cerezo
 
 Esperado: cherry, feature:lake
 
-- **procedural:** interpretación 2/2 · visibles 0/0 · QC 9/9 · 40 colores · 0 ms + 70 ms
+- **procedural:** interpretación 2/2 · visibles 0/0 · QC 9/9 · 40 colores · 1 ms + 49 ms
 
 ### Una ciudad cyberpunk de noche
 
 Esperado: biome:cyber
 
-- **procedural:** interpretación 1/1 · visibles 0/0 · QC 6/6 · 31 colores · 0 ms + 10 ms
+- **procedural:** interpretación 1/1 · visibles 0/0 · QC 6/6 · 31 colores · 0 ms + 8 ms
 
 ### Un astronauta sobre Marte
 
@@ -44,7 +44,7 @@ Esperado: astronaut, biome:mars
 
 Esperado: knight, castle
 
-- **procedural:** interpretación 2/2 · visibles 2/2 · QC 9/9 · 44 colores · 0 ms + 12 ms
+- **procedural:** interpretación 2/2 · visibles 2/2 · QC 9/9 · 44 colores · 0 ms + 11 ms
 
 ### Una aldea tropical frente al mar
 
@@ -62,28 +62,28 @@ Esperado: interior:library
 
 Esperado: train, feature:mountains
 
-- **procedural:** interpretación 2/2 · visibles 1/1 · QC 9/9 · 34 colores · 0 ms + 7 ms
+- **procedural:** interpretación 2/2 · visibles 1/1 · QC 9/9 · 34 colores · 0 ms + 6 ms
 
 ### Un tigre en una selva
 
 Esperado: tiger, biome:forest
 
-- **procedural:** interpretación 2/2 · visibles 1/1 · QC 9/9 · 31 colores · 0 ms + 31 ms
+- **procedural:** interpretación 2/2 · visibles 1/1 · QC 9/9 · 31 colores · 0 ms + 21 ms
 
 ### Una nave espacial rodeada de planetas
 
 Esperado: spaceship, sky:planet
 
-- **procedural:** interpretación 2/2 · visibles 1/1 · QC 9/9 · 33 colores · 0 ms + 11 ms
+- **procedural:** interpretación 2/2 · visibles 1/1 · QC 9/9 · 33 colores · 0 ms + 8 ms
 
 ### Una batalla fantástica entre criaturas
 
 Esperado: battle, creatures:2
 
-- **procedural:** interpretación 2/2 · visibles 0/0 · QC 9/9 · 46 colores · 0 ms + 10 ms · Añado contendientes para la batalla: dragón y trol.
+- **procedural:** interpretación 2/2 · visibles 0/0 · QC 9/9 · 46 colores · 0 ms + 8 ms · Añado contendientes para la batalla: dragón y trol.
 
 ### Una ciudad medieval durante una tormenta
 
 Esperado: town:medieval, weather:storm
 
-- **procedural:** interpretación 2/2 · visibles 0/0 · QC 6/6 · 35 colores · 0 ms + 5 ms
+- **procedural:** interpretación 2/2 · visibles 0/0 · QC 6/6 · 35 colores · 0 ms + 4 ms

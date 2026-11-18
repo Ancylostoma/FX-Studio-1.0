@@ -114,6 +114,7 @@ const V = [
   ['size:big', 'grande|grandes|gran|enorme|gigante|inmenso|inmensa|big|huge|giant|large'],
   ['anim:walk', 'caminando|andando|corriendo|paseando|walking|running'], ['anim:attack', 'atacando|luchando|peleando|combatiendo|attacking|fighting'],
   // --- Posición y relaciones espaciales ---
+  ['facing:left', 'mirando hacia la izquierda|mirando a la izquierda|mira hacia la izquierda|mira a la izquierda|looking left|facing left'], ['facing:right', 'mirando hacia la derecha|mirando a la derecha|mira hacia la derecha|mira a la derecha|looking right|facing right'],
   ['side:left', 'a la izquierda|al lado izquierdo|lado izquierdo|izquierda|izquierdo|on the left|to the left|left'], ['side:right', 'a la derecha|al lado derecho|lado derecho|derecha|derecho|on the right|to the right|right'],
   ['bright:up', 'mas luz|mas iluminacion|incrementa la iluminacion|aumenta la iluminacion|aumenta la luz|mas brillante|mas luminoso|mas luminosa|ilumina|brighter|more light'], ['bright:down', 'menos luz|menos iluminacion|mas oscuro|mas oscura|oscurece|darker|less light'],
   ['side:center', 'en el centro|centro|en medio|in the middle|in the center|center|middle'],
@@ -142,7 +143,7 @@ const STOP = 'un una unos unas el la los las lo de del al a en con y e o u que p
 export const PHRASES = new Map();
 for (const [tag, words] of V) for (const w of words.split('|')) if (!PHRASES.has(w)) PHRASES.set(w, tag);
 export const STOPWORDS = new Set(STOP);
-export const MAX_PHRASE = 3;
+export const MAX_PHRASE = 4;
 
 export function normalize(text) {
   return String(text).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();

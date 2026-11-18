@@ -118,6 +118,7 @@ export function extract(text) {
       case 'town': raw.town = { kind: id }; break;
       case 'battle': raw.battle = true; break;
       case 'bright': raw.bright = Math.max(-2, Math.min(2, (raw.bright || 0) + (id === 'up' ? 1 : -1))); break;
+      case 'facing': { const a = raw.subjects[raw.subjects.length - 1] || lastBody(); if (a) a.facing = id; break; }
       case 'jungle': raw.biome = 'forest'; if (!raw.themes.includes('tropical')) raw.themes.push('tropical'); break;
       case 'crowd': raw.crowd = true; break;
       case 'view': raw.view = id; break;

@@ -239,3 +239,18 @@ test('instrucciones: varios ejemplos distintos y caben en el contexto de 4096', 
   assert.ok(!ex.some((m) => /"town"/.test(m.content)), 'ningún ejemplo enseña a añadir pueblos');
   assert.ok(msgs.reduce((a, m) => a + m.content.length, 0) / 3 + 1200 < 4096);
 });
+
+test('fidelidad (2.ª prueba real): atributos, edificios no pedidos, orientación y notas copiadas', () => {
+  const plan = sanitizePlan({ subjects: [{ id: 'elf', armor: 'green', weapon: 'bow', cape: true, wings: 'fairy' }], structures: [{ id: 'tower' }, { id: 'cathedral' }], props: [{ id: 'lamp' }], focus: 'elf', unsupported: ['cocina → taberna'] }).raw;
+  const prompt = 'Una guerrera elfa con capa verde y un arco junto a una catedral, mirando hacia la izquierda';
+  const { raw, fixes } = applyCertainties(plan, prompt, 'balanced', parsePrompt);
+  const elf = raw.subjects[0];
+  assert.equal(elf.a.wings, undefined); assert.equal(elf.a.armor, undefined); assert.equal(elf.a.weapon, 'bow'); assert.equal(elf.a.cape, true);
+  assert.equal(elf.facing, 'left');
+  assert.deepEqual(raw.structures.map((e) => e.id), ['cathedral'], 'la torre no pedida se quita; la catedral se queda');
+  assert.deepEqual(raw.unknown, []);
+  assert.ok(fixes.length >= 4, fixes.join(' | '));
+  assert.equal(parsePrompt(prompt).raw.subjects.find((e) => e.id === 'elf')?.facing, 'left', 'el procedural también entiende hacia dónde mira');
+  const keep = applyCertainties(plan, 'Una elfa alada con armadura verde junto a una torre', 'balanced', parsePrompt).raw;
+  assert.equal(keep.subjects[0].a.wings, 'fairy'); assert.equal(keep.subjects[0].a.armor, 'green'); assert.ok(keep.structures.some((e) => e.id === 'tower'));
+});
