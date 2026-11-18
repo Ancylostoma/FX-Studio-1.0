@@ -272,8 +272,10 @@ try {
     await hp.fill('#editText', 'que sea de noche'); await hp.click('#btnEdit');
     await hp.waitForFunction(() => window.pixelforge.state.project.raw.time === 'night');
     assert.equal(sent[1].instruction, 'que sea de noche'); assert.equal(sent[1].raw.subjects[0].id, 'lion');
-    const s2 = await sc(), sig = (s, k) => JSON.stringify(s.layers.filter((l) => l.k === k).map((l) => l.o));
-    assert.equal(sig(s2, 'struct:temple').length, sig(s1, 'struct:temple').length);
+    // El templo se conserva: mismas operaciones de dibujo (los índices de color pueden cambiar con la
+    // paleta nocturna, así que no se compara el texto: antes fallaba de forma intermitente según la semilla).
+    const s2 = await sc(), sig = (s, k) => s.layers.filter((l) => l.k === k).map((l) => l.o.map((op) => op[0]).join(''));
+    assert.deepEqual(sig(s2, 'struct:temple'), sig(s1, 'struct:temple'));
     assert.equal(await hp.evaluate(() => window.pixelforge.state.project.raw.subjects.length), 1, 'el cliente descarta ids fuera del catálogo');
     await hp.click('#btnVary'); await hp.waitForSelector('#variations canvas');
     assert.equal(sent.length, 2, 'las variaciones no vuelven a llamar a la IA');

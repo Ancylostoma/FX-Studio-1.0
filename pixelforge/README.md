@@ -24,7 +24,8 @@ Pensada para un portátil con 16 GB de RAM y una GPU NVIDIA de 6 GB (por ejemplo
 | Servidor de Ollama | `http://127.0.0.1:11434` | Panel «IA local» o `OLLAMA_URL` en `.env` |
 | Modelo | `qwen3.5:4b` | Panel «IA local» o `PIXELFORGE_OLLAMA_MODEL` |
 | Contexto | 4096 tokens (se amplía solo si el prompt no cabe, y se avisa) | Panel |
-| Temperatura | 0,25 | Panel |
+| Temperatura | 0,1 (antes 0,25: el mismo texto daba planes distintos) | Panel |
+| Semilla del modelo | la misma de la imagen (campo «Semilla» y dado) | Panel principal |
 | Mantener en memoria | 30 minutos (el modelo no se recarga en cada generación) | Panel |
 | Servidor de PixelForge | solo `127.0.0.1` (no accesible desde la red) | `PIXELFORGE_HOST` |
 

@@ -11,7 +11,10 @@ export const DEFAULT_URL = 'http://127.0.0.1:11434';
 // Modelo por defecto (configurable con PIXELFORGE_OLLAMA_MODEL en .env).
 export const DEFAULT_MODEL = () => process.env.PIXELFORGE_OLLAMA_MODEL || 'qwen3.5:4b';
 // Ajustes por defecto pensados para un portátil con 16 GB de RAM y GPU de 6 GB.
-export const DEFAULTS = Object.freeze({ temperature: 0.25, maxTokens: 1200, numCtx: 4096, keepAlive: '30m', timeoutMs: 120000 });
+// Temperatura baja y semilla fija: la misma frase con la misma semilla da el mismo plan
+// (en pruebas reales, con 0.25 y sin semilla, el mismo prompt salió una vez al aire libre
+// y otra dentro de una mazmorra). Para variar, se cambia la semilla, no el azar del modelo.
+export const DEFAULTS = Object.freeze({ temperature: 0.1, seed: 7, maxTokens: 1200, numCtx: 4096, keepAlive: '30m', timeoutMs: 120000 });
 const KEEP_ALIVE_RE = /^(-1|0|\d{1,4}[smh])$/;
 export class LocalError extends Error { constructor(message, status = 502, code = 'error') { super(message); this.status = status; this.code = code; } }
 
@@ -136,7 +139,7 @@ export async function warmup(body, signal) {
 const versionAtLeast = (v, [a, b]) => { const m = String(v).match(/(\d+)\.(\d+)/); return m ? +m[1] > a || (+m[1] === a && +m[2] >= b) : false; };
 
 // ---------------- Interpretación ----------------
-// body: { prompt | raw+instruction, model, temperature, maxTokens, timeoutMs, prefs, url }
+// body: { prompt | raw+instruction, model, temperature, seed, maxTokens, timeoutMs, prefs, url }
 export async function interpret(body, signal) {
   const base = resolveUrl(body?.url);
   const model = typeof body?.model === 'string' && /^[\w.:\-\/]{1,100}$/.test(body.model) ? body.model : null;
@@ -146,6 +149,7 @@ export async function interpret(body, signal) {
   const raw = body?.raw && typeof body.raw === 'object' ? body.raw : null;
   if (!prompt && !(raw && instruction)) throw new LocalError('Falta la descripción', 400, 'no_prompt');
   const temperature = Math.max(0, Math.min(1.5, Number.isFinite(+body?.temperature) ? +body.temperature : DEFAULTS.temperature));
+  const seed = Number.isInteger(+body?.seed) && body?.seed !== null && body?.seed !== '' ? Math.abs(+body.seed) % 2147483647 : DEFAULTS.seed;
   const maxTokens = Math.max(200, Math.min(4096, +body?.maxTokens || DEFAULTS.maxTokens));
   const timeoutMs = Math.max(1000, Math.min(600000, +body?.timeoutMs || DEFAULTS.timeoutMs));
   let numCtx = Math.max(2048, Math.min(32768, +body?.numCtx || DEFAULTS.numCtx));
@@ -162,7 +166,7 @@ export async function interpret(body, signal) {
   const compat = [];
   const estPrompt = Math.ceil(messages.reduce((a, m) => a + m.content.length, 0) / 3);
   if (estPrompt + maxTokens > numCtx) { const need = Math.ceil((estPrompt + maxTokens) / 1024) * 1024; compat.push(`Contexto ampliado de ${numCtx} a ${need} tokens para que quepa el prompt`); numCtx = need; }
-  const req = { model, messages, stream: false, format, keep_alive: keepAlive, options: { temperature, num_predict: maxTokens, num_ctx: numCtx } };
+  const req = { model, messages, stream: false, format, keep_alive: keepAlive, options: { temperature, seed, num_predict: maxTokens, num_ctx: numCtx } };
   if (format === 'json') compat.push(`Ollama ${ver} no admite esquemas: se usa format "json"`);
   if (caps.includes('thinking')) req.think = false;          // solo si el modelo lo admite
   const t0 = Date.now();
@@ -190,7 +194,7 @@ export async function interpret(body, signal) {
   if (res.prompt_eval_count && res.prompt_eval_count >= numCtx - 8) compat.push(`El prompt ocupó todo el contexto (${res.prompt_eval_count} tokens): puede haberse recortado`);
   return {
     ...(() => { if (!prompt) return { raw: out.raw, corrections: [] }; const f = applyCertainties(out.raw, prompt, prefs, parsePrompt); return { raw: f.raw, corrections: f.fixes }; })(),
-    warnings: out.warnings, model, attempts, compat, numCtx,
+    warnings: out.warnings, model, attempts, compat, numCtx, temperature, seed,
     ...(body?.debug ? { modelText: [firstText, attempts > 1 ? res?.message?.content : null].filter(Boolean) } : {}),
     timings: { totalMs: Date.now() - t0, loadMs: ns(res.load_duration), promptTokens: res.prompt_eval_count || null, outputTokens: res.eval_count || null, tokensPerSecond: res.eval_count && res.eval_duration ? +(res.eval_count / (res.eval_duration / 1e9)).toFixed(1) : null },
   };

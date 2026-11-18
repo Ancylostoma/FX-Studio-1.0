@@ -36,7 +36,8 @@ Muestra a la vez el resultado del motor procedural con las mismas frases, para s
 
 | Ajuste | Para qué sirve |
 |---|---|
-| Temperatura | 0–0,3 da planes estables y fieles; más alto, más variación |
+| Temperatura | 0,1 por defecto. Con 0,25 y sin semilla, la misma frase salió una vez al aire libre y otra en una mazmorra. Más alto, más variación |
+| Semilla | La de la imagen (campo «Semilla» o el dado). Misma frase + misma semilla = mismo plan; para variar, cambia la semilla |
 | Interpretación | Fiel (solo lo pedido) · Equilibrada · Creativa (añade ambiente y efectos) |
 | Tokens máx. | Límite de la respuesta; 1200 basta para escenas complejas |
 | Tiempo límite | Sin GPU, la primera petición (carga del modelo) puede tardar más |

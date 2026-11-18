@@ -76,7 +76,7 @@ try {
 
 // 3–4. Prompt en español, respuesta libre
 try {
-  const r = await chat({ model, messages: [{ role: 'user', content: 'Responde en una sola frase en español: ¿qué es el pixel art?' }], options: { temperature: 0.25, num_ctx: 4096, num_predict: 200 }, ...(thinking ? { think: false } : {}) });
+  const r = await chat({ model, messages: [{ role: 'user', content: 'Responde en una sola frase en español: ¿qué es el pixel art?' }], options: { temperature: 0.1, seed: 7, num_ctx: 4096, num_predict: 200 }, ...(thinking ? { think: false } : {}) });
   const txt = String(r.message?.content || '').trim();
   step(3, 'Envío de un prompt en español', true, `${r.ms} ms · ${r.tps ?? '?'} tok/s`);
   step(4, 'Respuesta del modelo', txt.length > 10, `«${txt.slice(0, 160)}»`);
@@ -102,7 +102,7 @@ const compactCases = [
 results.compacto = [];
 for (const [i, c] of compactCases.entries()) {
   try {
-    const r = await chat({ model, format: COMPACT, messages: [{ role: 'system', content: 'Eres director artístico de pixel art. Describe la composición de la escena en JSON según el esquema. Los nombres de objetos en español.' }, { role: 'user', content: c.prompt }], options: { temperature: 0.25, num_ctx: 4096, num_predict: 800 }, ...(thinking ? { think: false } : {}) });
+    const r = await chat({ model, format: COMPACT, messages: [{ role: 'system', content: 'Eres director artístico de pixel art. Describe la composición de la escena en JSON según el esquema. Los nombres de objetos en español.' }, { role: 'user', content: c.prompt }], options: { temperature: 0.1, seed: 7, num_ctx: 4096, num_predict: 800 }, ...(thinking ? { think: false } : {}) });
     const text = String(r.message?.content || '');
     const json = parseJson(text);
     const viol = json ? checkSchema(COMPACT, json) : ['no es JSON'];
@@ -157,10 +157,11 @@ results.escenas = [];
 for (const [id, prompt, expect] of SCENES) {
   const row = { id, prompt };
   try {
-    const r = await local.interpret({ url, model, prompt, temperature: 0.25, numCtx: 4096, keepAlive: '30m', maxTokens: 1200, timeoutMs: 300000, prefs: 'balanced', debug: true });
+    const r = await local.interpret({ url, model, prompt, temperature: 0.1, seed: 7, numCtx: 4096, keepAlive: '30m', maxTokens: 1200, timeoutMs: 300000, prefs: 'balanced', debug: true });
     const text = r.modelText?.[0] || '';
     writeFileSync(path.join(outDir, `plan-${id}.json`), r.modelText.join('\n\n--- reintento ---\n\n'));
     const bruto = parseJson(text);
+    row.textoModelo = text;
     row.infraccionesEsquema = bruto ? checkSchema(PLAN_SCHEMA, bruto) : ['no es JSON'];
     row.intentos = r.attempts; row.descartados = r.warnings; row.compat = r.compat; row.tiempos = r.timings;
     for (const c of r.compat) if (!results.incompatibilidades.includes(c)) results.incompatibilidades.push(c);
@@ -193,6 +194,16 @@ const inv = okScenes.reduce((a, r) => a + r.fidelidad.inventados.length, 0);
 results.fidelidad = { ollama: sum('fidelidad'), procedural: sum('fidelidadProcedural'), total: tot, inventados: inv };
 step('·', 'Fidelidad a la descripción (elementos pedidos presentes)', null, `Ollama ${sum('fidelidad')}/${tot} · procedural ${sum('fidelidadProcedural')}/${tot} · objetos inventados por Ollama: ${inv}`);
 
+// Repetibilidad: con temperatura 0,1 y la misma semilla, la misma frase debe dar el mismo plan.
+// Con otra semilla puede variar (así se piden variaciones desde la app).
+try {
+  const base = results.escenas.find((r) => r.id === 'fantasia-compleja');
+  const again = async (seed) => (await local.interpret({ url, model, prompt: base.prompt, temperature: 0.1, seed, numCtx: 4096, keepAlive: '30m', maxTokens: 1200, timeoutMs: 300000, prefs: 'balanced', debug: true })).modelText?.[0] || '';
+  const same = await again(7), other = await again(8);
+  results.repetible = { mismaSemilla: same === base.textoModelo, otraSemillaDistinta: other !== base.textoModelo };
+  step('·', 'Repetible: misma frase y misma semilla → mismo plan', results.repetible.mismaSemilla, `semilla 7 dos veces: ${results.repetible.mismaSemilla ? 'idéntico' : 'distinto'} · semilla 8: ${results.repetible.otraSemillaDistinta ? 'plan distinto (variación)' : 'mismo plan'} · temperatura 0,1`);
+} catch (e) { step('·', 'Repetible: misma frase y misma semilla → mismo plan', false, e.message); }
+
 // 11. Respaldo procedural sin Ollama (servidor inexistente)
 try {
   await local.interpret({ url: 'http://127.0.0.1:9', model, prompt: DRAGON, timeoutMs: 3000 });
@@ -217,7 +228,7 @@ finish();
 
 function finish() {
   writeFileSync(path.join(outDir, 'resultados.json'), JSON.stringify(results, null, 2));
-  const L = [`# Prueba de integración con Ollama`, '', `Fecha: ${results.fecha} · Servidor: ${results.url} · Modelo: \`${results.modelo}\``];
+  const L = [`# Prueba de integración con Ollama`, '', `Fecha: ${results.fecha} · Servidor: ${results.url} · Modelo: \`${results.modelo}\` · Temperatura 0,1 · Semilla 7`];
   if (results.sistema) L.push(`Equipo: ${(results.sistema.ram / 1e9).toFixed(1)} GB de RAM · ${results.sistema.cpu} · GPU: ${results.sistema.gpu ? results.sistema.gpu.name + (results.sistema.gpu.vram ? ` (${(results.sistema.gpu.vram / 1e9).toFixed(1)} GB)` : '') : 'no detectada con nvidia-smi'}`);
   if (results.carga) L.push(`Carga del modelo: ${(results.carga.ms / 1000).toFixed(1)} s${results.carga.gpuShare != null ? ` · ${results.carga.gpuShare} % en GPU` : ''}`);
   L.push('', '## Pasos', '', '| Paso | Resultado | Detalle |', '|---|---|---|');

@@ -122,7 +122,7 @@ async function interpretWith(engine, input) {
   const t0 = performance.now();
   const procedural = () => (input.prompt ? { raw: parsePrompt(input.prompt).raw } : { raw: applyEdit(input.raw, input.instruction).raw });
   const cfg = localSettings();
-  const localBody = () => ({ ...input, numCtx: cfg.numCtx, keepAlive: cfg.keepAlive, url: cfg.url || undefined, model: cfg.model, temperature: cfg.temperature, maxTokens: cfg.maxTokens, timeoutMs: cfg.timeout * 1000, prefs: cfg.prefs });
+  const localBody = () => ({ ...input, numCtx: cfg.numCtx, keepAlive: cfg.keepAlive, url: cfg.url || undefined, model: cfg.model, temperature: cfg.temperature, seed: input.seed, maxTokens: cfg.maxTokens, timeoutMs: cfg.timeout * 1000, prefs: cfg.prefs });
   if (engine === 'local') {
     if (!state.local.available) throw new Error('Ollama no está disponible. ' + (state.local.reason || '') + ' Cambia el motor a «Procedural» o «Híbrido automático».');
     if (!cfg.model) throw new Error('Elige un modelo de Ollama en el panel «IA local».');
@@ -147,7 +147,8 @@ async function interpretWith(engine, input) {
   }
   if (engine === 'claude') {
     if (!state.ai.available) throw new Error('Claude no está configurado.');
-    const out = await aiInterpret(input);
+    const { seed: _seed, ...cloudInput } = input;   // la semilla solo la usa Ollama
+    const out = await aiInterpret(cloudInput);
     return { raw: out.raw, source: 'claude', info: { model: out.model, ms: performance.now() - t0, usage: out.usage } };
   }
   return { ...procedural(), source: 'procedural', info: { ms: performance.now() - t0 } };
@@ -215,7 +216,7 @@ function generate({ newSeed }) {
       $('#interpCode').textContent = out.usage ? `tokens: entrada ${out.usage.input_tokens} · salida ${out.usage.output_tokens}` : '';
       $('#interpNotes').textContent = out.warnings.length ? `${out.warnings.length} operación(es) descartadas al validar.` : '';
     } else {
-      const res = await interpretWith(opts.mode, { prompt });
+      const res = await interpretWith(opts.mode, { prompt, seed: opts.seed });
       raw = res.raw;
       if (raw.anim && !state.animTouched && opts.anim === 'none') { opts.anim = raw.anim; $('#optAnim').value = opts.anim; }
       if (raw.style && !state.styleTouched && raw.style !== opts.style) { opts.style = raw.style; $('#optStyle').value = raw.style; }
@@ -263,7 +264,7 @@ function editByInstruction() {
     if (!text) { toast('Escribe qué quieres cambiar'); return; }
     const mode = readOptions().mode;
     if (p.raw && mode !== 'claude-full') {
-      const res = await interpretWith(mode, { raw: p.raw, instruction: text });
+      const res = await interpretWith(mode, { raw: p.raw, instruction: text, seed: p.opts?.seed });
       const raw = res.raw;
       const edit = editScene(p.scene, p.raw, raw, composeOpts({ ...p.opts, res: p.scene.w === p.scene.h ? p.scene.w : Math.max(p.scene.w, p.scene.h) }));
       if (!edit.changed.length) { toast('No encontré nada que cambiar en esa instrucción'); return; }
@@ -288,8 +289,15 @@ function editByInstruction() {
 
 // ---------- IA local: estado y ajustes ----------
 // Valores iniciales pensados para un portátil con 16 GB de RAM y GPU de 6 GB (RTX 4050).
-const LOCAL_DEFAULTS = { url: '', model: '', temperature: 0.25, maxTokens: 1200, timeout: 120, prefs: 'balanced', numCtx: 4096, keepAlive: '30m' };
-function loadLocalCfg() { try { return { ...LOCAL_DEFAULTS, ...JSON.parse(localStorage.getItem('pf.local') || '{}') }; } catch { return { ...LOCAL_DEFAULTS }; } }
+const LOCAL_DEFAULTS = { v: 2, url: '', model: '', temperature: 0.1, maxTokens: 1200, timeout: 120, prefs: 'balanced', numCtx: 4096, keepAlive: '30m' };
+function loadLocalCfg() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('pf.local') || '{}');
+    // Ajustes guardados con la versión anterior: la temperatura por defecto pasa de 0,25 a 0,1.
+    if (!saved.v) { if (saved.temperature === 0.25) delete saved.temperature; saved.v = 2; }
+    return { ...LOCAL_DEFAULTS, ...saved };
+  } catch { return { ...LOCAL_DEFAULTS }; }
+}
 function saveLocalCfg() { try { localStorage.setItem('pf.local', JSON.stringify(state.localCfg)); } catch { /* sin almacenamiento */ } }
 const gb = (b) => (b / 1e9).toFixed(1) + ' GB';
 // GPU: la tarjeta detectada por el sistema y, si el modelo está cargado, qué

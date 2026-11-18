@@ -145,12 +145,12 @@ test('el esquema y las instrucciones cubren el catálogo', () => {
   assert.ok(sys.length < 9000, 'instrucciones compactas para modelos pequeños: ' + sys.length);
 });
 
-test('valores para el HP Victus: contexto 4096, temperatura 0,25, permanencia y precarga', async () => {
+test('valores para el HP Victus: contexto 4096, temperatura 0,1, permanencia y precarga', async () => {
   const fake = await startFakeOllama();
   try {
     await local.interpret({ url: fake.url, model: 'qwen3.5:4b', prompt: 'Un dragón rojo sobre un castillo' });
     const chat = fake.log.filter((x) => x.path === '/api/chat').at(-1).body;
-    assert.equal(chat.options.num_ctx, 4096); assert.equal(chat.options.temperature, 0.25); assert.equal(chat.keep_alive, '30m');
+    assert.equal(chat.options.num_ctx, 4096); assert.equal(chat.options.temperature, 0.1); assert.equal(chat.keep_alive, '30m');
     assert.equal(chat.think, false, 'qwen3.5 razona: se desactiva para responder antes');
     await local.interpret({ url: fake.url, model: 'qwen3.5:4b', prompt: 'x', keepAlive: '-1', numCtx: 8192 });
     const c2 = fake.log.filter((x) => x.path === '/api/chat').at(-1).body;
@@ -289,4 +289,22 @@ test('fidelidad (4.ª prueba real): interior no pedido, color de la frase y «gu
   assert.equal(applyCertainties(bear, 'Un samurái montado en un oso polar', 'balanced', parsePrompt).raw.subjects.find((e) => e.id === 'bear').color, 'white');
   assert.deepEqual(parsePrompt('Una guerrera elfa con un arco').raw.subjects.map((e) => e.id), ['elf']);
   assert.deepEqual(parsePrompt('Un guerrero junto a un lobo').raw.subjects.map((e) => e.id), ['knight', 'wolf']);
+});
+
+test('repetibilidad: temperatura 0,1 y semilla por defecto; la semilla de la imagen llega a Ollama', async () => {
+  const fake = await startFakeOllama();
+  try {
+    const r = await local.interpret({ url: fake.url, model: 'qwen3.5:4b', prompt: 'un dragón' });
+    let chat = fake.log.filter((x) => x.path === '/api/chat').at(-1).body;
+    assert.equal(chat.options.temperature, 0.1); assert.equal(chat.options.seed, 7);
+    assert.equal(r.temperature, 0.1); assert.equal(r.seed, 7);
+    await local.interpret({ url: fake.url, model: 'qwen3.5:4b', prompt: 'un dragón', seed: 123456 });
+    chat = fake.log.filter((x) => x.path === '/api/chat').at(-1).body;
+    assert.equal(chat.options.seed, 123456);
+    for (const bad of ['abc', -5.5, null, '']) {
+      await local.interpret({ url: fake.url, model: 'qwen3.5:4b', prompt: 'un dragón', seed: bad });
+      const s = fake.log.filter((x) => x.path === '/api/chat').at(-1).body.options.seed;
+      assert.ok(Number.isInteger(s) && s >= 0, `semilla saneada para ${bad}: ${s}`);
+    }
+  } finally { await fake.close(); }
 });
