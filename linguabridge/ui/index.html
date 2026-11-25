@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LinguaBridge AI · Parafraseo</title>
+  <link rel="stylesheet" href="/ui/styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">LB</span>
+      <div><h1>LinguaBridge AI</h1><p>Parafraseo español · inglés que conserva citas, cifras y terminología clínica</p></div>
+    </div>
+    <span id="llm-status" class="chip" title="Estado del modelo de lenguaje local">Comprobando Ollama…</span>
+  </header>
+
+  <main class="layout">
+    <section class="panel input">
+      <label for="src" class="label">Texto original</label>
+      <textarea id="src" spellcheck="true" placeholder="Pega aquí tu texto en español o en inglés. Las citas APA 7, la lista de referencias, las cifras, las unidades y los términos clínicos se protegen automáticamente."></textarea>
+      <div class="meta"><span id="src-count">0 palabras</span><button id="sample" class="link" type="button">Cargar ejemplo</button></div>
+
+      <div class="controls">
+        <label>Idioma
+          <select id="lang"><option value="auto">Detectar</option><option value="es">Español</option><option value="en">English</option></select>
+        </label>
+        <label>Modo
+          <select id="mode"><option value="general">General / académico</option><option value="nursing">Enfermería y ciencias de la salud</option></select>
+        </label>
+        <label>Motor
+          <select id="engine">
+            <option value="auto">Automático (Ollama si está disponible)</option>
+            <option value="rules">Solo reglas (sin conexión)</option>
+            <option value="llm">Reglas + modelo de lenguaje</option>
+          </select>
+        </label>
+        <label>Modelo
+          <input id="model" type="text" placeholder="qwen3.5:4b" autocomplete="off">
+        </label>
+        <label class="wide">Intensidad: <strong id="level-name">Moderada</strong>
+          <input id="level" type="range" min="1" max="5" step="1" value="3" aria-describedby="level-desc">
+          <span id="level-desc" class="hint"></span>
+        </label>
+        <label class="wide">Términos que no deben cambiar (separados por «;»)
+          <input id="terms" type="text" placeholder="p. ej.: método canguro; escala PAINAD" autocomplete="off">
+        </label>
+      </div>
+      <div class="actions">
+        <button id="run" class="primary" type="button">Reformular</button>
+        <button id="variant" type="button" disabled>Otra variante</button>
+        <span id="busy" class="hint" hidden>Procesando…</span>
+      </div>
+    </section>
+
+    <section class="panel output" aria-live="polite">
+      <div class="tabs" role="tablist">
+        <button role="tab" aria-selected="true" data-tab="side">Lado a lado</button>
+        <button role="tab" aria-selected="false" data-tab="inline">Cambios en línea</button>
+        <button role="tab" aria-selected="false" data-tab="clean">Resultado</button>
+        <button role="tab" aria-selected="false" data-tab="report">Informe</button>
+      </div>
+      <div id="summary" class="summary">Aún no hay resultado.</div>
+      <div data-view="side" class="view side">
+        <div><h2>Original</h2><div id="side-orig" class="doc"></div></div>
+        <div><h2>Reformulado</h2><div id="side-res" class="doc"></div></div>
+      </div>
+      <div data-view="inline" class="view" hidden><div id="inline" class="doc"></div></div>
+      <div data-view="clean" class="view" hidden>
+        <div id="clean" class="doc"></div>
+        <button id="copy" type="button">Copiar texto</button>
+      </div>
+      <div data-view="report" class="view" hidden><div id="report"></div></div>
+    </section>
+  </main>
+  <footer class="foot">
+    Herramienta de mejora de la escritura: no añade información ni referencias, y no está pensada para ocultar la autoría ni para eludir detectores. Revisa siempre el resultado.
+  </footer>
+  <script type="module" src="/ui/app.js"></script>
+</body>
+</html>

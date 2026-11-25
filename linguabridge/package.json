@@ -1,0 +1,19 @@
+{
+  "name": "linguabridge-paraphraser",
+  "version": "1.0.0",
+  "description": "LinguaBridge AI: motor de parafraseo propio español/inglés que protege citas APA 7, cifras y terminología clínica",
+  "type": "module",
+  "private": true,
+  "main": "src/engine/index.js",
+  "exports": {
+    ".": "./src/engine/index.js",
+    "./llm": "./src/engine/llm/providers.js"
+  },
+  "bin": { "linguabridge": "bin/linguabridge.mjs" },
+  "scripts": {
+    "start": "node server/server.mjs",
+    "test": "node --test test/*.test.mjs",
+    "demo": "node bin/linguabridge.mjs --demo"
+  },
+  "engines": { "node": ">=20" }
+}
