@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Informe Remesas</title>
+<style>
+:root{--bg:#fffdf3;--fg:#2b2b2b;--card:#fff;--line:#eadfb0;--acc:#b8860b}
+@media (prefers-color-scheme:dark){:root{--bg:#1d1b14;--fg:#f1ecd8;--card:#26231a;--line:#4a4329;--acc:#f3c623}}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,sans-serif}
+main{max-width:640px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:8px 0}h2{font-size:17px;color:var(--acc);margin:20px 0 6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:10px 0}
+svg{display:block;margin:0 auto;max-width:220px;width:60%}
+li{margin:4px 0}
+</style></head><body><main>
+<svg viewBox="0 0 200 160" role="img" aria-label="Dibujo de una banana">
+  <path d="M30 40 C 40 120, 150 140, 180 70 C 160 105, 70 110, 45 38 Z" fill="#f6d02f" stroke="#8a6d00" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M60 70 C 85 105, 140 110, 168 82" fill="none" stroke="#d9a90f" stroke-width="3" stroke-linecap="round"/>
+  <path d="M30 40 L 24 26 L 36 24 L 45 38" fill="#6b4f12" stroke="#4a3608" stroke-width="3" stroke-linejoin="round"/>
+  <circle cx="180" cy="70" r="4" fill="#4a3608"/>
+</svg>
+<h1>Informe — Remesas, 25/11/2026</h1>
+
+<div class="card"><b>Resumen:</b> la rama de hoy (<code>fix/backup-import-safety-android-open</code>, 47 commits sobre respaldos seguros, identidad de compradores y APK) está integrada en <b>main</b> con 2 errores corregidos. 141 pruebas automáticas en verde. No se compiló APK.</div>
+
+<h2>Lo que queda pendiente</h2>
+<ul>
+<li><b>La rama no se pudo borrar</b> desde aquí: el entorno rechaza el borrado de ramas en GitHub. Bórrala tú en GitHub → Branches → papelera. Su contenido ya está en main, así que no se pierde nada.</li>
+<li>El repositorio sigue siendo público con el keystore y su contraseña dentro.</li>
+</ul>
+
+<h2>Errores encontrados y corregidos</h2>
+<ul>
+<li><b>«Identidad no verificada» bloqueaba al mensajero:</b> en grupos antiguos sin comprador_id, el aviso no mostraba su texto y «Continuar» lanzaba un error, así que era imposible enviar ese cobro al mensajero. Corregido y con prueba nueva.</li>
+<li><b>Mensaje falso «Envío actualizado»:</b> salía aunque la edición se hubiera bloqueado por deudas antiguas ambiguas. Ahora no sale.</li>
+</ul>
+
+<h2>Revisado sin errores</h2>
+<ul>
+<li>El workflow de la APK sigue siendo solo manual; ahora falla si no se genera la APK.</li>
+<li>La tarifa del mensajero (en «Pagar a» y en «Me deben», una vez por viaje) sigue funcionando con los cambios de identidad de compradores.</li>
+<li>Restauración y fusión de respaldos, ajuste manual de saldo con registro en In/Out, asignación manual de entregas en deudas antiguas.</li>
+</ul>
+
+<h2>Versión</h2>
+<p>main: <code>4897388</code> · caché PWA <code>remesas-v43</code>. Para que llegue al teléfono hay que compilar la APK manualmente.</p>
+</main></body></html>
