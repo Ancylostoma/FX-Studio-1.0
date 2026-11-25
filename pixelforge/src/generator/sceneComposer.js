@@ -134,6 +134,11 @@ function applyPositions(G, relOnly = false) {
       const bottom = T.y + Math.round(T.h * 0.22);
       // Ligeramente desplazado hacia el lado contrario al astro para no taparlo.
       put(b, tcx - G.moonSide * T.w * 0.3, bottom, b.h > bottom - 1 ? Math.max(0.5, (bottom - 1) / b.h) : 1);
+    } else if (r.type === 'on' && !isStruct(b) && b.def.cat === 'animal' && b.def.sz <= 0.1 && T.def.cat === 'humanoid') {
+      // Animal pequeño en el hombro («un pirata con un loro en el hombro»): un tercio de la altura de la figura.
+      const sc = Math.min(1, (T.h * 0.34) / b.h), sx = T.flip ? -1 : 1;
+      put(b, tcx - sx * T.w * 0.3, T.y + Math.round(T.h * 0.4), sc);
+      b.air = false; b.onTop = true; b.z = (T.z ?? T.by ?? 0) + 0.5;
     } else if (r.type === 'on' && !isStruct(b)) {  // posado o montado
       const base = T.y + Math.round(T.h * (T.def.top ?? 0.04)), lim = Math.min(base - 2, tS ? T.h * 0.7 : T.h * 1.2);   // el jinete no puede triplicar a su montura
       put(b, tcx + (T.def.topX || 0) * T.w * (T.flip ? -1 : 1) + (b.i || 0) * b.w, base, b.h > lim ? Math.max(0.35, lim / b.h) : 1);
@@ -225,7 +230,8 @@ function layout(G, rng) {
   G.structs = []; G.subs = [];
   if (G.layoutKind === 'portrait') {
     // Quien va "encima de" otro (un jinete) no ocupa columna propia y su montura se reduce para que quepan.
-    const rides = (s) => s.e.rel?.type === 'on' && !s.e.fly && subs.some((t) => t.e !== s.e && t.e.id === s.e.rel.of);
+    // (un loro en el hombro no es un jinete: no encoge a quien lo lleva)
+    const rides = (s) => s.e.rel?.type === 'on' && !s.e.fly && !(s.def.cat === 'animal' && s.def.sz <= 0.1) && subs.some((t) => t.e !== s.e && t.e.id === s.e.rel.of);
     const cols = subs.filter((s) => !rides(s)), n = cols.length || 1;
     subs.forEach((s) => {
       const mount = subs.some((t) => rides(t) && t.e.rel.of === s.e.id), col = Math.max(0, cols.indexOf(rides(s) ? subs.find((t) => t.e.id === s.e.rel.of) : s));
@@ -281,7 +287,7 @@ function layout(G, rng) {
   grounded.forEach((s, i) => {
     const by = sea ? H + Math.round((h - H) * 0.55) : gTop + Math.round((h - gTop) * 0.62);
     // Una montura con jinete se agranda: un oso o un lobo pequeño bajo un samurái no se lee como «montado».
-    const mount = subs.some((t) => t.e !== s.e && t.e.rel?.type === 'on' && !t.e.fly && t.e.rel.of === s.e.id) ? 1.4 : 1;
+    const mount = subs.some((t) => t.e !== s.e && t.e.rel?.type === 'on' && !t.e.fly && t.e.rel.of === s.e.id && !(t.def.cat === 'animal' && t.def.sz <= 0.1)) ? 1.4 : 1;
     const { bw, bh } = fit(s.def, Math.min(h * s.def.sz * 1.2 * mount * sizeOf(G, s.e), by - 2), w * 0.5);
     const base = main ? 0.5 - side * 0.22 : 0.5 + (grounded.length > 1 ? 0 : -side * 0.06);
     const cx = Math.max((bw >> 1) + 1, Math.min(w - (bw >> 1) - 1, Math.round(w * (grounded.length > 2 && !main ? 0.5 : base) + (i - (grounded.length - 1) / 2) * Math.min(bw * 1.25, (w * 0.9) / grounded.length))));

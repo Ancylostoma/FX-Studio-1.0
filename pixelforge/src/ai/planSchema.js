@@ -8,7 +8,7 @@
 import { LIB } from '../generator/spriteLibrary.js';
 import { BIOMES, COLORS, MATERIALS, THEMES } from '../generator/templates.js';
 import { emptyRaw, REL_TYPES } from '../generator/promptParser.js';
-import { KIT_BASES, KIT_PARAMS, sanitizeKit } from '../generator/kits.js';
+import { KIT_BASES, KIT_PARAMS, sanitizeKit, WEAPONS, HATS } from '../generator/kits.js';
 import { ROOM_KINDS, ROOM_ITEMS } from '../generator/environments.js';
 
 const idsOf = (...cats) => Object.values(LIB).filter((d) => cats.includes(d.cat)).map((d) => d.id);
@@ -54,7 +54,7 @@ const place = { side: en(['left', 'center', 'right']), depth: en(['back', 'front
 const entity = (ids, extra = {}) => obj({ id: en([...ids, 'custom']), name: { type: 'string' }, kit: KIT, color: en(P.colors), color2: en(P.colors), n: { type: 'integer' }, size: { type: 'integer', enum: [-1, 0, 1] }, ...place, ...extra }, ['id']);
 
 export const PLAN_SCHEMA = obj({
-  subjects: arr(entity(P.subjects, { fly: bool, action: en(P.actions), facing: en(['left', 'right']), armor: en(P.colors), weapon: en(['sword', 'staff', 'spear', 'axe', 'club', 'hammer', 'bow', 'wand']), weaponFx: en(['fire', 'ice']), shield: bool, cape: bool, wings: en(['fairy', 'angel', 'bat']), breathesFire: bool })),
+  subjects: arr(entity(P.subjects, { fly: bool, action: en(P.actions), facing: en(['left', 'right']), armor: en(P.colors), weapon: en(WEAPONS), hat: en(HATS), weaponFx: en(['fire', 'ice']), shield: bool, cape: bool, wings: en(['fairy', 'angel', 'bat']), breathesFire: bool })),
   structures: arr(entity(P.structures)),
   props: arr(entity(P.props)),
   setting: en(['outdoor', 'interior']),
@@ -97,7 +97,7 @@ Catálogo (usa estos id):
 - palette: ${P.palettes.join(', ')} · view: ${P.views.join(', ')} · colores: ${P.colors.join(', ')}
 
 Reglas:
-1. Si algo no está en el catálogo, NO lo cambies por otra cosa parecida: créalo con id "custom", un "name" y un "kit". Bases de kit: humanoid (body, skin, hair, head, robe, wings, horns, halo, tail, glow, weapon, armor, bulky, thin), quadruped (col, stripes, spots, spotsMany, neck 0-2, leg, ears, tail, mane, trunk, tusks, horns, antlers, slim, fat), building (mat, roof, floors 1-6, width, towers 0-2, rose, columns, stilts, arches), flyer (col, wingCol, insect). Ejemplo: un hada es {"id":"custom","name":"hada","kit":{"base":"humanoid","body":"pink","robe":true,"wings":"fairy","glow":true},"size":-1,"fly":true}.
+1. Si algo no está en el catálogo, NO lo cambies por otra cosa parecida: créalo con id "custom", un "name" y un "kit". Bases de kit: humanoid (body, skin, hair, head, robe, wings, horns, halo, tail, glow, weapon, hat, armor, bulky, thin, fishTail, beast), quadruped (col, stripes, spots, spotsMany, neck 0-2, leg, ears, tail, mane, trunk, tusks, horns, antlers, slim, fat), building (mat, roof, floors 1-6, width, towers 0-2, rose, columns, stilts, arches), flyer (col, wingCol, insect). Ejemplo: un hada es {"id":"custom","name":"hada","kit":{"base":"humanoid","body":"pink","robe":true,"wings":"fairy","glow":true},"size":-1,"fly":true}.
 2. Jerarquía: pon "focus" con el id (o name) del protagonista. Usa depth "back" para lo lejano y "front" para el primer plano; side left/center/right; relation {type: on|behind|front|beside|leftof|rightof, to: id o name de otro elemento}.
 3. Acción: action attack en combates (y battle true), walk si camina, cast si lanza un hechizo. facing indica hacia dónde mira.
 4. Interiores: setting "interior" y room. Pueblos y ciudades: town {style, size 1-3}. "Ciudad" moderna o futurista: biome city o cyber.
@@ -106,6 +106,7 @@ Reglas:
 7. "town" solo si la descripción habla de un pueblo, aldea o ciudad. No añadas edificios que no se piden.
 8. "montado en" / "a lomos de" un animal: relation {"type":"on","to": el animal}. "detrás de", "delante de", "junto a": behind, front, beside.
 9. En "unsupported" anota en español lo que no se pudo representar.
+10. Objetos en la mano (fusil, pistola, paraguas, escoba, libro, antorcha, farol, bandera, lanza…) van en "weapon" del personaje; sombreros en "hat". Un ANIMAL que lleva algo o viste algo (un gato con un fusil, un perro con sombrero) es un animal de pie: {"id":"custom","name":"gato","kit":{"base":"humanoid","head":"beast","beast":"cat"},"weapon":"rifle"}.
 ${PREFS[prefs] || PREFS.balanced}`;
 }
 
@@ -162,7 +163,8 @@ export function sanitizePlan(o) {
     const human = (x.kit ? x.kit.base === 'humanoid' : LIB[id]?.cat === 'humanoid');
     if (human) {
       if (pick(e.armor, P.colors)) x.a.armor = e.armor;
-      if (['sword', 'staff', 'spear', 'axe', 'club', 'hammer', 'bow', 'wand'].includes(e.weapon)) x.a.weapon = e.weapon;
+      if (WEAPONS.includes(e.weapon)) x.a.weapon = e.weapon;
+      if (HATS.includes(e.hat)) x.a.hat = e.hat;
       if (e.shield === true) x.a.shield = true;
       if (e.cape === true) x.a.cape = true;
       if (['fairy', 'angel', 'bat'].includes(e.wings)) x.a.wings = e.wings;
@@ -212,7 +214,7 @@ export function rawToPlan(raw) {
   const rel = (x) => (x.rel ? { relation: { type: x.rel.type, to: x.rel.of } } : {});
   const e = (x) => ({ id: x.kit ? 'custom' : x.id, ...(x.kit ? { name: x.name || x.kit.name, kit: x.kit } : {}), ...(x.color ? { color: x.color } : {}), ...(x.n > 1 ? { n: x.n } : {}), ...(x.size ? { size: x.size } : {}), ...(x.side ? { side: x.side } : {}), ...(x.depth ? { depth: x.depth } : {}), ...(x.action ? { action: x.action } : {}), ...rel(x) });
   return {
-    subjects: (raw.subjects || []).map((x) => ({ ...e(x), ...(x.fly != null ? { fly: x.fly } : {}), ...(x.a?.armor ? { armor: x.a.armor } : {}), ...(x.a?.weapon ? { weapon: x.a.weapon } : {}), ...(x.a?.fire ? { breathesFire: true } : {}) })),
+    subjects: (raw.subjects || []).map((x) => ({ ...e(x), ...(x.fly != null ? { fly: x.fly } : {}), ...(x.a?.armor ? { armor: x.a.armor } : {}), ...(x.a?.weapon ? { weapon: x.a.weapon } : {}), ...(x.a?.hat ? { hat: x.a.hat } : {}), ...(x.a?.fire ? { breathesFire: true } : {}) })),
     structures: (raw.structures || []).map(e), props: (raw.flora || []).map(e),
     ...(raw.setting === 'interior' ? { setting: 'interior', room: raw.room } : {}), ...(raw.biome && raw.biome !== 'interior' ? { biome: raw.biome } : {}),
     ...(raw.town ? { town: { style: raw.town.style || 'medieval', size: raw.town.size || 2 } } : {}),
@@ -283,6 +285,24 @@ export function applyCertainties(planRaw, prompt, prefs = 'balanced', parse) {
     const nF = raw.flora.length;
     raw.flora = raw.flora.filter((e) => !items.has(e.id) || askedF.has(e.id));
     if (raw.flora.length < nF) fixes.push(`${nF - raw.flora.length} mueble(s) de interior quitado(s)`);
+  }
+  // Animales de pie («un gato con un fusil») y lo que la frase pone en la mano o en la cabeza: manda la frase.
+  for (const pe of p.subjects) {
+    if (pe.kit?.head !== 'beast') continue;
+    const i = raw.subjects.findIndex((x) => x.id === pe.id || x.id === pe.kit.beast || (x.kit?.head === 'beast' && x.kit.beast === pe.kit.beast));
+    const keep = i >= 0 ? raw.subjects[i] : null, ne = JSON.parse(JSON.stringify(pe));
+    if (keep) { for (const f of ['size', 'side', 'depth', 'fly', 'action', 'facing']) if (keep[f] != null && ne[f] == null) ne[f] = keep[f]; ne.color = pe.color || keep.color; }
+    if (!keep || keep.kit?.head !== 'beast') fixes.push(`«${pe.name}» de pie para poder llevar lo que pides`);
+    if (i >= 0) raw.subjects[i] = ne; else raw.subjects.push(ne);
+    const old = keep?.id;
+    if (old && old !== ne.id) { for (const l of [raw.subjects, raw.structures, raw.flora]) for (const x of l) if (x.rel?.of === old) x.rel = { ...x.rel, of: ne.id }; if (raw.focus === old) raw.focus = ne.id; }
+  }
+  for (const pe of p.subjects) {
+    const e = raw.subjects.find((x) => x.id === pe.id);
+    if (!e) continue;
+    e.a = e.a || {};
+    if (pe.a?.weapon && e.a.weapon !== pe.a.weapon) { e.a.weapon = pe.a.weapon; fixes.push(`«${e.id}» lleva ${pe.a.weapon} (lo dice la descripción)`); }
+    if (pe.a?.hat && e.a.hat !== pe.a.hat) { e.a.hat = pe.a.hat; fixes.push(`«${e.id}» con sombrero ${pe.a.hat} (lo dice la descripción)`); }
   }
   // Relaciones («montado en», «desde la torre») y cantidades («unos murciélagos») de la frase mandan.
   const all = [...raw.subjects, ...raw.structures, ...raw.flora];

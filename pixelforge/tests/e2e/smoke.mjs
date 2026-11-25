@@ -50,6 +50,22 @@ try {
     assert.equal(s.w, 96);
   });
 
+  await step('lo que no se sabe dibujar se avisa de forma visible; el gato con fusil se dibuja de pie', async () => {
+    assert.equal(await page.locator('#missing').isVisible(), false, 'sin palabras desconocidas no hay aviso');
+    await page.fill('#prompt', 'un gato con un fusil y una pizza');
+    await page.click('#btnGenerate');
+    await page.waitForFunction(() => window.pixelforge.state.project.prompt.includes('pizza'));
+    assert.equal(await page.locator('#missing').isVisible(), true);
+    const txt = await page.locator('#missing').textContent();
+    assert.match(txt, /No sé dibujar[^]*pizza/); assert.doesNotMatch(txt, /fusil/);
+    assert.match(await page.locator('#interpCode').textContent(), /gatodepie\{weapon:rifle\}/);
+    // Deja la página como la esperan las comprobaciones siguientes (paisaje japonés a 96 px).
+    await page.fill('#prompt', 'Un paisaje japonés con montañas, un lago y un árbol de cerezo');
+    await page.click('#btnGenerate');
+    await page.waitForFunction(() => window.pixelforge.state.project.prompt.includes('japon'));
+    assert.equal(await page.locator('#missing').isVisible(), false);
+  });
+
   await step('el escalado no desenfoca (bloques uniformes, smoothing desactivado)', async () => {
     const r = await page.evaluate(() => {
       const cv = document.querySelector('#view'), s = window.pixelforge.state.project.scene, z = cv.width / s.w;

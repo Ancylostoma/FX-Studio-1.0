@@ -3,6 +3,21 @@
 // Etiquetas: s=sujeto  b=estructura  f=flora/atrezo  biome  feat  time  w=clima
 // c=astro  fx  col  style  size  fly  n=cantidad  part  mat  theme  verb
 const V = [
+  // Añadidos tras probar frases corrientes (van primero: tienen prioridad sobre entradas antiguas).
+  // Objetos en la mano: los recibe el personaje más cercano; un animal que lleva algo se pone de pie.
+  ['hold:rifle', 'fusil|fusiles|rifle|carabina|ametralladora|metralleta|subfusil|arma de fuego|machine gun'], ['hold:shotgun', 'escopeta|escopetas|shotgun'],
+  ['hold:pistol', 'pistola|pistolas|revolver|revolveres|pistol|handgun|gun'], ['hold:umbrella', 'paraguas|sombrilla|umbrella|parasol'],
+  ['hold:broom', 'escoba|escobas|broom|broomstick'], ['hold:spear', 'lanza|lanzas|pica|tridente|spear|trident'], ['hold:axe', 'hacha|hachas|axe'],
+  ['hold:hammer', 'martillo|hammer'], ['hold:club', 'garrote|porra|club'], ['hold:bow', 'arco|bow'], ['hold:lantern', 'linterna|candil|lantern|flashlight'],
+  ['hat:tophat', 'sombrero de copa|chistera|top hat'], ['hat:wizard', 'sombrero de mago|gorro de mago|sombrero de bruja|sombrero puntiagudo|wizard hat|witch hat'],
+  ['hat:army', 'casco militar|casco de soldado|army helmet'], ['hat:cowboy', 'sombrero de vaquero|sombrero vaquero|sombrero de cowboy|cowboy hat|stetson|sombrero|hat'],
+  ['hat:cap', 'gorra|gorro|visera|cap'],
+  ['shoulder', 'en el hombro de|en el hombro|en su hombro|sobre el hombro|sobre su hombro|on his shoulder|on her shoulder|on the shoulder'],
+  ['s:soldier', 'soldado|soldada|soldados|soldier|soldiers|militar'], ['s:cowboy', 'vaquero|vaquera|vaqueros|cowboy|cowgirl|pistolero|pistolera|sheriff'],
+  ['s:mermaid', 'sirena|sirenas|mermaid'], ['s:parrot', 'loro|loros|papagayo|guacamayo|cotorra|parrot|macaw'],
+  ['ride:horse', 'a caballo|montando a caballo|on horseback'], ['ride:unicorn', 'a lomos de un unicornio'],
+  ['s:sofa', 'sofa|sofas|sillon|couch'], ['s:bed', 'cama|camas|bed'],
+  ['rel:on', 'durmiendo en|durmiendo sobre|sentado en|sentada en|sentado sobre|tumbado en|tumbada en|acostado en|acostada en|sitting on|sleeping on|lying on'],
   // --- Ampliación: criaturas, personajes y edificios de kits/props ---
   ['s:tiger', 'tigre|tigres|tiger'], ['s:leopard', 'leopardo|guepardo|jaguar|leopard|cheetah'], ['s:panther', 'pantera|panther'],
   ['s:zebra', 'cebra|zebra'], ['s:giraffe', 'jirafa|giraffe'], ['s:elephant', 'elefante|mamut|elephant|mammoth'], ['s:boar', 'jabali|boar'], ['s:camel', 'camello|dromedario|camel'],
@@ -37,7 +52,7 @@ const V = [
   ['feat:waterfall', 'cascada|cascadas|catarata|waterfall'],
   // --- Personajes ---
   ['s:dragon', 'dragon|dragones|drake|wyvern'],
-  ['s:knight', 'caballero|knight|guerrero|guerrera|warrior|paladin|soldado'],
+  ['s:knight', 'caballero|knight|guerrero|guerrera|warrior|paladin'],
   ['s:wizard', 'mago|maga|wizard|hechicero|hechicera|sorcerer|nigromante'],
   ['s:astronaut', 'astronauta|astronaut|cosmonauta'],
   ['s:robot', 'robot|androide|android|mecha|automata'],
@@ -125,7 +140,7 @@ const V = [
   ['rel:beside', 'junto a|junto|al lado de|al lado|cerca de|next to|beside|near'],
   ['fly', 'volando|vuela|volador|voladora|sobrevolando|flying|flies|en el aire|flotando'],
   ['n:2', 'dos|two|par de'], ['n:3', 'tres|three'], ['n:4', 'cuatro|four|varios|varias|several'], ['n:5', 'cinco|five|muchos|muchas|many'],
-  ['part:armor', 'armadura|coraza|armor|armour'], ['part:helmet', 'casco|yelmo|helmet'], ['part:hat', 'sombrero|gorro|hat'],
+  ['part:armor', 'armadura|coraza|armor|armour'], ['part:helmet', 'casco|yelmo|helmet'],
   ['part:cape', 'capa|manto|cape|cloak'], ['part:sky', 'cielo|sky|firmamento'], ['part:staff', 'baston|vara|cetro|staff|wand|varita'],
   ['mat:fire', 'fuego|llamas|llama|ardiente|flameante|llameante|fire|flames|flaming|burning'], ['mat:ice', 'hielo|helado|helada|congelado|ice|frozen'],
   ['theme:japan', 'japones|japonesa|japon|oriental|japanese|japan'], ['theme:magic', 'fantastico|fantastica|fantasticos|fantasticas|magico|magica|encantado|encantada|hechizado|hechizada|magic|magical|enchanted|mistico|mistica'],
@@ -138,7 +153,7 @@ const V = [
   ['verb:keep', 'conserva|conservar|manten|mantener|preserva|deja|keep|preserve'],
 ];
 
-const STOP = 'un una unos unas el la los las lo de del al a en con y e o u que por para su sus se es esta este son muy mas como sobre bajo frente junto cerca entre durante hacia desde tras encima debajo lado the an of on in at with and to over under near front by is its from into behind above below pixel art pixelart estilo style paisaje landscape escena scene imagen image dibujo ilustracion fondo background atravesando cruzando acechando meditando explorando volando_ rodeada rodeado sosteniendo holding montado montada riding posado posada sentado sentada mirando parado standing llevando wearing usando tiene hay color colores tipo algo mientras donde cual cuyo todo toda color'.split(' ');
+const STOP = 'leyendo sujetando empunando portando agitando sosteniendo un una unos unas el la los las lo de del al a en con y e o u que por para su sus se es esta este son muy mas como sobre bajo frente junto cerca entre durante hacia desde tras encima debajo lado the an of on in at with and to over under near front by is its from into behind above below pixel art pixelart estilo style paisaje landscape escena scene imagen image dibujo ilustracion fondo background atravesando cruzando acechando meditando explorando volando_ rodeada rodeado sosteniendo holding montado montada riding posado posada sentado sentada mirando parado standing llevando wearing usando tiene hay color colores tipo algo mientras donde cual cuyo todo toda color'.split(' ');
 
 export const PHRASES = new Map();
 for (const [tag, words] of V) for (const w of words.split('|')) if (!PHRASES.has(w)) PHRASES.set(w, tag);

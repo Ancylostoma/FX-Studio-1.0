@@ -101,8 +101,20 @@ function refresh() {
 }
 
 // ---------- Generación ----------
+// Lo que la frase pide y la app no sabe dibujar (o ha sustituido), bien visible encima de la imagen.
+function showMissing(spec) {
+  const el = $('#missing'), u = spec?.unknown || [];
+  const swaps = u.filter((x) => x.includes('→')), miss = u.filter((x) => !x.includes('→'));
+  el.hidden = !u.length;
+  if (!u.length) { el.replaceChildren(); return; }
+  el.replaceChildren(
+    ...(miss.length ? [h('p', {}, h('b', {}, '⚠ No sé dibujar o no entendí: '), miss.join(', '))] : []),
+    ...(swaps.length ? [h('p', {}, h('b', {}, '⚠ Sustituido por algo parecido: '), swaps.join('; '))] : []),
+    h('p', { class: 'muted' }, 'El resto de la imagen sí sigue tu descripción.'));
+}
 function showInterpretation(spec, opts, ai) {
   $('#interp').hidden = false;
+  showMissing(spec);
   $('#interpText').textContent = explainSpec(spec) + (ai ? ` · interpretado por IA${ai.usage ? ` (${ai.usage.input_tokens + ai.usage.cache_read_input_tokens} tokens de entrada, ${ai.usage.output_tokens} de salida)` : ''}` : '');
   $('#interpCode').textContent = describeSpec(spec, { style: opts.style, seed: opts.seed });
   $('#interpNotes').textContent = spec.notes.join(' ');
@@ -215,6 +227,7 @@ function generate({ newSeed }) {
       $('#interpText').textContent = `Escena dibujada por la IA (${out.model || 'Claude'}).`;
       $('#interpCode').textContent = out.usage ? `tokens: entrada ${out.usage.input_tokens} · salida ${out.usage.output_tokens}` : '';
       $('#interpNotes').textContent = out.warnings.length ? `${out.warnings.length} operación(es) descartadas al validar.` : '';
+      showMissing(null);
     } else {
       const res = await interpretWith(opts.mode, { prompt, seed: opts.seed });
       raw = res.raw;

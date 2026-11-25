@@ -233,3 +233,33 @@ reg('lightningbolt', 'rayo', 'effect', 0.5, 0.5, (p, k) => {
   L.poly(pts, C.rgb([150, 190, 255])); L.line(0.6, 0.04, 0.38, 0.4, c); L.line(0.5, 0.44, 0.3, 0.92, c);
   k.glow.push(['E', p.X(0.5), p.Y(0.5), Math.round(p.w * 0.7), Math.round(p.h * 0.4), C.rgb([150, 190, 255])]);
 }, { air: 1, effect: 1 });
+
+// ---- Añadidos tras las pruebas con frases corrientes ----
+// Loro posado (de pie, no en vuelo): se pone en el hombro o sobre algo con «en el hombro».
+reg('parrot', 'loro', 'animal', 0.7, 0.08, (p, k) => {
+  const C = k.C, c = C.tint(k.a.color, 'green'), w = C.tint(k.a.color2, 'red'), y = C.col('yellow');
+  p.poly([[0.36, 0.62], [0.5, 0.62], [0.42, 1], [0.3, 0.98]], c[1]);                 // cola
+  p.ell(0.5, 0.48, 0.24, 0.24, c[2]); p.ell(0.44, 0.42, 0.1, 0.1, c[3], 1);          // cuerpo
+  p.poly([[0.32, 0.38], [0.5, 0.4], [0.44, 0.7], [0.28, 0.62]], w[2]);                 // ala
+  p.line(0.32, 0.6, 0.44, 0.66, y[2]);
+  p.ell(0.6, 0.2, 0.17, 0.16, c[2]); p.ell(0.62, 0.22, 0.08, 0.07, C.mat('white')[3]); p.px(0.62, 0.2, C.dark);
+  p.poly([[0.74, 0.16], [0.92, 0.2], [0.86, 0.34], [0.74, 0.3]], C.mat('darkstone')[2]);  // pico curvo
+  p.rect(0.42, 0.72, 0.04, 0.08, C.mat('bark')[1]); p.rect(0.52, 0.72, 0.04, 0.08, C.mat('bark')[1]);
+});
+reg('sofa', 'sofá', 'object', 2.2, 0.14, (p, k) => {
+  const C = k.C, c = C.tint(k.a.color, 'red'), w = C.mat('wood');
+  p.rect(0.04, 0.1, 0.92, 0.5, c[1]); p.rect(0.04, 0.1, 0.92, 0.06, c[3]);              // respaldo
+  p.rect(0.12, 0.5, 0.76, 0.24, c[2]); p.rect(0.12, 0.5, 0.76, 0.05, c[3]);              // asiento
+  p.line(0.5, 0.52, 0.5, 0.72, c[0]);
+  p.rect(0, 0.34, 0.14, 0.5, c[2]); p.rect(0.86, 0.34, 0.14, 0.5, c[1]);                  // brazos
+  p.rect(0, 0.34, 0.14, 0.05, c[3]); p.rect(0.86, 0.34, 0.14, 0.05, c[3]);
+  p.rect(0.04, 0.84, 0.06, 0.16, w[1]); p.rect(0.9, 0.84, 0.06, 0.16, w[1]);
+});
+reg('bed', 'cama', 'object', 2.0, 0.15, (p, k) => {
+  const C = k.C, w = C.mat('wood'), s = C.tint(k.a.color, 'blue'), wh = C.mat('white');
+  p.rect(0, 0.1, 0.1, 0.9, w[2]); p.rect(0.9, 0.36, 0.1, 0.64, w[1]);                     // cabecero y piecero
+  p.rect(0.1, 0.5, 0.8, 0.26, wh[3]);                                                    // colchón
+  p.rect(0.1, 0.24, 0.22, 0.2, wh[4] || wh[3]); p.rect(0.1, 0.4, 0.22, 0.04, wh[2]);      // almohada
+  p.rect(0.32, 0.42, 0.58, 0.34, s[2]); p.rect(0.32, 0.42, 0.58, 0.05, s[3]);            // manta
+  p.rect(0.1, 0.76, 0.8, 0.08, w[0]);
+});

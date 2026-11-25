@@ -6,7 +6,7 @@
 // puede describir "un tigre" como { base:'quadruped', col:'orange',
 // stripes:'black', ... } sin que exista un sprite "tigre". Los preajustes de
 // KIT_PRESETS se registran además como sprites normales del catálogo.
-import { LIB, reg, humanoidKit, quadrupedKit, HUM, QUAD, bricks, lightOrDark, flapper, poseOf } from './spriteBase.js';
+import { LIB, reg, humanoidKit, quadrupedKit, HUM, QUAD, BEASTS, bricks, lightOrDark, flapper, poseOf } from './spriteBase.js';
 import { MATERIALS, COLORS } from './templates.js';
 
 const pickMat = (C, name, fallback) => (name && (MATERIALS[name] || COLORS[name]) ? C.mat(name) : C.mat(fallback));
@@ -140,8 +140,12 @@ export const KIT_BASES = ['humanoid', 'quadruped', 'building', 'flyer', 'shapes'
 const CAT = { humanoid: 'humanoid', quadruped: 'animal', building: 'structure', flyer: 'animal', shapes: 'object' };
 
 // Parámetros permitidos por base (lo demás se descarta al sanear).
+// Lo que una figura puede llevar en la mano y en la cabeza (también lo usa el esquema de Qwen).
+export const WEAPONS = ['sword', 'staff', 'spear', 'axe', 'club', 'hammer', 'bow', 'wand', 'rifle', 'shotgun', 'pistol', 'umbrella', 'broom', 'book', 'torch', 'lantern', 'flag'];
+export const HATS = ['wizard', 'cowboy', 'tophat', 'cap', 'army'];
+
 export const KIT_PARAMS = {
-  humanoid: { body: 'mat', skin: 'mat', legs: 'mat', boots: 'mat', hair: 'mat', head: ['hair', 'helm', 'wizard', 'crown', 'skull', 'alien', 'robot', 'astro', 'ninja', 'pirate', 'kabuto', 'bald'], robe: 'bool', cape: 'mat', armor: 'bool', weapon: ['sword', 'staff', 'spear', 'axe', 'club', 'hammer', 'bow', 'wand'], shield: 'bool', wings: ['fairy', 'angel', 'bat'], wingColor: 'mat', horns: 'bool', halo: 'bool', tail: ['devil', 'lizard'], glow: 'bool', ears: 'bool', bulky: 'bool', thin: 'bool', long: 'bool', tall: 'bool' },
+  humanoid: { body: 'mat', skin: 'mat', legs: 'mat', boots: 'mat', hair: 'mat', head: ['hair', 'helm', 'wizard', 'crown', 'skull', 'alien', 'robot', 'astro', 'ninja', 'pirate', 'kabuto', 'bald', 'beast'], beast: Object.keys(BEASTS), fur: 'mat', hat: HATS, fishTail: 'bool', robe: 'bool', cape: 'mat', armor: 'bool', weapon: WEAPONS, shield: 'bool', wings: ['fairy', 'angel', 'bat'], wingColor: 'mat', horns: 'bool', halo: 'bool', tail: ['devil', 'lizard'], glow: 'bool', ears: 'bool', bulky: 'bool', thin: 'bool', long: 'bool', tall: 'bool' },
   quadruped: { col: 'mat', neck: 'num:0:2', head: 'num:0.06:0.16', snout: 'num:0:0.1', ears: ['pointy', 'round', 'floppy', 'long', 'none'], tail: ['cat', 'bushy', 'short', 'thin', 'horse', 'none'], leg: 'num:0.15:0.55', slim: 'bool', fat: 'bool', mane: 'mat', spots: 'mat', spotsMany: 'bool', stripes: 'mat', belly: 'mat', horns: 'bool', horn: 'bool', antlers: 'bool', trunk: 'bool', tusks: 'bool', lion: 'bool', wool: 'bool', face: 'mat' },
   building: { mat: ['stone', 'wood', 'brick', 'concrete', 'glass', 'sand', 'white', 'straw', 'timber'], roof: ['gable', 'flat', 'dome', 'spire', 'pagoda', 'crenel', 'thatch', 'cone'], floors: 'num:1:6', width: ['narrow', 'normal', 'wide'], towers: 'num:0:2', rose: 'bool', stilts: 'bool', chimney: 'bool', arches: 'bool', columns: 'bool', color: 'mat' },
   flyer: { col: 'mat', wingCol: 'mat', insect: 'bool', beak: 'mat' },
@@ -204,6 +208,9 @@ export const KIT_PRESETS = [
   ['elephant', 'elefante', { base: 'quadruped', col: 'gray', neck: 0, head: 0.15, ears: 'round', tail: 'thin', leg: 0.34, fat: 1, trunk: 1, tusks: 1 }, { sz: 0.3 }],
   ['boar', 'jabalí', { base: 'quadruped', col: 'brown', neck: 0, head: 0.12, snout: 0.06, ears: 'pointy', tail: 'thin', leg: 0.22, fat: 1, tusks: 1 }],
   ['camel', 'camello', { base: 'quadruped', col: 'sand', neck: 1.1, head: 0.08, snout: 0.07, ears: 'round', tail: 'thin', leg: 0.5, slim: 1, fat: 1 }, { ar: 1.1, sz: 0.3 }],
+  ['soldier', 'soldado', { base: 'humanoid', body: 'leaf', legs: 'leaf', boots: 'black', hat: 'army', weapon: 'rifle' }],
+  ['cowboy', 'vaquero', { base: 'humanoid', body: 'brown', legs: 'blue', boots: 'bark', hat: 'cowboy', weapon: 'pistol' }],
+  ['mermaid', 'sirena', { base: 'humanoid', body: 'cyan', hair: 'red', long: 1, fishTail: 1, legs: 'cyan' }],
   ['fairy', 'hada', { base: 'humanoid', body: 'pink', robe: 1, hair: 'gold', long: 1, wings: 'fairy', glow: 1, weapon: 'wand' }, { sz: 0.16, air: 1 }],
   ['angel', 'ángel', { base: 'humanoid', body: 'white', robe: 1, hair: 'gold', wings: 'angel', halo: 1 }, { air: 1 }],
   ['demon', 'demonio', { base: 'humanoid', body: 'black', skin: 'red', head: 'bald', wings: 'bat', horns: 1, tail: 'devil', bulky: 1 }],

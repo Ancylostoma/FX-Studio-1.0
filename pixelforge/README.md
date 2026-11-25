@@ -48,7 +48,10 @@ El modelo **nunca dibuja ni devuelve código**: produce un plan JSON que se vali
 
 ## Qué sabe dibujar
 
-- **Biblioteca de 139 elementos**: personajes (caballero, mago, hada, ángel, demonio, trol, orco, vampiro, bruja, arquero, vikingo…), animales y criaturas (tigre, elefante, jirafa, cebra, grifo, araña gigante, pingüino…), arquitectura (catedral, iglesia, palacio, mezquita, biblioteca, casa medieval, cabaña tropical, puente, muralla, fuente…), vehículos (tren clásico y futurista, nave espacial, submarino…), mobiliario de interiores y efectos (explosión, bola de fuego, magia, humo, rayo).
+- **Biblioteca de 145 elementos**: personajes (caballero, soldado, vaquero, sirena, mago, hada, ángel, demonio, trol, orco, vampiro, bruja, arquero, vikingo…), animales y criaturas (tigre, elefante, jirafa, cebra, grifo, araña gigante, pingüino…), arquitectura (catedral, iglesia, palacio, mezquita, biblioteca, casa medieval, cabaña tropical, puente, muralla, fuente…), vehículos (tren clásico y futurista, nave espacial, submarino…), mobiliario de interiores y efectos (explosión, bola de fuego, magia, humo, rayo).
+- **Objetos en la mano y sombreros**: fusil, escopeta, pistola o revólver, paraguas, escoba, libro, antorcha, farol, bandera, lanza, hacha, martillo, arco…; sombrero de vaquero, de copa, gorra, casco militar o de mago. Van al personaje más cercano en la frase.
+- **Animales de pie**: un animal que lleva algo («un gato con un fusil», «un perro con sombrero») se dibuja de pie, con cabeza, pelaje y cola de su especie (gato, perro, lobo, zorro, oso, conejo, cerdo, león, tigre, pantera, ratón, rana).
+- **Otros**: loro posado en el hombro, sofá y cama («un gato durmiendo en un sofá»), «a caballo».
 - **Interiores**: biblioteca, taberna, mazmorra, sala del trono, laboratorio y habitación, con ventanas, haces de luz y mobiliario.
 - **Asentamientos**: ciudad medieval, aldea tropical en la playa, pueblo japonés, ciudad del desierto, aldea nórdica, con edificios de alturas variadas en dos planos.
 - **Dirección artística**: protagonista con más peso visual, batallas cara a cara con pose de ataque, dirección de la luz con sombras coherentes, vista lateral, frontal, isométrica o panorámica, y 12 paletas temáticas con comprobación de coherencia (medieval, fantasía, oscuro, cyberpunk, tropical, invernal, desértico, espacial, japonés, retro, postapocalíptico, naturalista).
@@ -156,8 +159,7 @@ Ejecuta 12 escenas de categorías distintas con el motor procedural. Para compar
 
 ## Límites conocidos
 
-- **El motor procedural no entiende lenguaje libre**: reconoce un vocabulario amplio pero cerrado. Lo que no reconoce lo dice; no finge haberlo dibujado.
-- **La calidad del modo Ollama no se ha medido aún con Qwen**: el código se ha probado contra un simulador del contrato HTTP de Ollama, no contra tu Ollama. `PROBAR_OLLAMA.bat` es la prueba que lo confirma o lo desmiente.
+- **La app solo dibuja lo que está en su catálogo**, también con Qwen: la IA elige piezas, no dibuja. Lo que no sabe dibujar aparece en un aviso naranja encima de la imagen («No sé dibujar: …»); no finge haberlo dibujado. Con 15 frases corrientes de prueba, antes de esta versión se perdía lo importante en las 15.
 - La **vista cenital** (`view: top`) usa por ahora la isla isométrica; no hay sprites vistos desde arriba. La vista en tres cuartos no está implementada.
 - Los kits construyen formas reconocibles pero esquemáticas; los objetos descritos con **primitivas** (`shapes`) son el último recurso y su calidad depende de la descripción del modelo.
 - El **borrador** solo elimina retoques del lápiz; las animaciones son ciclos procedurales de 4 fotogramas.

@@ -12,6 +12,54 @@ const sub = (p, u, v, s) => new Pen(p.o, p.x + Math.round(u * p.w), p.y + Math.r
 const subLit = (k, p2) => ({ ...k, lit: p2.on(k.lit.o) });
 const WARM = [255, 222, 120], FIRE1 = [255, 130, 40], FIRE2 = [255, 226, 110];
 
+// ---- Animales de pie («un gato con un fusil»): cabeza, pelaje y cola ----
+export const BEASTS = {
+  cat: { fur: 'orange', ears: 'pointy', tail: 'cat', whiskers: 1 },
+  dog: { fur: 'brown', ears: 'floppy', tail: 'short', snout: 1 },
+  wolf: { fur: 'gray', ears: 'pointy', tail: 'bushy', snout: 1 },
+  fox: { fur: 'orange', ears: 'pointy', tail: 'bushy', tip: 1, snout: 1 },
+  bear: { fur: 'brown', ears: 'round', snout: 1 },
+  rabbit: { fur: 'white', ears: 'long', tail: 'short' },
+  pig: { fur: 'pink', ears: 'pointy', tail: 'curly', pigNose: 1 },
+  lion: { fur: 'gold', ears: 'round', tail: 'thin', mane: 1 },
+  tiger: { fur: 'orange', ears: 'round', tail: 'thin', stripes: 1 },
+  panther: { fur: 'black', ears: 'round', tail: 'thin' },
+  mouse: { fur: 'gray', ears: 'big', tail: 'thin' },
+  frog: { fur: 'green', ears: 'none', frog: 1 },
+};
+function beastTail(p, C, B, fur) {
+  const t = B.tail;
+  if (t === 'cat' || t === 'thin') { p.line(0.36, 0.62, 0.14, 0.7, fur[1]); p.line(0.14, 0.7, 0.06, t === 'cat' ? 0.5 : 0.62, fur[1]); if (t === 'thin' && B.mane) p.ell(0.06, 0.6, 0.04, 0.04, C.mat('brown')[1]); }
+  else if (t === 'bushy') { p.ell(0.14, 0.66, 0.12, 0.08, fur[1]); p.ell(0.1, 0.64, 0.08, 0.05, fur[2], 1); if (B.tip) p.ell(0.04, 0.63, 0.04, 0.04, C.mat('white')[3], 1); }
+  else if (t === 'short') p.ell(0.26, 0.64, 0.06, 0.05, fur[3]);
+  else if (t === 'curly') { p.line(0.3, 0.62, 0.2, 0.6, fur[1]); p.line(0.2, 0.6, 0.22, 0.54, fur[1]); }
+}
+function beastHead(p, k, C, B, fur, dark) {
+  const eh = p.h >= 36 ? 0.05 : 0.01;
+  if (B.mane) p.ell(0.5, 0.2, 0.32, 0.22, C.mat('brown')[1]);
+  if (B.ears === 'pointy') { p.poly([[0.3, 0.12], [0.32, -0.06], [0.44, 0.07]], fur[1]); p.poly([[0.58, 0.07], [0.7, -0.06], [0.72, 0.12]], fur[2]); p.poly([[0.33, 0.09], [0.34, 0.0], [0.4, 0.07]], C.col('pink')[3]); }
+  if (B.ears === 'round') { p.ell(0.32, 0.06, 0.07, 0.06, fur[1]); p.ell(0.68, 0.06, 0.07, 0.06, fur[2]); }
+  if (B.ears === 'big') { p.ell(0.28, 0.05, 0.11, 0.1, fur[1]); p.ell(0.72, 0.05, 0.11, 0.1, fur[2]); p.ell(0.28, 0.05, 0.06, 0.05, C.col('pink')[3], 1); }
+  if (B.ears === 'long') { p.rect(0.34, -0.22, 0.09, 0.3, fur[1]); p.rect(0.56, -0.24, 0.09, 0.32, fur[2]); p.rect(0.36, -0.18, 0.04, 0.22, C.col('pink')[3]); }
+  if (B.frog) { p.ell(0.5, 0.21, 0.26, 0.14, fur[2]); p.ell(0.36, 0.08, 0.08, 0.07, fur[3]); p.ell(0.64, 0.08, 0.08, 0.07, fur[3]); p.px(0.37, 0.08, dark); p.px(0.65, 0.08, dark); p.rect(0.36, 0.26, 0.3, 0.02, dark); return; }
+  p.ell(0.5, 0.2, 0.22, 0.16, fur[2]); p.ell(0.44, 0.13, 0.1, 0.05, fur[3], 1);
+  if (B.ears === 'floppy') { p.ell(0.28, 0.2, 0.06, 0.12, fur[0]); p.ell(0.72, 0.2, 0.06, 0.12, fur[1]); }
+  if (B.stripes) for (const u of [0.38, 0.5, 0.62]) p.rect(u, 0.05, 0.03, 0.07, dark);
+  // Gato: morro pequeño y nariz rosa (con el morro grande parecía un zorro).
+  const muzzle = B.snout ? 0.12 : B.whiskers ? 0.06 : 0.09;
+  p.ell(0.6, 0.27, muzzle, B.whiskers ? 0.045 : 0.07, B.pigNose ? C.col('pink')[2] : C.mat('cream')[3]);
+  if (B.pigNose) { p.px(0.58, 0.26, dark); p.px(0.64, 0.26, dark); } else if (B.whiskers) p.rect(0.58, 0.23, 0.04, 0.03, C.col('pink')[2]); else p.rect(B.snout ? 0.66 : 0.6, 0.22, 0.05, 0.03, dark);
+  p.rect(0.44, 0.17, 0.04, eh, dark); p.rect(0.6, 0.17, 0.04, eh, dark);
+  if (B.whiskers && p.w >= 14) { p.line(0.68, 0.27, 0.8, 0.25, fur[4] || fur[3]); p.line(0.32, 0.27, 0.22, 0.25, fur[4] || fur[3]); }
+}
+// Sombreros (vaquero, copa, gorra, casco militar); el de mago es una cabeza propia.
+function drawHat(p, C, hat, a) {
+  if (hat === 'cowboy') { const b = C.tint(a.color2, 'brown'); p.rect(0.12, 0.08, 0.76, 0.05, b[1]); p.poly([[0.3, 0.09], [0.32, -0.08], [0.5, -0.04], [0.68, -0.08], [0.7, 0.09]], b[2]); p.rect(0.31, 0.04, 0.38, 0.03, C.dark); }
+  else if (hat === 'tophat') { const b = C.mat('black'); p.rect(0.2, 0.07, 0.6, 0.04, b[2]); p.rect(0.32, -0.2, 0.36, 0.28, b[2]); p.rect(0.32, -0.2, 0.08, 0.28, b[3]); p.rect(0.32, 0.02, 0.36, 0.03, C.col('red')[2]); }
+  else if (hat === 'cap') { const b = C.tint(a.color2, 'red'); p.ell(0.5, 0.08, 0.23, 0.08, b[2]); p.rect(0.27, 0.08, 0.46, 0.04, b[2]); p.rect(0.62, 0.1, 0.3, 0.04, b[1]); }
+  else if (hat === 'army') { const b = C.mat('leaf'); p.ell(0.5, 0.1, 0.26, 0.11, b[1]); p.rect(0.2, 0.12, 0.6, 0.04, b[0]); p.ell(0.42, 0.05, 0.1, 0.03, b[2], 1); }
+}
+
 // ---- Añadidos de humanoide: alas, cuernos, aureola, cola, aura ----
 function drawExtrasBack(p, k, o, C) {
   const a = k.a, wings = a.wings || o.wings;
@@ -40,6 +88,31 @@ function otherWeapon(p, k, weapon, f) {
   else if (weapon === 'club') p.poly([[u - 0.02, v + 0.06], [u - 0.07, v - 0.4], [u + 0.01, v - 0.48], [u + 0.08, v - 0.4], [u + 0.03, v + 0.06]], w[2]);
   else if (weapon === 'hammer') { p.rect(u - 0.02, v - 0.4, 0.04, 0.48, w[1]); p.rect(u - 0.1, v - 0.48, 0.2, 0.1, m[2]); }
   else if (weapon === 'bow') { const pts = [[u, v - 0.4], [u + 0.08, v - 0.26], [u + 0.1, v - 0.06], [u + 0.08, v + 0.14], [u, v + 0.26]]; for (let i = 0; i < 4; i++) p.line(...pts[i], ...pts[i + 1], w[1]); p.line(u, v - 0.4, u, v + 0.26, C.mat('white')[3]); }
+  else if (weapon === 'rifle' || weapon === 'shotgun') {
+    // Fusil en diagonal: culata de madera junto a la mano, cañón de metal hacia arriba y adelante.
+    // Grueso y oscuro para que se lea a 64 px (la primera versión, de una línea gris, no se veía).
+    const long = weapon === 'rifle' ? 1 : 0.75, d = C.mat('darkstone');
+    const bx = u + 0.24 * long, by = v - 0.5 * long;
+    p.poly([[u - 0.2, v + 0.16], [u - 0.08, v + 0.0], [u + 0.0, v + 0.06], [u - 0.12, v + 0.24]], w[2]);    // culata
+    p.poly([[u - 0.1, v + 0.04], [u + 0.04, v - 0.14], [u + 0.12, v - 0.08], [u - 0.02, v + 0.1]], d[1]);     // cuerpo
+    p.poly([[u + 0.03, v - 0.12], [bx - 0.02, by - 0.01], [bx + 0.04, by + 0.03], [u + 0.1, v - 0.07]], d[2]); // cañón (2 px)
+    if (weapon === 'shotgun') p.line(u + 0.1, v - 0.06, bx + 0.05, by + 0.05, d[1]);
+    p.line(u + 0.03, v - 0.12, bx - 0.02, by - 0.01, m[3]);                                                        // brillo
+    p.rect(u - 0.03, v + 0.06, 0.04, 0.08, C.dark);                                                                 // gatillo
+  }
+  else if (weapon === 'pistol') { const d = C.mat('darkstone'); p.rect(u - 0.06, v - 0.12, 0.26, 0.08, d[1]); p.rect(u - 0.06, v - 0.12, 0.26, 0.02, m[3]); p.rect(u - 0.05, v - 0.05, 0.08, 0.14, w[1]); p.px(u + 0.18, v - 0.1, C.dark); }
+  else if (weapon === 'umbrella') {
+    const c = C.tint(k.a.color2, 'red');
+    p.line(u, v + 0.08, u, v - 0.68, C.dark);
+    p.poly([[u - 0.42, v - 0.62], [u - 0.3, v - 0.78], [u, v - 0.86], [u + 0.3, v - 0.78], [u + 0.42, v - 0.62]], c[2]);
+    p.poly([[u, v - 0.86], [u + 0.3, v - 0.78], [u + 0.42, v - 0.62], [u + 0.14, v - 0.62]], c[1]);
+    p.line(u, v + 0.08, u - 0.04, v + 0.12, C.dark);
+  }
+  else if (weapon === 'broom') { p.line(u + 0.06, v - 0.5, u - 0.08, v + 0.3, w[1]); p.poly([[u - 0.16, v + 0.26], [u - 0.02, v + 0.26], [u - 0.02, v + 0.44], [u - 0.22, v + 0.44]], C.mat('sand')[2]); p.line(u - 0.16, v + 0.3, u - 0.02, v + 0.3, w[0]); }
+  else if (weapon === 'book') { const c = C.tint(k.a.color2, 'red'); p.rect(u - 0.1, v - 0.1, 0.18, 0.14, c[1]); p.rect(u - 0.08, v - 0.08, 0.14, 0.1, C.mat('cream')[3]); p.rect(u - 0.01, v - 0.1, 0.02, 0.14, c[0]); }
+  else if (weapon === 'torch') { p.rect(u - 0.02, v - 0.3, 0.04, 0.38, w[1]); k.lit.ell(u, v - 0.36, 0.06, 0.08, C.rgb(FIRE1)); k.lit.ell(u, v - 0.34, 0.03, 0.05, C.rgb(FIRE2)); }
+  else if (weapon === 'lantern') { p.line(u, v - 0.02, u, v + 0.06, C.dark); p.rect(u - 0.06, v + 0.06, 0.12, 0.14, m[1]); k.lit.rect(u - 0.04, v + 0.09, 0.08, 0.08, C.rgb(WARM)); }
+  else if (weapon === 'flag') { const c = C.tint(k.a.color2, 'red'); p.line(u, v + 0.3, u, v - 0.8, w[1]); p.poly([[u, v - 0.8], [u + 0.36, v - 0.72], [u, v - 0.6]], c[2]); p.line(u, v - 0.8, u + 0.36, v - 0.72, c[3]); }
   else if (weapon === 'wand') { p.line(u, v - 0.24, u, v + 0.04, w[0]); k.lit.ell(u, v - 0.26, 0.04, 0.03, C.rgb([255, 240, 150])); }
 }
 
@@ -76,21 +149,30 @@ export function humanoidKit(o, kind = null) {
     const ps = poseOf(k0), walk = ps.kind === 'walk', atk = ps.kind === 'attack';
     const step = walk ? [1, 0, 2, 0][ps.f] : 0;             // 1 = pierna izquierda en alto, 2 = derecha
     const bob = !ps.on ? 0 : walk ? (step ? -1 : 0) : atk ? (ps.f === 2 ? 1 : 0) : (ps.f >= 2 ? 1 : 0);
-    const lp = o.tall || a.hat ? sub(p0, 0.09, 0.18, 0.82) : p0;   // piernas: no se mueven con el torso
+    const hat = a.hat || o.hat;
+    const lp = o.tall || hat ? sub(p0, 0.09, 0.18, 0.82) : p0;   // piernas: no se mueven con el torso
     const p = nudge(lp, atk ? [-1, 0, 1, 0][ps.f] : 0, bob);
     const k = subLit(k0, p);
     const lift = (n) => (step === n ? 0.1 : 0), swing = step === 1 ? 0.05 : step === 2 ? -0.05 : 0;
     const armored = o.armor || !!a.armor;
-    const body = C.tint(a.armor || a.color, armored && !a.armor && !a.color ? o.body : o.body);
-    const skin = C.mat(o.skin || 'skin'), legs = armored && a.armor ? body : C.mat(o.legs || 'brown'), boots = C.mat(o.boots || 'bark');
+    const beast = o.head === 'beast' ? BEASTS[o.beast] || BEASTS.cat : null;
+    const fur = beast && C.tint(a.color || o.fur || beast.fur, 'brown');   // de un animal, el color es el del pelaje
+    const body = C.tint(a.armor || (beast ? null : a.color), armored && !a.armor && !a.color ? o.body : o.body);
+    const skin = beast ? fur : C.mat(o.skin || 'skin'), legs = armored && a.armor ? body : C.mat(o.legs || 'brown'), boots = C.mat(o.boots || 'bark');
     const dark = C.dark, t = o.thin ? 0.05 : 0, bk = o.bulky ? 0.03 : 0;
-    const head = a.hat === 'wizard' ? 'wizard' : (kind === 'character' && a.armor && a.helmet) ? 'helm' : o.head;
+    const head = hat === 'wizard' ? 'wizard' : (kind === 'character' && a.armor && a.helmet) ? 'helm' : o.head;
     drawExtrasBack(p, k, o, C);
+    if (beast) beastTail(p, C, beast, fur);
     if (o.cape || a.cape) { const cp = C.tint(a.cape !== true ? a.cape : null, o.cape || 'red'); p.poly([[0.3, 0.36], [0.7, 0.36], [0.86, 0.92], [0.14, 0.92]], cp[1]); p.poly([[0.3, 0.36], [0.4, 0.36], [0.3, 0.92], [0.14, 0.92]], cp[2]); }
     if (o.pack) { const w = C.mat('white'); p.rect(0.1, 0.3, 0.2, 0.36, w[1]); p.rect(0.1, 0.3, 0.2, 0.04, w[2]); }
     if (o.long) { const h = C.mat(o.hair); p.rect(0.24, 0.14, 0.52, 0.34, h[1]); }
     // Piernas y botas
-    if (!o.robe) {
+    if (o.fishTail) {
+      // Sirena: cola de pez en lugar de piernas.
+      const f = C.tint(a.color2, o.legs || 'cyan');
+      lp.poly([[0.28, 0.62], [0.72, 0.62], [0.62, 0.84], [0.54, 0.9], [0.46, 0.9]], f[2]); lp.poly([[0.28, 0.62], [0.42, 0.62], [0.46, 0.9]], f[3]);
+      lp.poly([[0.5, 0.86], [0.26, 1], [0.44, 0.96], [0.5, 0.92], [0.56, 0.96], [0.76, 1]], f[1]);
+    } else if (!o.robe) {
       lp.rect(0.3 + t - bk, 0.64, 0.18 - t + bk, 0.3 - lift(1), legs[2]); lp.rect(0.52, 0.64, 0.18 - t + bk, 0.3 - lift(2), legs[1]);
       lp.rect(0.26 + t - bk, 0.9 - lift(1), 0.22 - t + bk, 0.1, boots[2]); lp.rect(0.52, 0.9 - lift(2), 0.23 - t + bk, 0.1, boots[1]);
     }
@@ -128,6 +210,8 @@ export function humanoidKit(o, kind = null) {
       p.rect(0.36, 0.13, 0.32, 0.09, dark); k.lit.rect(0.4, 0.15, 0.08, 0.05, C.rgb([90, 240, 255])); k.lit.rect(0.56, 0.15, 0.08, 0.05, C.rgb([90, 240, 255]));
     } else if (head === 'skull') {
       p.ell(0.5, 0.18, 0.22, 0.15, skin[3]); p.rect(0.38, 0.28, 0.24, 0.07, skin[2]); p.rect(0.38, 0.17, 0.09, 0.07, dark); p.rect(0.56, 0.17, 0.09, 0.07, dark); p.px(0.5, 0.26, dark);
+    } else if (head === 'beast') {
+      beastHead(p, k, C, beast, fur, dark);
     } else if (head === 'alien') {
       p.ell(0.5, 0.17, 0.27, 0.18, skin[2]); p.ell(0.42, 0.1, 0.12, 0.06, skin[3], 1); p.ell(0.4, 0.2, 0.07, 0.05, dark); p.ell(0.64, 0.2, 0.07, 0.05, dark);
     } else {
@@ -148,6 +232,7 @@ export function humanoidKit(o, kind = null) {
         if (head === 'pirate') { p.poly([[0.16, 0.12], [0.84, 0.12], [0.7, -0.02], [0.5, -0.1], [0.3, -0.02]], dark); p.px(0.5, 0.03, C.mat('bone')[3]); p.rect(0.56, 0.19, 0.12, 0.05, dark); }
       }
     }
+    if (hat && hat !== 'wizard') drawHat(p, C, hat, a);
     drawExtrasFront(p, k, o, C);
     // Armas y escudo
     const weapon = a.weapon || o.weapon;

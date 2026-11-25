@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { extract, finalize, parsePrompt, describeSpec, applyEdit } from '../src/generator/promptParser.js';
+import { composeScene } from '../src/generator/sceneComposer.js';
+import { validateScene } from '../src/core/pixelScene.js';
 
 const ids = (l) => l.map((e) => e.id);
 
@@ -83,4 +85,34 @@ test('edición: quitar y recolorear', () => {
   assert.equal(r.subjects[0].color, 'green'); assert.equal(r.subjects.length, 1);
   r = applyEdit(raw, 'elimina el dragón y añade dos pinos').raw;
   assert.equal(r.subjects.length, 0); assert.equal(r.flora[0].n, 2);
+});
+
+test('frases corrientes: objetos en la mano, animales de pie, sombreros, loro en el hombro, sofá', () => {
+  const p = (t) => parsePrompt(t).raw, sub = (t) => p(t).subjects;
+  const cat = sub('un gato con un fusil')[0];
+  assert.equal(cat.kit.head, 'beast'); assert.equal(cat.kit.beast, 'cat'); assert.equal(cat.a.weapon, 'rifle');
+  assert.deepEqual(p('un gato con un fusil').unknown, []);
+  assert.equal(sub('un gato negro con un fusil')[0].color, 'black', 'el color pasa al pelaje');
+  assert.equal(sub('un perro con sombrero de vaquero')[0].a.hat, 'cowboy');
+  assert.equal(sub('un soldado con una pistola')[0].id, 'soldier'); assert.equal(sub('un soldado con una pistola')[0].a.weapon, 'pistol');
+  assert.equal(sub('una chica con paraguas')[0].a.weapon, 'umbrella');
+  assert.equal(sub('un caballero con una lanza')[0].a.weapon, 'spear');
+  assert.equal(sub('un mago leyendo un libro')[0].a.weapon, 'book');
+  assert.deepEqual(p('una biblioteca con libros').flora.map((e) => e.id), ['bookshelf'], 'libros en plural siguen siendo estanterías');
+  assert.deepEqual(p('una plaza con una bandera').flora.map((e) => e.id), ['banner'], 'sin nadie que la sostenga, la bandera es decoración');
+  const pir = sub('un pirata con un loro en el hombro');
+  assert.deepEqual(pir.find((e) => e.id === 'parrot').rel, { type: 'on', of: 'pirate' });
+  const sofa = sub('un gato durmiendo en un sofá');
+  assert.deepEqual(sofa.find((e) => e.id === 'cat').rel, { type: 'on', of: 'sofa' });
+  const cow = sub('un cowboy a caballo en el desierto');
+  assert.deepEqual(cow.find((e) => e.id === 'cowboy').rel, { type: 'on', of: 'horse' });
+  assert.equal(sub('una sirena en el mar')[0].id, 'mermaid');
+  // El animal de pie conserva las relaciones que apuntaban a él.
+  const r = p('un árbol junto a un zorro con una antorcha');
+  const fox = r.subjects.find((e) => e.kit?.beast === 'fox');
+  assert.ok(fox && fox.a.weapon === 'torch');
+  for (const t of ['un gato con un fusil', 'un pirata con un loro en el hombro', 'un gato durmiendo en un sofá', 'una sirena en el mar', 'un vaquero con un revólver']) {
+    const sc = composeScene(parsePrompt(t).spec, { w: 64, h: 64, style: 'bit16', seed: 3, detail: 2 });
+    assert.equal(validateScene(sc).ok, true, t);
+  }
 });

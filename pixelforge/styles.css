@@ -152,3 +152,9 @@ canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
 #perf { color: var(--accent2); }
 #ollamaState.on { color: var(--ok); }
 #ollamaHelp code { display: inline; padding: 1px 4px; }
+
+/* Aviso de lo que no se ha podido dibujar: visible, encima de la imagen (antes era una línea pequeña). */
+.missing { margin: 8px 12px 0; padding: 8px 12px; border: 1px solid var(--danger); border-radius: 8px; background: rgba(232, 118, 74, 0.12); color: var(--text); font-size: 14px; }
+.missing b { color: var(--danger); }
+.missing p { margin: 2px 0; }
+.missing .muted { color: var(--muted); font-size: 12px; }

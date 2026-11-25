@@ -129,11 +129,13 @@ const SCENES = [
   ['arquitectura', 'Una catedral gótica con vidrieras iluminadas en la plaza de una ciudad medieval bajo la lluvia.', ['cathedral', 'town', 'weather:rain']],
   ['fantasia-compleja', 'Un enorme dragón rojo volando sobre un castillo medieval durante una noche de luna llena, mientras un mago lanza un hechizo desde la torre y unos murciélagos huyen.', ['dragon', 'castle', 'wizard', 'bat', 'sky:moon', 'time:night', 'focus:dragon', 'rel:wizard:on:tower', '!biome:interior']],
   ['ambigua', 'algo antiguo y olvidado', []],
+  ['gato-fusil', 'Un gato negro con un fusil junto a un soldado con una pistola.', ['custom', 'weapon:rifle', 'soldier', 'weapon:pistol']],
+  ['pirata-loro', 'Un pirata con un loro en el hombro en una playa.', ['pirate', 'parrot', 'rel:parrot:on:pirate']],
   ['fuera-del-catalogo', 'Un samurái montado en un oso polar junto a un faro, con una aurora boreal en el cielo.', ['samurai', 'bear', 'lighthouse', 'sky:aurora', 'rel:samurai:on:bear', 'color:bear:white', '!biome:interior']],
 ];
 function tagsOf(spec) {
   const t = new Set(), ents = [...spec.subjects, ...spec.structures, ...spec.flora];
-  for (const e of ents) { t.add(e.kit ? 'custom' : e.id); if (e.rel) t.add(`rel:${e.id}:${e.rel.type}:${e.rel.of}`); if (e.facing) t.add('facing:' + e.facing); if (e.color) t.add(`color:${e.id}:${e.color}`); }
+  for (const e of ents) { t.add(e.kit ? 'custom' : e.id); if (e.rel) t.add(`rel:${e.id}:${e.rel.type}:${e.rel.of}`); if (e.facing) t.add('facing:' + e.facing); if (e.color) t.add(`color:${e.id}:${e.color}`); if (e.a?.weapon) t.add('weapon:' + e.a.weapon); }
   if (spec.biome) t.add('biome:' + spec.biome);
   for (const f of spec.features) t.add('feature:' + f);
   for (const w of spec.weather) t.add('weather:' + w);

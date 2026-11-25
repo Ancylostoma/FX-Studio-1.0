@@ -308,3 +308,18 @@ test('repetibilidad: temperatura 0,1 y semilla por defecto; la semilla de la ima
     }
   } finally { await fake.close(); }
 });
+
+test('frases corrientes con Qwen: el animal de pie y el objeto de la frase mandan', () => {
+  const plain = sanitizePlan({ subjects: [{ id: 'cat', color: 'black' }], focus: 'cat' }).raw;
+  const a = applyCertainties(plain, 'un gato negro con un fusil', 'balanced', parsePrompt);
+  const c = a.raw.subjects[0];
+  assert.equal(c.kit.head, 'beast'); assert.equal(c.a.weapon, 'rifle'); assert.equal(c.color, 'black'); assert.equal(a.raw.focus, c.id);
+  assert.ok(a.fixes.some((f) => /de pie/.test(f)));
+  const sword = sanitizePlan({ subjects: [{ id: 'soldier', weapon: 'sword' }] }).raw;
+  assert.equal(applyCertainties(sword, 'un soldado con una pistola', 'balanced', parsePrompt).raw.subjects[0].a.weapon, 'pistol');
+  // El esquema admite los objetos y sombreros nuevos.
+  const ok = sanitizePlan({ subjects: [{ id: 'cowboy', weapon: 'pistol', hat: 'cowboy' }, { id: 'parrot' }, { id: 'custom', name: 'perro', kit: { base: 'humanoid', head: 'beast', beast: 'dog' }, hat: 'tophat', weapon: 'umbrella' }] }).raw;
+  assert.equal(ok.subjects[0].a.weapon, 'pistol'); assert.equal(ok.subjects[0].a.hat, 'cowboy');
+  assert.equal(ok.subjects[1].id, 'parrot');
+  assert.equal(ok.subjects[2].kit.beast, 'dog'); assert.equal(ok.subjects[2].a.hat, 'tophat'); assert.equal(ok.subjects[2].a.weapon, 'umbrella');
+});

@@ -4,6 +4,7 @@
 // escena después ("agrega una luna") sin perder la intención original.
 import { PHRASES, STOPWORDS, MAX_PHRASE, normalize } from './vocabulary.js';
 import { LIB, defOf } from './spriteLibrary.js';
+import { BEASTS } from './spriteBase.js';
 import { checkTheme, inferTheme } from './environments.js';
 import { BIOMES, COLOR_NAMES } from './templates.js';
 
@@ -62,6 +63,7 @@ export function extract(text) {
   };
   const nounSoon = (i) => { let j = i + 1, skipped = 0; while (toks[j] && skipped < 3 && /^(stop|unk$|col:|size:|n:)/.test(toks[j].tag)) { j++; skipped++; } return isNoun(toks[j]); };
   const rooms = [];
+  const holds = [];               // objetos en la mano y sombreros: { item | hat, i, fallback }
   let pend = null;               // relación a la espera de su segundo término ("detrás de" → …)
   // ¿Sigue "de/del/of" + sustantivo? Distingue "a la izquierda del castillo" de "a la izquierda".
   const ofNoun = (i) => { let j = i + 1; if (!(toks[j]?.tag === 'stop' && /^(de|del|of)$/.test(toks[j].word))) return false; j++; if (toks[j]?.tag === 'stop') j++; while (toks[j] && /^(col|size|n):/.test(toks[j].tag)) j++; return isNoun(toks[j]) && !toks[j].tag.startsWith('part:'); };
@@ -114,7 +116,24 @@ export function extract(text) {
         break;
       }
       case 'b': if (!refer(raw.structures)) add(raw.structures, ent(id)); break;
-      case 'f': if (!refer(raw.flora)) add(raw.flora, ent(id)); break;
+      case 'f': {
+        // «un mago con un libro», «leyendo un libro», «con una antorcha»: es algo en la mano, no un mueble.
+        const HELD = { bookshelf: /^(libro|book)$/, banner: /^(bandera|flag)$/, torch: /^(antorcha|torch)$/, lamp: /^(farol)$/ };
+        const AS = { bookshelf: 'book', banner: 'flag', torch: 'torch', lamp: 'lantern' };
+        const ctx = [toks[i - 1], toks[i - 2], toks[i - 3]].some((x) => x && /^(con|sosteniendo|sujetando|lleva|llevando|empunando|portando|leyendo|agitando|with|holding|carrying|reading|wielding)$/.test(x.word));
+        if (HELD[id]?.test(t.word) && ctx) { holds.push({ item: AS[id], i, fallback: id }); break; }
+        if (!refer(raw.flora)) add(raw.flora, ent(id));
+        break;
+      }
+      case 'hold': holds.push({ item: id, i }); break;
+      case 'ride': { const a = lastActor(); const m = ent(id); add(raw.subjects, m); if (a && a !== m) a.rel = { type: 'on', of: id }; break; }   // «a caballo»
+      case 'hat': holds.push({ hat: id, i }); break;
+      case 'shoulder': {
+        // «un pirata con un loro en el hombro»: el último elemento se posa sobre el personaje anterior.
+        const a = lastBody(), hum = [...ents].reverse().find((x) => x !== a && !x.part && HUMANOID(x));
+        if (a && hum) a.rel = { type: 'on', of: hum.id };
+        break;
+      }
       case 'part': { const p = add(parts, ent(id)); p.part = id; break; }
       case 'biome': raw.biome = id; if (/^polar(es)?$/.test(t.word) && prev?.tag.startsWith('s:')) setColor(lastEnt(), 'white'); break;   // «oso polar» → blanco
       case 'feat': if (!raw.features.includes(id)) raw.features.push(id); break;
@@ -180,6 +199,23 @@ export function extract(text) {
     if (p.part === 'cape') hero.a.cape = p.color || true;
     if (p.part === 'staff') { hero.a.weapon = 'staff'; if (p.a.weaponFx) hero.a.weaponFx = p.a.weaponFx; }
   }
+  // Objetos en la mano y sombreros: van al personaje (o animal) más cercano que aparece antes en la
+  // frase; si no hay nadie, a un personaje nuevo. Un animal que lleva algo se dibuja de pie
+  // («un gato con un fusil» → gato de pie con el fusil), porque un gato a cuatro patas no puede sostenerlo.
+  if (holds.length) {
+    const canHold = (s) => HUMANOID(s) || BEASTS[s.id] || s.kit?.head === 'beast';
+    for (const it of holds) {
+      const cands = raw.subjects.filter(canHold);
+      let h = cands.filter((s) => s._i < it.i).sort((x, y) => y._i - x._i)[0] || cands[0];
+      if (!h) {
+        if (it.fallback) { raw.flora.push(ent(it.fallback)); continue; }
+        h = hero || ent('character'); if (!raw.subjects.includes(h)) { h._i = -1; raw.subjects.unshift(h); } hero = hero || h;
+      }
+      if (BEASTS[h.id]) standUp(h, raw);
+      if (it.item) { if (!h.a.weapon || h.a.weapon === defOf(h)?.kit?.weapon) h.a.weapon = it.item; else raw.unknown.push(`segundo objeto en la mano (${it.item})`); }
+      if (it.hat) h.a.hat = it.hat;
+    }
+  }
   if (hero) {
     raw.subjects = raw.subjects.filter((s) => {
       if (s === hero) return true;
@@ -203,6 +239,18 @@ export function extract(text) {
 }
 
 const uniq = (a) => [...new Set(a)];
+
+// Convierte un animal del catálogo en un animal de pie (kit humanoide con cabeza de animal).
+// Conserva color, tamaño y posición, y actualiza las relaciones que apuntaban a él.
+export function standUp(e, raw) {
+  const old = e.id, name = LIB[old]?.name || old;
+  e.kit = { base: 'humanoid', head: 'beast', beast: old, body: 'cloth', name };
+  e.id = 'c:' + name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '') + 'depie';
+  e.name = name;
+  for (const l of [raw.subjects, raw.structures, raw.flora]) for (const x of l) if (x.rel?.of === old) x.rel = { ...x.rel, of: e.id };
+  if (raw.focus === old) raw.focus = e.id;
+  return e;
+}
 
 // Aplica valores por defecto y coherencia de escena. No muta el raw.
 export function finalize(raw) {
