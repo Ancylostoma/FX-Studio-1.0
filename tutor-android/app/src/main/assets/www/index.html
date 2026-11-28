@@ -216,11 +216,13 @@ function normalizar(d) {
   if (!(d.ajustes.capacidad > 0)) d.ajustes.capacidad = 2;
   d.ajustes.recordar = !!d.ajustes.recordar;
   if (!/^\d\d:\d\d$/.test(d.ajustes.hora || "")) d.ajustes.hora = "08:00";
-  if (!Array.isArray(d.catalogo)) d.catalogo = semillaCatalogo();
+  var versionCat = d.catalogoVersion || (Array.isArray(d.catalogo) ? 1 : 0);
+  if (!Array.isArray(d.catalogo)) d.catalogo = [];
   d.catalogo.forEach(function (c) {
     c.id = c.id || uid(); c.codigo = String(c.codigo || "CURSO"); c.area = String(c.area || "General"); c.titulo = String(c.titulo || "");
     c.assessments = Array.isArray(c.assessments) ? c.assessments.map(String) : [];
   });
+  if (versionCat < versionCatalogo()) actualizarCatalogo(d, versionCat);
   d.alumnos.forEach(function (a) {
     a.id = a.id || uid(); a.nombre = String(a.nombre || "Sin nombre"); a.avisado = a.avisado || 0;
     a.cursos = Array.isArray(a.cursos) ? a.cursos : [];
@@ -596,32 +598,119 @@ function syncNativo() {
 }
 
 /* ============ Base de datos de cursos (local y editable) ============ */
-/* Función (no variable) porque los datos se cargan antes de llegar a esta parte del archivo. */
+/*
+ * Cursos que trae la app. "v" es la versión en que se añadieron: al actualizar la app
+ * se agregan solo los cursos nuevos que no estén ya, sin tocar los que el tutor editó.
+ * {alumno} se cambia por el nombre del alumno al agregar la actividad.
+ * Es una función (no variable) porque los datos se cargan antes de llegar a esta parte del archivo.
+ */
+function versionCatalogo() { return 2; }   // súbela al añadir cursos de fábrica nuevos
 function catalogoInicial() {
+  function numerar(lista) { return lista.map(function (t, i) { return "Assessment " + (i + 1) + ": " + t; }); }
+  var P = "Psicología", E = "Enfermería";
   return [
-  ["Psicología", "PSYC-FPX2002", ["Time Management Exercise", "CRAAP Test and Library Worksheet", "College Planning Reflection", "Career Planning Worksheet"]],
-  ["Psicología", "PSYC-FPX3110", ["Theories of Abnormal Behavior", "Diagnosing Using the DSM-5-TR", "Living the Criteria of the DSM-5-TR", "Applying the DSM-5-TR"]],
-  ["Psicología", "PSYC-FPX3130", ["Assessment in Forensic Psychology", "Case Study Assessment", "Ethics Poster", "Case Study: Final Report"]],
-  ["Psicología", "PSYC-FPX3770", ["Bulletin to Highend Hotel Employees and Guests", "Reflections on Learning", "Heading Home", "Cognitive Reflection Paper"]],
-  ["Psicología", "PSYC-FPX4110", ["Happiness and Well-Being Reflection Paper", "Wisdom, Courage, and Humanity Presentation", "Justice, Temperance, and Transcendence Newspaper", "Positive Psychology Applied to Institutions"]],
-  ["Psicología", "PSYC-FPX4325", ["Planning Worksheet: Coping Strategies and Relaxation Techniques", "Stress and Trauma in Marginalized Populations", "Mind-Body Connections Poster", "Coping and Relaxation Presentation"]]
-  ];
+    [1, P, "PSYC-FPX2002", numerar(["Time Management Exercise", "CRAAP Test and Library Worksheet", "College Planning Reflection", "Career Planning Worksheet"])],
+    [1, P, "PSYC-FPX3110", numerar(["Theories of Abnormal Behavior", "Diagnosing Using the DSM-5-TR", "Living the Criteria of the DSM-5-TR", "Applying the DSM-5-TR"])],
+    [1, P, "PSYC-FPX3130", numerar(["Assessment in Forensic Psychology", "Case Study Assessment", "Ethics Poster", "Case Study: Final Report"])],
+    [1, P, "PSYC-FPX3770", numerar(["Bulletin to Highend Hotel Employees and Guests", "Reflections on Learning", "Heading Home", "Cognitive Reflection Paper"])],
+    [1, P, "PSYC-FPX4110", numerar(["Happiness and Well-Being Reflection Paper", "Wisdom, Courage, and Humanity Presentation", "Justice, Temperance, and Transcendence Newspaper", "Positive Psychology Applied to Institutions"])],
+    [1, P, "PSYC-FPX4325", numerar(["Planning Worksheet: Coping Strategies and Relaxation Techniques", "Stress and Trauma in Marginalized Populations", "Mind-Body Connections Poster", "Coping and Relaxation Presentation"])],
+    [2, E, "NURS-FPX4000", [
+      "Assessment 2: Information Literacy and Library Research Skills Exam",
+      "Assessment 3: Critical Thinking in Healthcare Exam",
+      "Assessment 4: Applying Ethical Principles Exam",
+      "Assessment 5: Ethics in Healthcare Exam",
+      "Assessment 6: Analyzing a Current Healthcare Problem or Issue/Annotated Bibliography and Kaltura Video"]],
+    [2, E, "NURS-FPX4005", [
+      "Assessment 1: Interprofessional Collaboration Exam",
+      "Assessment 2: Leading Organizational Change Exam",
+      "Assessment 3: Interdisciplinary Collaboration and Professionalism Exam",
+      "Assessment 4: Managing Human and Financial Resources Exam",
+      "Assessment 5: Stakeholder Presentation",
+      "Assessment 6: Leadership Reflection: Thinking Ahead"]],
+    [2, E, "NURS-FPX4015", [
+      "Assessment 3: Enhancing Holistic Nursing Care With the 3Ps: Geriatrics, Maternal/Child, and Newborn Exam",
+      "Assessment 4: The 3Ps and Mental Health Care Exam",
+      "Assessment 5: Caring for Special Populations Exam",
+      "Assessment 6: Capstone Awareness and Professionalism",
+      "Assessment 7: Comprehensive Head-to-Toe Assessment Plus Concept Map and Simulation Reports",
+      "Assessment 7.1: Concept Map",
+      "Assessment 7.2: Simulation Reports"]],
+    [2, E, "NURS-FPX4025", [
+      "Assessment 1: Searching Literature for Peer-Reviewed Scholarly Research Exam",
+      "Assessment 2: Credibility of Research Exam",
+      "Assessment 3: Applying an EBP Model Exam",
+      "Assessment 4: Applying the PICO(T) Process Exam",
+      "Assessment 5: Capstone Awareness and Evidence-Based Practice Essay",
+      "Assessment 6: Presenting Your PICO(T) Process Findings to Your Professional Peers"]],
+    [2, E, "NURS-FPX4035", [
+      "Assessment 1: Building Better Care - Foundations of Quality Improvement and Patient Safety Exam",
+      "Assessment 2: Uncovering the Why: Root Cause Analysis and Patient Safety Risks Exam",
+      "Assessment 3: Strengthening Safety: Leveraging Organizational Resources for Better Outcomes Exam",
+      "Assessment 4: The Value of Nursing: Care Coordination That Improves Outcomes and Reduces Costs Exam",
+      "Assessment 5: Root-Cause Analysis",
+      "Assessment 5.1: Safety Improvement Plan and Toolkit"]],
+    [2, E, "NURS-FPX4045", [
+      "Assessment 1: Leveraging Health Information and Technology in Professional Nursing Practice Exam",
+      "Assessment 2: Protected Health Information (PHI) - Privacy, Security, and Confidentiality Exam",
+      "Assessment 3: Informatics and Nursing-Sensitive Quality Indicators",
+      "Assessment 4: Leveraging Health Technology to Improve Patient Outcomes Exam",
+      "Assessment 5: Technology-Driven Strategies to Improve Patient Outcomes Exam",
+      "Assessment 6: Exploring the Need for Informatics Expertise in Healthcare"]],
+    [2, E, "NURS-FPX4055", [
+      "Assessment 1: Population Health Risks and Community Health Needs Exam",
+      "Assessment 2: Health Promotion Strategies for Population Health Exam",
+      "Assessment 3: Health Policy, Funding, and Community Service Delivery Exam",
+      "Assessment 4: Advocacy, Preparedness, and Community Health Exam",
+      "Assessment 5: Comprehensive Community Health Promotion",
+      "Assessment 5.1: Windshield Surveys and PowerPoint Presentation"]],
+    [2, E, "NURS-FPX4065", [
+      "Assessment 2: Patient-Centered Care Coordination Strategies Exam",
+      "Assessment 3: Ethics and Care Coordination Decisions Exam",
+      "Assessment 4: Healthcare Policy and Patient-Centered Care Coordination Exam",
+      "Assessment 5: Applying the Four Spheres of Care Exam",
+      "Assessment 6: Comprehensive Care Coordination Strategy",
+      "Sentinel: {alumno} SC_CarePlan",
+      "Sentinel: {alumno} POCSS_Adult Medical Care",
+      "Sentinel: {alumno} POCSS_Geriatrics",
+      "Empower Debrief: {alumno} Home_Visit",
+      "Empower Debrief: {alumno} Geriatric",
+      "Empower Debrief: {alumno} Adult_care",
+      "Activity 1: nurs-fpx4065-activity1"]],
+    [2, E, "NURS-FPX4095", [
+      "Assessment 1: Orientation Readiness Form",
+      "Assessment 2: Define and Analyze Your Healthcare Process Problem or Issue of Concern",
+      "Assessment 3: Technology and Professional Standards",
+      "Assessment 4: Intervention Proposal",
+      "Assessment 5: Systems Level Improvement Plan, Proposal & Evaluation"]]
+  ].map(function (c) { return { v: c[0], area: c[1], codigo: c[2], assessments: c[3] }; });
 }
-function semillaCatalogo() {
-  return catalogoInicial().map(function (c) {
-    return { id: uid(), area: c[0], codigo: c[1], titulo: "", assessments: c[2].map(function (t, i) { return "Assessment " + (i + 1) + ": " + t; }) };
+/* Agrega los cursos de fábrica de versiones que esta base de datos aún no tiene. */
+function actualizarCatalogo(d, desde) {
+  catalogoInicial().forEach(function (c) {
+    if (c.v <= desde) return;
+    if (d.catalogo.some(function (x) { return normCod(x.codigo) === normCod(c.codigo); })) return;
+    d.catalogo.push({ id: uid(), area: c.area, codigo: c.codigo, titulo: "", assessments: c.assessments.slice() });
   });
+  d.catalogoVersion = versionCatalogo();
+  window.catalogoActualizado = true;   // se guarda al terminar de cargar, para no repetirlo en cada arranque
 }
 function normCod(s) { return String(s || "").toUpperCase().replace(/[^A-Z0-9]/g, ""); }
-function numAssess(nombre) { var m = /assessment\s*(\d+)/i.exec(nombre || ""); return m ? +m[1] : 0; }
-/* Quita el "[u01a1]" de Capella y numera las líneas que no dicen "Assessment N". */
+/* Número del assessment, con decimales para entregas extra como "Assessment 5.1". */
+function numAssess(nombre) { var m = /assessment\s*(\d+(?:\.\d+)?)/i.exec(nombre || ""); return m ? parseFloat(m[1]) : 0; }
+/*
+ * Limpia lo copiado de Capella: quita "[u01a1]", fechas y la puntuación final, y deja
+ * "Assessment N: título". Si ninguna línea dice "Assessment N" (se escribieron solo títulos),
+ * las numera; si alguna lo dice, las demás se dejan tal cual como actividades extra.
+ */
 function limpiarAssessments(lineas) {
-  var r = [];
-  lineas.forEach(function (l) {
-    l = String(l).replace(/\[[^\]]*\]/g, "").replace(/\s+/g, " ").trim();
-    if (!l) return;
-    if (!numAssess(l)) l = "Assessment " + (r.length + 1) + ": " + l;
-    r.push(l.replace(/^assessment\s*(\d+)\s*[:.\-–]?\s*/i, function (x, n) { return "Assessment " + n + ": "; }).replace(/:\s*$/, ""));
+  var limpias = lineas.map(function (l) {
+    return String(l).replace(/\[[^\]]*\]/g, "").replace(/target date:.*$/i, "").replace(/\s+/g, " ").trim().replace(/[\s,.;]+$/, "");
+  }).filter(Boolean);
+  var numeradas = limpias.some(numAssess), r = [];
+  limpias.forEach(function (l) {
+    if (!numeradas) l = "Assessment " + (r.length + 1) + ": " + l;
+    r.push(l.replace(/^assessment\s*(\d+(?:\.\d+)?)\s*[:\-–]?\s*/i, function (x, n) { return "Assessment " + n + ": "; }).replace(/:\s*$/, ""));
   });
   return r;
 }
@@ -634,15 +723,16 @@ function delCatalogo(nombreCurso) {
   });
   return mejor;
 }
+function conAlumno(texto, nombre) { return texto.replace(/\{alumno\}/gi, nombre || "").replace(/\s+/g, " ").trim(); }
 /* Agrega los assessments que falten y pone el nombre completo a los que solo dicen "Assessment N". */
-function completarAssessments(c, hasta) {
+function completarAssessments(c, hasta, nombreAlumno) {
   var cat = delCatalogo(c.nombre), lista = [], r = { nuevos: 0, renombrados: 0, cat: cat };
-  if (cat) lista = cat.assessments;
+  if (cat) lista = cat.assessments.map(function (x) { return conAlumno(x, nombreAlumno); });
   else for (var k = 1; k <= hasta; k++) lista.push("Assessment " + k);
   lista.forEach(function (nombre) {
     var n = numAssess(nombre), ya = c.actividades.filter(function (t) { return n ? numAssess(t.nombre) === n : t.nombre === nombre; })[0];
     if (ya) {
-      if (ya.nombre !== nombre && /^\s*assessment\s*\d+\s*$/i.test(ya.nombre)) { ya.nombre = nombre; r.renombrados++; }
+      if (ya.nombre !== nombre && /^\s*assessment\s*[\d.]+\s*$/i.test(ya.nombre)) { ya.nombre = nombre; r.renombrados++; }
     } else {
       c.actividades.push({ id: uid(), nombre: nombre, nota: "", fecha: "", estado: c.tipo === "completado" ? "completada" : "pendiente" });
       r.nuevos++;
@@ -654,21 +744,26 @@ function completarAssessments(c, hasta) {
 /*
  * Lee texto pegado (por ejemplo, copiado del Word o de la página del curso):
  * una línea con el área ("Psicología"), una con el código ("PSYC-FPX3110 ...")
- * y debajo sus "Assessment N: ...". Ignora fechas, intentos y números sueltos.
+ * y debajo sus "Assessment N: ...". Ignora fechas, intentos, estados y números sueltos.
  */
 function leerLista(texto, areaInicial) {
-  var area = areaInicial || "General", res = [], actual = null;
+  var area = areaInicial || "General", res = [], actual = null, pendiente = "";
+  var codigo = /^([A-Za-z]{2,6}[\s-]?FPX[\s-]?\d{3,5}[A-Za-z]?)\b\s*[:\-–]?\s*(.*)$/;
   texto.split(/\r?\n/).forEach(function (l) {
-    l = l.replace(/\[[^\]]*\]/g, "").replace(/\s+/g, " ").trim();
+    l = l.replace(/\[[^\]]*\]/g, "").replace(/target date:.*$/i, "").replace(/\s+/g, " ").trim();
     if (!l) return;
-    var cod = /^([A-Za-z]{2,6}[\s-]?FPX[\s-]?\d{3,5}[A-Za-z]?)\b\s*[:\-–]?\s*(.*)$/.exec(l);
+    var cod = codigo.exec(l);
     if (cod) {
+      // Una línea corta justo antes de un código es el área ("Enfermería").
+      if (pendiente) area = pendiente.charAt(0).toUpperCase() + pendiente.slice(1);
+      pendiente = "";
       actual = { area: area, codigo: cod[1].toUpperCase().replace(/\s+/g, "-").replace(/FPX-/, "FPX"), titulo: cod[2].trim(), assessments: [] };
       res.push(actual); return;
     }
+    pendiente = "";
     if (numAssess(l) && actual) { actual.assessments.push(l); return; }
-    if (/^(target|due|attempt|fecha|intento|score|grade)\b/i.test(l) || /\d/.test(l)) return;
-    if (l.length <= 40) area = l.charAt(0).toUpperCase() + l.slice(1);
+    if (/^(target|due|attempt|fecha|intento|score|grade|not submitted|submitted)\b/i.test(l) || /\d/.test(l)) return;
+    if (l.length <= 40) pendiente = l;
   });
   res.forEach(function (c) { c.assessments = limpiarAssessments(c.assessments); });
   return res;
@@ -703,7 +798,8 @@ function formCatalogo(c) {
     { n: "codigo", t: "Código del curso", v: c.codigo, p: "Ej. NURS-FPX4010" },
     { n: "area", t: "Área (Psicología, Enfermería, Electivo…)", v: c.area, sug: areasCatalogo() },
     { n: "titulo", t: "Nombre del curso (opcional)", v: c.titulo, p: "Ej. Leading People, Processes, and Organizations" },
-    { n: "acts", t: "Assessments, uno por línea", tipo: "area", filas: 7, v: c.assessments.join("\n"), p: "Assessment 1: ...\nAssessment 2: ..." }
+    { n: "acts", t: "Actividades, una por línea", tipo: "area", filas: 8, v: c.assessments.join("\n"), p: "Assessment 1: ...\nAssessment 2: ...",
+      ayuda: "Escribe {alumno} donde va el nombre del alumno (ej. Sentinel: {alumno} SC_CarePlan). Se pone solo al agregar la actividad." }
   ], function (v) {
     if (!v.codigo) return toast("Escribe el código del curso");
     var otro = datos.catalogo.filter(function (x) { return x !== c && normCod(x.codigo) === normCod(v.codigo); })[0];
@@ -806,6 +902,11 @@ var ACCION = {
     var a = alumno(d.al);
     formulario("Editar alumno", [{ n: "nombre", t: "Nombre del alumno", v: a.nombre }], function (v) {
       if (!v.nombre) return toast("Escribe el nombre");
+      // Las actividades que llevan el nombre del alumno (ej. "Sentinel: Ana Ruiz SC_CarePlan") se actualizan también.
+      var viejo = a.nombre;
+      if (viejo !== v.nombre) a.cursos.forEach(function (c) {
+        c.actividades.forEach(function (t) { if (t.nombre.indexOf(viejo) >= 0) t.nombre = t.nombre.split(viejo).join(v.nombre); });
+      });
       a.nombre = v.nombre; listo();
     }, "Borrar alumno", function () {
       confirmar("Se borrará a " + a.nombre + " con todos sus cursos y actividades.", function () {
@@ -840,7 +941,7 @@ var ACCION = {
         if (l) c.actividades.push({ id: uid(), nombre: l, nota: "", fecha: "", estado: v.tipo === "completado" ? "completada" : "pendiente" });
       });
       // Después de las escritas a mano, para no duplicar un "Assessment N" que ya esté.
-      if (v.auto) completarAssessments(c, Math.min(Math.max(parseInt(v.hasta, 10) || 8, 1), 30));
+      if (v.auto) completarAssessments(c, Math.min(Math.max(parseInt(v.hasta, 10) || 8, 1), 30), a.nombre);
       a.cursos.push(c); desplegados[c.id] = true; listo(); revisarAviso(a);
     });
   },
@@ -888,10 +989,10 @@ var ACCION = {
       toast(r.nuevos || r.renombrados ? (r.nuevos ? plural(r.nuevos, "assessment agregado", "assessments agregados") : "") +
         (r.nuevos && r.renombrados ? " · " : "") + (r.renombrados ? plural(r.renombrados, "nombre completado", "nombres completados") : "") : "Ya tiene todos los assessments");
     }
-    if (delCatalogo(c.nombre)) return hecho(completarAssessments(c));
+    if (delCatalogo(c.nombre)) return hecho(completarAssessments(c, 0, a.nombre));
     formulario("Agregar assessments", [
       { n: "hasta", t: "Del Assessment 1 hasta el…", tipo: "number", v: 8, ayuda: "Este curso no está en la base de datos, así que se agregan con nombre genérico. Si lo agregas a la base de datos, este mismo botón les pondrá el nombre completo." }
-    ], function (v) { window.cerrarModal(); hecho(completarAssessments(c, Math.min(Math.max(parseInt(v.hasta, 10) || 8, 1), 30))); }, null, null, "Agregar");
+    ], function (v) { window.cerrarModal(); hecho(completarAssessments(c, Math.min(Math.max(parseInt(v.hasta, 10) || 8, 1), 30), a.nombre)); }, null, null, "Agregar");
   },
   "ir-catalogo": function () { location.hash = "#/catalogo"; },
   "cat-nuevo": function () { formCatalogo(null); },
@@ -1122,6 +1223,7 @@ function zip(archivos) {
   return out;
 }
 
+if (window.catalogoActualizado) guardar();
 syncNativo();
 pintar();
 </script>
